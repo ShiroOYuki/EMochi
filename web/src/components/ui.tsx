@@ -8,7 +8,7 @@ export function Spinner({ className = "" }: { className?: string }) {
 
 const tone: Record<string, string> = {
   done: "bg-ok/20 text-ok", preview_ready: "bg-ok/20 text-ok", review: "bg-warn/20 text-warn",
-  failed: "bg-bad/20 text-bad", draft: "bg-[#383a40] text-mute", pending: "bg-[#383a40] text-mute",
+  failed: "bg-bad/20 text-bad", draft: "bg-panel2 text-mute", pending: "bg-panel2 text-mute",
 };
 
 export function StatusBadge({ status }: { status: ProjectStatus | GroupStatus }) {
@@ -39,8 +39,8 @@ export function Modal({ open, onClose, children, wide }: { open: boolean; onClos
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className={`max-h-[92vh] overflow-auto rounded-xl border border-line bg-panel p-5 ${wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]"}`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#34315a]/45 p-4 backdrop-blur-[2px]" onClick={onClose}>
+      <div className={`max-h-[92vh] overflow-auto rounded-[26px] bg-panel p-6 shadow-2xl ${wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]"}`}
         onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>
   );
@@ -50,8 +50,8 @@ export function Section({ title, step, right, children, dim }: { title: string; 
   return (
     <section className={`card ${dim ? "opacity-50" : ""}`}>
       <div className="mb-3 flex items-center gap-2">
-        {step !== undefined && <span className="flex size-6 items-center justify-center rounded-full bg-sel text-xs font-semibold text-white">{step}</span>}
-        <h2 className="text-sm font-semibold">{title}</h2>
+        {step !== undefined && <span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm text-white shadow-[0_2px_0_#d0921a]">{step}</span>}
+        <h2 className="text-base">{title}</h2>
         <div className="ml-auto">{right}</div>
       </div>
       {children}

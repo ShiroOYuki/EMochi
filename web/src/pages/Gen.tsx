@@ -35,14 +35,14 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
 
   return (
     <div className="flex h-full">
-      <aside className="w-60 shrink-0 overflow-y-auto border-r border-line bg-panel2 p-3">
+      <aside className="w-64 shrink-0 overflow-y-auto p-4">
         <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => setCurrent(null)}>＋ 新增畫風</button>
         <div className="mb-1 px-1 text-xs text-mute">畫風專案</div>
         {list?.projects.length === 0 && <div className="px-1 text-xs text-mute">還沒有專案</div>}
         {list?.projects.map((p) => (
           <button key={p.id} onClick={() => setCurrent(p.id)}
-            className={`mb-1 block w-full rounded-md px-2.5 py-2 text-left transition ${current === p.id ? "bg-sel/25" : "hover:bg-[#2e3035]"}`}>
-            <div className="flex items-center gap-2"><span className="font-semibold">{p.id}</span><span className="truncate text-xs text-mute">{p.name}</span></div>
+            className={`mb-1.5 block w-full rounded-2xl border px-3 py-2.5 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
+            <div className="flex items-center gap-2"><span >{p.id}</span><span className="truncate text-xs text-mute">{p.name}</span></div>
             <div className="mt-1"><StatusBadge status={p.status} /></div>
           </button>
         ))}
@@ -98,11 +98,11 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">{p.id}<span className="ml-2 text-base font-normal text-mute">{p.name || "（未命名）"}</span></h2>
+        <h2 className="text-lg">{p.id}<span className="ml-2 text-base font-normal text-mute">{p.name || "（未命名）"}</span></h2>
         <StatusBadge status={p.status} />
         <ol className="ml-auto flex flex-wrap gap-1 text-xs">
           {steps.map((s, i) => (
-            <li key={s} className={`rounded-full px-2.5 py-1 ${i + 1 < stage ? "bg-ok/15 text-ok" : i + 1 === stage ? "bg-sel text-white" : "bg-panel text-mute"}`}>{i + 1}. {s}</li>
+            <li key={s} className={`rounded-full px-2.5 py-1 ${i + 1 < stage ? "bg-ok/15 text-ok" : i + 1 === stage ? "bg-gold text-white" : "bg-panel text-mute"}`}>{i + 1}. {s}</li>
           ))}
         </ol>
       </div>
@@ -172,7 +172,7 @@ function StyleStep({ p, act }: { p: Project; act: ViewProps["act"] }) {
         </div>
       </div>
       <Modal open={showPrompt} onClose={() => setShowPrompt(false)}>
-        <div className="mb-2 flex items-center"><h3 className="font-semibold">預覽圖的完整 prompt</h3>
+        <div className="mb-2 flex items-center"><h3 >預覽圖的完整 prompt</h3>
           <button className="btn btn-sm ml-auto" onClick={() => navigator.clipboard.writeText(promptText)}>複製</button></div>
         <pre className="whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs leading-relaxed">{promptText}</pre>
       </Modal>
@@ -281,9 +281,9 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
   const [zoom, setZoom] = useState(false);
   const canRegen = (p.status === "review" || p.status === "generating") && (g.status === "done" || g.status === "failed");
   return (
-    <div className="rounded-lg border border-line bg-panel2 p-3">
+    <div className="rounded-2xl border border-line bg-panel2 p-3">
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-semibold">第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}・{g.ids.length} 張</span>
+        <span >第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}，{g.ids.length} 張</span>
         <StatusBadge status={g.status} />{g.status === "running" && <Elapsed since={g.started} />}
         {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
         <div className="ml-auto flex gap-1.5">
@@ -316,7 +316,7 @@ function LogLink({ path, style }: { path: string; style: string }) {
     <>
       <button className="btn btn-sm" onClick={async () => setText((await api.get<{ text: string }>(`/api/projects/${style}/log?path=${encodeURIComponent(path)}`)).text)}>紀錄</button>
       <Modal open={text !== null} onClose={() => setText(null)} wide>
-        <h3 className="mb-2 font-semibold">{path}</h3>
+        <h3 className="mb-2">{path}</h3>
         <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs">{text}</pre>
       </Modal>
     </>

@@ -41,12 +41,12 @@ export default function StickerPicker({ stickers, value, onChange, onAdded, disa
         <button className="btn btn-sm" onClick={() => onChange([])}>清空</button>
         <button className="btn btn-sm" onClick={() => setAdding((v) => !v)}>＋ 新增自訂表情</button>
         <span className="ml-auto text-xs text-mute">
-          已選 {value.length} 張 → 分成 {Math.ceil(value.length / 8)} 組生成（每組最多 8 張）
+          已選 {value.length} 張，會分成 {Math.ceil(value.length / 8)} 組生成（每組最多 8 張）
         </span>
       </div>
 
       {adding && (
-        <div className="mb-4 grid gap-2 rounded-lg border border-line bg-panel2 p-3 sm:grid-cols-2">
+        <div className="mb-4 grid gap-2 rounded-2xl border border-line bg-panel2 p-4 sm:grid-cols-2">
           <div><label className="label">英文名稱（檔名用）</label><input className="input" placeholder="Sleepy Tea" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></div>
           <div><label className="label">中文說明</label><input className="input" placeholder="捧著茶杯打瞌睡" value={form.zh} onChange={(e) => setForm({ ...form, zh: e.target.value })} /></div>
           <div className="sm:col-span-2"><label className="label">英文表情描述（會直接放進 prompt）</label>
@@ -63,15 +63,15 @@ export default function StickerPicker({ stickers, value, onChange, onAdded, disa
           return (
             <div key={g}>
               <div className="mb-1.5 flex items-center gap-2 text-xs text-mute">
-                <span className="font-medium text-text">{g ? `第 ${g} 組` : ""} {GROUP_NAMES[g] ?? ""}</span>
+                <span className="text-text">{g ? `第 ${g} 組` : ""} {GROUP_NAMES[g] ?? ""}</span>
                 <button className="text-acc hover:underline" onClick={() => setMany(items.map((s) => s.id), !all)}>{all ? "取消此組" : "全選此組"}</button>
               </div>
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-8">
                 {items.map((s) => (
                   <label key={s.id} title={s.prompt}
-                    className={`flex cursor-pointer items-start gap-2 rounded-md border px-2 py-1.5 text-xs transition ${sel.has(s.id) ? "border-sel bg-sel/15" : "border-line hover:border-mute"}`}>
-                    <input type="checkbox" className="mt-0.5 accent-[#5865f2]" checked={sel.has(s.id)} onChange={() => toggle(s.id)} />
-                    <span className="min-w-0"><span className="block truncate font-medium">#{s.id} {s.label}</span>
+                    className={`flex cursor-pointer items-start gap-2 rounded-xl border px-2.5 py-2 text-xs transition ${sel.has(s.id) ? "border-pink bg-pink-soft" : "border-line bg-panel hover:border-mute"}`}>
+                    <input type="checkbox" className="chk mt-0.5" checked={sel.has(s.id)} onChange={() => toggle(s.id)} />
+                    <span className="min-w-0"><span className="block truncate">#{s.id} {s.label}</span>
                       <span className="block truncate text-mute">{s.zh}</span></span>
                   </label>
                 ))}

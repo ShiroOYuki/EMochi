@@ -1,29 +1,67 @@
 @import "tailwindcss";
 
+/* 配色取自角色本身：白色狐狸毛、粉紅耳內、藍眼睛、金色麥穗 */
 @theme {
-  --color-bg: #1e1f22;
-  --color-panel: #2b2d31;
-  --color-panel2: #232428;
-  --color-line: #3a3c42;
-  --color-text: #e6e6e6;
-  --color-mute: #9a9ca3;
-  --color-acc: #7aa2ff;
-  --color-sel: #5865f2;
-  --color-ok: #3ba55d;
-  --color-warn: #faa61a;
-  --color-bad: #ed4245;
-  --font-sans: system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif;
+  --color-bg: #eef1fa;        /* 淡藍紫紙色（頁面底） */
+  --color-panel: #ffffff;     /* 白毛（面板、卡片） */
+  --color-panel2: #f5f7fd;    /* 輸入框、次要區塊 */
+  --color-line: #dde2f2;
+  --color-text: #34315a;      /* 深靛藍墨色 */
+  --color-mute: #8a87a8;
+  --color-acc: #5a86f0;       /* 藍眼睛：主要動作 */
+  --color-acc-deep: #3f68cf;
+  --color-sel: #5a86f0;
+  --color-pink: #ff8db3;      /* 耳內粉：勾選、選取 */
+  --color-pink-soft: #fff0f6;
+  --color-gold: #f2b531;      /* 麥穗金：步驟、進度 */
+  --color-ok: #2fb98f;
+  --color-warn: #e9a21c;
+  --color-bad: #f0607a;
+  --font-sans: "Huninn", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 8px 24px -10px rgb(52 49 90 / 0.18);
+  --shadow-gummy: 0 3px 0 var(--color-acc-deep);
 }
 
 html, body, #root { height: 100%; }
-body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); font-size: 14px; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-acc) 45%, transparent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-pink) 35%, transparent); }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-line bg-[#383a40] px-3 py-1.5 text-sm text-text transition hover:border-acc disabled:cursor-not-allowed disabled:opacity-40; }
-  .btn-primary { @apply border-sel bg-sel hover:brightness-110 hover:border-sel; }
-  .btn-sm { @apply px-2 py-0.5 text-xs; }
-  .input { @apply w-full rounded-md border border-line bg-panel2 px-2.5 py-1.5 text-sm text-text outline-none focus:border-acc; }
-  .card { @apply rounded-xl bg-panel p-4; }
-  .label { @apply mb-1 block text-xs font-medium text-mute; }
-  .checker { background: repeating-conic-gradient(#555 0 25%, #444 0 50%) 0 0 / 16px 16px; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full border border-line bg-panel px-4 py-1.5 text-sm text-text transition
+      hover:border-acc hover:text-acc disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-text;
+  }
+  /* 主要按鈕：底部一條深色邊，按下時往下沉，像軟糖 */
+  .btn-primary {
+    @apply border-acc bg-acc text-white hover:border-acc hover:text-white hover:brightness-105 active:translate-y-[2px];
+    box-shadow: var(--shadow-gummy);
+  }
+  .btn-primary:active { box-shadow: 0 1px 0 var(--color-acc-deep); }
+  .btn-primary:disabled { box-shadow: none; }
+  .btn-sm { @apply px-2.5 py-0.5 text-xs; }
+  .input {
+    @apply w-full rounded-xl border border-line bg-panel2 px-3 py-1.5 text-sm text-text outline-none transition
+      placeholder:text-mute/70 focus:border-acc focus:bg-panel disabled:opacity-60;
+  }
+  .card { @apply rounded-[22px] bg-panel p-5; box-shadow: var(--shadow-soft); }
+  .label { @apply mb-1 block text-xs text-mute; }
+  .chk { @apply size-4 accent-[var(--color-pink)]; }
+  .checker { background: repeating-conic-gradient(#e6e9f5 0 25%, #f7f8fd 0 50%) 0 0 / 16px 16px; }
+
+  /* Gallery 貼紙：去背貼圖外圍加白色模切邊＋投影，像一張真的貼紙 */
+  .sticker-img {
+    filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+      drop-shadow(0 5px 6px rgb(52 49 90 / 0.22));
+    transition: transform 0.18s ease;
+  }
+  .sticker-on .sticker-img { transform: translateY(-4px) rotate(-3deg); }
+  @media (prefers-reduced-motion: reduce) { .sticker-img { transition: none; } .sticker-on .sticker-img { transform: none; } }
 }

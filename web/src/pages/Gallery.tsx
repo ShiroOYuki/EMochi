@@ -62,11 +62,11 @@ export default function GalleryPage({ active }: { active: boolean }) {
     const k = keyOf(e), on = sel.has(k);
     return (
       <div key={k} onClick={() => setOpen(i)}
-        className={`relative w-[132px] cursor-pointer rounded-xl border-2 bg-panel p-2 text-center transition ${on ? "border-sel" : "border-transparent hover:border-line"}`}>
-        <input type="checkbox" checked={on} onClick={(ev) => ev.stopPropagation()} onChange={() => toggle(k)}
-          className="absolute left-2 top-2 size-4 accent-[#5865f2]" />
-        <span className="absolute right-2 top-2 rounded-full bg-black/50 px-1.5 text-[11px]">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
-        <img loading="lazy" src={fileUrl(`outputs/${e.it.files.t112 ?? e.it.files.master}`, e.it.mtime)} className="mx-auto mb-1 size-28" />
+        className={`relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center transition ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
+          className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
+        <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
+        <img loading="lazy" src={fileUrl(`outputs/${e.it.files.t112 ?? e.it.files.master}`, e.it.mtime)} className="sticker-img mx-auto mb-1.5 size-28" />
         <div className="truncate text-xs text-mute">{mode === "__all" ? e.s.name || e.s.id : e.it.label}</div>
       </div>
     );
@@ -74,11 +74,11 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
         <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => setMode("__all")}>並排比較（全部版本）</button>
         {styles.map((s) => (
           <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => setMode(s.id)}>
-            {s.id}<span className="text-mute">（{s.items.length}）</span>
+            {s.id}<span className={mode === s.id ? "text-white/75" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
         <select className="input !w-32 !py-1" value={group} onChange={(e) => setGroup(+e.target.value)}>
@@ -101,9 +101,9 @@ export default function GalleryPage({ active }: { active: boolean }) {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);
                 return (
-                  <div key={r.id} className="rounded-xl bg-panel2 p-3">
+                  <div key={r.id} className="rounded-[22px] bg-panel p-3.5 shadow-[var(--shadow-soft)]">
                     <div className="mb-2 flex items-center gap-2 text-sm">
-                      <span className="font-semibold">#{r.id} {it0.label}</span><span className="text-xs text-mute">{it0.zh}</span>
+                      <span>#{r.id} {it0.label}</span><span className="text-xs text-mute">{it0.zh}</span>
                       <button className="btn btn-sm ml-auto" onClick={() => setSel(keys, true)}>全選此組</button>
                       <button className="btn btn-sm" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
@@ -139,15 +139,15 @@ function Preview({ e, on, onToggle, onPrev, onNext }: { e: Entry; on: boolean; o
   );
   return (
     <>
-      <h3 className="mb-3 font-semibold">{e.s.id}・#{e.it.id} {e.it.label}<span className="ml-2 text-sm font-normal text-mute">{e.it.zh}</span></h3>
+      <h3 className="mb-3">{e.s.id} #{e.it.id} {e.it.label}<span className="ml-2 text-sm font-normal text-mute">{e.it.zh}</span></h3>
       <div className="flex flex-wrap items-start gap-5">
         <img src={fileUrl(`outputs/${f.master}`, e.it.mtime)} className="checker size-64 rounded-lg" />
-        <div className="space-y-2">{sizes("bg-[#313338]")}{sizes("bg-white")}<p className="text-xs text-mute">實際尺寸 112 / 56 / 28（Discord 深色、白色背景）</p></div>
+        <div className="space-y-2">{sizes("bg-[#313338]")}{sizes("bg-white border border-line")}<p className="text-xs text-mute">實際尺寸 112 / 56 / 28（Discord 深色、白色背景）</p></div>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <button className="btn" onClick={onPrev}>← 上一張</button>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-[#5865f2]" checked={on} onChange={onToggle} />勾選這張（空白鍵）</label>
-        <button className="btn" onClick={onNext}>下一張 →</button>
+        <button className="btn" onClick={onPrev}>上一張</button>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="chk" checked={on} onChange={onToggle} />勾選這張（空白鍵）</label>
+        <button className="btn" onClick={onNext}>下一張</button>
       </div>
     </>
   );
@@ -188,12 +188,12 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
   };
 
   return (
-    <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-line bg-panel p-4 text-sm">
+    <aside className="m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
       <div>
-        <h3 className="mb-2 font-semibold">勾選清單（JSON）</h3>
+        <h3 className="mb-2">勾選清單（JSON）</h3>
         <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}>
           {list.length === 0 && <option value="">（還沒有存過的清單）</option>}
-          {list.map((x) => <option key={x.file} value={x.file}>{x.created || x.file}・{KIND[x.kind] ?? ""}・{x.count} 張{x.tag ? `・${x.tag}` : ""}</option>)}
+          {list.map((x) => <option key={x.file} value={x.file}>{x.created || x.file}（{KIND[x.kind] ?? "清單"}，{x.count} 張{x.tag ? `，${x.tag}` : ""}）</option>)}
         </select>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button className="btn" disabled={!pick} onClick={async () => apply(await api.get(`/api/gallery/selections/${encodeURIComponent(pick)}`), pick)}>載入勾選</button>
@@ -214,10 +214,10 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
 
       <hr className="border-line" />
       <div>
-        <h3 className="mb-2 font-semibold">匯出（ZIP）</h3>
+        <h3 className="mb-2">匯出（ZIP）</h3>
         {Object.entries(FMT).map(([k, v]) => (
           <label key={k} className="flex items-center gap-2 py-0.5">
-            <input type="checkbox" className="accent-[#5865f2]" checked={fmts.includes(k)} onChange={(e) => setFmts(e.target.checked ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
+            <input type="checkbox" className="chk" checked={fmts.includes(k)} onChange={(e) => setFmts(e.target.checked ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
           </label>
         ))}
         <div className="mt-2 flex items-center gap-2"><span className="shrink-0">版本標記</span>
@@ -227,7 +227,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
           say("exp", "匯出中…");
           try {
             const r = await api.post<{ file: string; count: number }>("/api/gallery/export", { keys: sel, formats: fmts, tag: cleanTag });
-            say("exp", `完成：${r.count} 個檔案 → exports\\${r.file}`); location.href = fileUrl(`exports/${r.file}`); loadList();
+            say("exp", `完成：${r.count} 個檔案，存在 exports\\${r.file}`); location.href = fileUrl(`exports/${r.file}`); loadList();
           } catch (e) { say("exp", `失敗：${(e as Error).message}`); }
         }}>匯出勾選的 {sel.length} 張</button>
         {msg.exp && <p className="mt-1 break-all text-xs text-mute">{msg.exp}</p>}
@@ -235,7 +235,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
 
       <hr className="border-line" />
       <div>
-        <h3 className="mb-2 font-semibold">組合成一張圖</h3>
+        <h3 className="mb-2">組合成一張圖</h3>
         <div className="grid grid-cols-2 gap-2">
           <label className="label">欄數<input className="input mt-1" type="number" min={1} max={32} value={cmb.cols} onChange={(e) => setCmb({ ...cmb, cols: +e.target.value })} /></label>
           <label className="label">格子 px<select className="input mt-1" value={cmb.cell} onChange={(e) => setCmb({ ...cmb, cell: +e.target.value })}>{[56, 112, 128, 256, 512].map((n) => <option key={n}>{n}</option>)}</select></label>
@@ -243,10 +243,10 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
           <label className="label">背景<select className="input mt-1" value={cmb.bg} onChange={(e) => setCmb({ ...cmb, bg: e.target.value })}>
             <option value="transparent">透明</option><option value="dark">Discord 深色</option><option value="light">白色</option></select></label>
         </div>
-        <label className="mt-2 flex items-center gap-2"><input type="checkbox" className="accent-[#5865f2]" checked={cmb.labels} onChange={(e) => setCmb({ ...cmb, labels: e.target.checked })} />顯示名稱</label>
+        <label className="mt-2 flex items-center gap-2"><input type="checkbox" className="chk" checked={cmb.labels} onChange={(e) => setCmb({ ...cmb, labels: e.target.checked })} />顯示名稱</label>
         <button className="btn mt-2 w-full" disabled={!sel.length} onClick={async () => {
           say("cmb", "組合中…");
-          try { const r = await api.post<{ file: string }>("/api/gallery/combine", { keys: sel, ...cmb }); say("cmb", `完成 → exports\\${r.file}`); setSheet(r.file); loadList(); }
+          try { const r = await api.post<{ file: string }>("/api/gallery/combine", { keys: sel, ...cmb }); say("cmb", `完成，存在 exports\\${r.file}`); setSheet(r.file); loadList(); }
           catch (e) { say("cmb", `失敗：${(e as Error).message}`); }
         }}>組合勾選的貼圖</button>
         {msg.cmb && <p className="mt-1 break-all text-xs text-mute">{msg.cmb}</p>}
