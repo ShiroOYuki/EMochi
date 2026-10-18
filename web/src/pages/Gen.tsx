@@ -191,7 +191,7 @@ function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars
       <div className="grid gap-3 md:grid-cols-[1fr_200px_200px]">
         <div><label className="label">你的需求</label>
           <div className="flex gap-2"><input className="input" value={f.request} disabled={!editable} onChange={(e) => setF({ ...f, request: e.target.value })} />
-            <button className="btn shrink-0" disabled={!editable || (!f.request.trim() && !p.ref_paths.style.length)} title="用新的需求（和畫風參考圖）讓 Codex 重寫畫風描述"
+            <button className="btn shrink-0" disabled={!editable || (!f.request.trim() && !p.ref_paths?.style.length)} title="用新的需求（和畫風參考圖）讓 Codex 重寫畫風描述"
               onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/expand`, { request: f.request }))}>重新擴寫</button></div></div>
         <div><label className="label">畫風名稱</label><input className="input" value={f.name} disabled={!editable} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
         <div><label className="label">構圖</label>
@@ -369,21 +369,23 @@ function LogLink({ path, style }: { path: string; style: string }) {
 // 已建立專案的參考圖：每個動作直接存到伺服器
 function ProjectRefs({ p, act, chars, editable }: { p: Project; act: ViewProps["act"]; chars: Character[]; editable: boolean }) {
   const base = `/api/projects/${p.id}`;
-  const temp: TempRef[] = p.refs.temp.map((t) => ({ key: t.file, name: t.file, role: t.role, url: fileUrl(`outputs/${p.id}/refs/${t.file}`) }));
+  const refs = p.refs ?? { character_id: null, character_images: null, temp: [] };
+  const paths = p.ref_paths ?? { character: [], style: [], identity: "" };
+  const temp: TempRef[] = refs.temp.map((t) => ({ key: t.file, name: t.file, role: t.role, url: fileUrl(`outputs/${p.id}/refs/${t.file}`) }));
   const [open, setOpen] = useState(false);
-  const n = p.ref_paths.character.length + p.ref_paths.style.length;
-  const charName = chars.find((c) => c.id === p.refs.character_id)?.name;
+  const n = paths.character.length + paths.style.length;
+  const charName = chars.find((c) => c.id === refs.character_id)?.name;
   return (
     <div className="mt-4 rounded-2xl border border-line bg-panel2/60 p-3">
       <button className="flex w-full items-center gap-2 text-left text-sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span>參考圖</span>
-        <span className="text-xs text-mute">{charName ? `角色：${charName}` : "未指定角色"}・附 {n} 張{p.ref_paths.style.length ? `（含畫風參考 ${p.ref_paths.style.length} 張）` : ""}</span>
+        <span className="text-xs text-mute">{charName ? `角色：${charName}` : "未指定角色"}・附 {n} 張{paths.style.length ? `（含畫風參考 ${paths.style.length} 張）` : ""}</span>
         <span className="ml-auto text-xs text-acc">{open ? "收起" : editable ? "調整" : "查看"}</span>
       </button>
       {open && (
         <div className="mt-3">
-          <RefPicker characters={chars} characterId={p.refs.character_id} characterImages={p.refs.character_images} disabled={!editable}
-            onCharacter={(id, images) => act(() => api.patch<Project>(base, { character_id: id, character_images: id === p.refs.character_id ? images : null }))}
+          <RefPicker characters={chars} characterId={refs.character_id} characterImages={refs.character_images} disabled={!editable}
+            onCharacter={(id, images) => act(() => api.patch<Project>(base, { character_id: id, character_images: id === refs.character_id ? images : null }))}
             temp={temp}
             onAddTemp={async (files) => { const ups = await readFiles(files, "character"); if (ups.length) await act(() => api.post<Project>(`${base}/refs`, ups)); }}
             onTempRole={(file, role) => act(() => api.patch<Project>(`${base}/refs/${encodeURIComponent(file)}`, { role }))}

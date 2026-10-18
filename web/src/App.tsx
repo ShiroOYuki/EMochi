@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
+import { ErrorBoundary } from "./components/ui";
 import GenPage from "./pages/Gen";
 import GalleryPage from "./pages/Gallery";
 import CharactersPage from "./pages/Characters";
@@ -47,9 +48,9 @@ export default function App() {
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
-        <div className={tab === "gen" ? "h-full" : "hidden"}><GenPage onOpenGallery={() => go("gallery")} active={tab === "gen"} /></div>
-        <div className={tab === "characters" ? "h-full" : "hidden"}><CharactersPage active={tab === "characters"} /></div>
-        <div className={tab === "gallery" ? "h-full" : "hidden"}><GalleryPage active={tab === "gallery"} /></div>
+        <div className={tab === "gen" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GenPage onOpenGallery={() => go("gallery")} active={tab === "gen"} /></ErrorBoundary></div>
+        <div className={tab === "characters" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><CharactersPage active={tab === "characters"} /></ErrorBoundary></div>
+        <div className={tab === "gallery" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GalleryPage active={tab === "gallery"} /></ErrorBoundary></div>
       </main>
     </div>
   );

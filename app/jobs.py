@@ -217,6 +217,12 @@ def refs_of(p: dict) -> dict:
             "temp": list(r.get("temp", []))}
 
 
+def view(p: dict) -> dict:
+    """給前端的專案資料：補上整理過的參考圖資訊。所有回傳專案的 API 都要經過這裡，
+    否則前端拿到的欄位會時有時無（之前白畫面就是這樣來的）"""
+    return {**p, "refs": refs_of(p), "ref_paths": ref_paths(p)}
+
+
 def ref_paths(p: dict) -> dict:
     """{"character": [...], "style": [...], "identity": str|None}，路徑相對於專案根目錄（Codex 的 cwd）"""
     r = refs_of(p)

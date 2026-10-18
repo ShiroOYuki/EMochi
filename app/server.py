@@ -73,7 +73,7 @@ def project(style: str):
     p = jobs.load(style)
     if not p:
         raise HTTPException(404, f"找不到專案 {style}")
-    return {**p, "refs": jobs.refs_of(p), "ref_paths": jobs.ref_paths(p)}
+    return jobs.view(p)
 
 
 class Upload(BaseModel):
@@ -104,7 +104,7 @@ class ExpandBody(BaseModel):
 @app.post("/api/projects")
 def create(body: CreateBody):
     try:
-        return jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs))
+        return jobs.view(jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs)))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -112,7 +112,7 @@ def create(body: CreateBody):
 @app.post("/api/projects/{style}/refs")
 def add_refs(style: str, files: list[Upload]):
     try:
-        return jobs.add_temp_refs(style, _decode(files))
+        return jobs.view(jobs.add_temp_refs(style, _decode(files)))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -125,7 +125,7 @@ class RefPatch(BaseModel):
 @app.patch("/api/projects/{style}/refs/{file}")
 def patch_ref(style: str, file: str, body: RefPatch):
     try:
-        return jobs.update_temp_ref(style, file, body.role, body.remove)
+        return jobs.view(jobs.update_temp_ref(style, file, body.role, body.remove))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -186,7 +186,7 @@ def describe_character(cid: str):
 @app.post("/api/projects/{style}/expand")
 def reexpand(style: str, body: ExpandBody):
     try:
-        return jobs.reexpand(style, body.request)
+        return jobs.view(jobs.reexpand(style, body.request))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -194,7 +194,7 @@ def reexpand(style: str, body: ExpandBody):
 @app.patch("/api/projects/{style}")
 def update(style: str, body: dict):
     try:
-        return jobs.update(style, body)
+        return jobs.view(jobs.update(style, body))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -212,7 +212,7 @@ def prompt_preview(style: str):
 @app.post("/api/projects/{style}/preview")
 def preview(style: str):
     try:
-        return jobs.start_preview(style)
+        return jobs.view(jobs.start_preview(style))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -224,7 +224,7 @@ class GenBody(BaseModel):
 @app.post("/api/projects/{style}/generate")
 def generate(style: str, body: GenBody):
     try:
-        return jobs.start_generate(style, body.ids)
+        return jobs.view(jobs.start_generate(style, body.ids))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -232,7 +232,7 @@ def generate(style: str, body: GenBody):
 @app.post("/api/projects/{style}/groups/{index}/regenerate")
 def regenerate(style: str, index: int):
     try:
-        return jobs.regenerate_group(style, index)
+        return jobs.view(jobs.regenerate_group(style, index))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -240,7 +240,7 @@ def regenerate(style: str, index: int):
 @app.post("/api/projects/{style}/finalize")
 def finalize(style: str):
     try:
-        return jobs.start_finalize(style)
+        return jobs.view(jobs.start_finalize(style))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -248,7 +248,7 @@ def finalize(style: str):
 @app.post("/api/projects/{style}/reopen")
 def reopen(style: str):
     try:
-        return jobs.reopen(style)
+        return jobs.view(jobs.reopen(style))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
