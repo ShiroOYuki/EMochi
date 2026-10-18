@@ -237,6 +237,15 @@ def regenerate(style: str, index: int):
         _err(e)
 
 
+@app.post("/api/projects/{style}/recheck/{target}")
+def recheck(style: str, target: str):
+    """target = preview 或組別編號；只重新檢查現有的圖，不會呼叫 Codex"""
+    try:
+        return jobs.view(jobs.recheck(style, target))
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
 @app.post("/api/projects/{style}/finalize")
 def finalize(style: str):
     try:

@@ -238,7 +238,8 @@ function PreviewStep({ p, act, previewIds, byId }: { p: Project; act: ViewProps[
       {pv?.status === "running" ? (
         <div className="flex items-center gap-2 text-mute"><Spinner />Codex 正在生成預覽圖 <Elapsed since={pv.started} />（通常 1～3 分鐘）</div>
       ) : pv?.status === "failed" ? (
-        <p className="text-sm text-bad">預覽失敗：{pv.message}</p>
+        <FailedImage path={pv.image} v={p.updated} message={`預覽失敗：${pv.message}`} className="w-72"
+          onRecheck={() => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/preview`))} />
       ) : pv ? (
         <div className="flex flex-wrap items-start gap-4">
           <img src={fileUrl(pv.image, p.updated)} onClick={() => setZoom(true)} className="w-72 cursor-zoom-in rounded-lg" />
@@ -255,7 +256,7 @@ function PreviewStep({ p, act, previewIds, byId }: { p: Project; act: ViewProps[
           <Modal open={zoom} onClose={() => setZoom(false)}><img src={fileUrl(pv.image, p.updated)} className="w-full rounded-lg" /></Modal>
         </div>
       ) : null}
-      {pv?.status === "failed" && <button className="btn mt-3" onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/preview`))}>重試</button>}
+      {pv?.status === "failed" && <button className="btn mt-3" onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/preview`))}>重新生成預覽</button>}
     </Section>
   );
 }
@@ -343,7 +344,8 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
           <Modal open={zoom} onClose={() => setZoom(false)} wide><img src={fileUrl(g.image, g.finished)} className="w-full rounded-lg" /></Modal>
         </>
       ) : g.status === "failed" ? (
-        <p className="text-sm text-bad">{g.message}</p>
+        <FailedImage path={g.image} v={g.finished} message={g.message} className="w-full"
+          onRecheck={canRegen ? () => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/${g.index}`)) : undefined} />
       ) : (
         <div className="flex aspect-[3/2] items-center justify-center rounded-md bg-panel text-sm text-mute">
           {g.status === "running" ? <span className="flex items-center gap-2"><Spinner />生成中</span> : "排隊中"}
@@ -394,6 +396,25 @@ function ProjectRefs({ p, act, chars, editable }: { p: Project; act: ViewProps["
           {!editable && <p className="mt-2 text-xs text-mute">生成中或已完成時不能改參考圖。</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+/** 檢查沒過的圖：圖還在的話照樣顯示，讓人自己判斷；被誤判時可以「重新檢查」而不用花額度重生 */
+function FailedImage({ path, v, message, className, onRecheck }: {
+  path: string; v?: string; message: string; className: string; onRecheck?: () => void;
+}) {
+  const [exists, setExists] = useState(true);
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-bad">{message}</p>
+      {exists && <>
+        <img src={fileUrl(path, v)} onError={() => setExists(false)} className={`${className} rounded-lg opacity-90 ring-2 ring-bad/40`} />
+        {onRecheck && <div className="flex items-center gap-2 text-xs text-mute">
+          <button className="btn btn-sm" onClick={onRecheck}>圖看起來沒問題？重新檢查</button>
+          <span>不會重新生成，不花額度</span>
+        </div>}
+      </>}
     </div>
   );
 }

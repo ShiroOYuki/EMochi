@@ -429,6 +429,29 @@ def _finalize(style: str) -> None:
         mutate(style, lambda p: p.update(status="review", error=f"後處理失敗：{e}"))
 
 
+def recheck(style: str, target: str) -> dict:
+    """不重新生成，只用目前的檢查規則重新檢查已經存在的圖（例如規則改過、或被誤判失敗）。
+    target = "preview" 或組別編號"""
+    def fn(p):
+        if target == "preview":
+            pv = p.get("preview")
+            if not pv or pv.get("status") != "failed":
+                raise ValueError("預覽圖沒有失敗，不需要重新檢查")
+            ok, msg = codex.check_image(ROOT / pv["image"], None, pv["layout"])
+            pv.update(status="done" if ok else "failed", message=msg)
+            if ok and p["status"] in EDITABLE:
+                p.update(status="preview_ready", error=None)
+            elif not ok:
+                p["error"] = f"預覽失敗：{msg}"
+        else:
+            g = _group(p, int(target))
+            if g["status"] != "failed":
+                raise ValueError("這組沒有失敗，不需要重新檢查")
+            ok, msg = codex.check_image(ROOT / g["image"], None, g["layout"])
+            g.update(status="done" if ok else "failed", message=msg)
+    return mutate(style, fn)
+
+
 def reopen(style: str) -> dict:
     """已完成的專案回到審核階段（例如想再重生某組）"""
     def fn(p):

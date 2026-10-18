@@ -55,30 +55,65 @@ def generation_finished(out_path: Path, started_at: float, log_text: str) -> boo
     return False
 
 
-def check_image(out_path: Path, started_at: float, layout: str) -> tuple[bool, str]:
-    """檔案是這次寫的、比例符合版型、四角是去背用的純色"""
+GRID = {"1x1": (1, 1), "2x2": (2, 2), "4x2": (4, 2)}
+
+
+def background_stats(im, layout: str) -> dict:
+    """量背景：格子之間的走道、外框一圈、全圖，各有多少比例是去背用的純色。
+
+    不再只看四個角：特寫構圖的頭髮本來就會被上緣裁切，上面兩個角常常是頭髮，
+    但只要格子之間的走道是乾淨的純色，切割和去背就沒問題。"""
+    import numpy as np
+    small = im.convert("RGB").resize((512, max(1, round(512 * im.height / im.width))))
+    a = np.asarray(small, dtype=np.int16)
+    h, w, _ = a.shape
+    cols, rows = GRID.get(layout, (1, 1))
+    band, t = max(2, round(min(w, h) * 0.01)), max(2, round(min(w, h) * 0.02))
+    best = None
+    for name, key in KEY_COLORS.items():
+        near = np.sqrt(((a - key) ** 2).sum(-1)) < 80
+        strips = [near[:, round(w * c / cols) - band: round(w * c / cols) + band] for c in range(1, cols)]
+        strips += [near[round(h * r / rows) - band: round(h * r / rows) + band, :] for r in range(1, rows)]
+        ring = np.concatenate([near[:t].ravel(), near[-t:].ravel(), near[:, :t].ravel(), near[:, -t:].ravel()])
+        st = {"key": name, "gutter": float(np.mean([x.mean() for x in strips])) if strips else None,
+              "ring": float(ring.mean()), "all": float(near.mean())}
+        if best is None or st["all"] > best["all"]:
+            best = st
+    return best
+
+
+def background_ok(st: dict) -> tuple[bool, str]:
+    """門檻用 s1～s5 的實際網格（9 張抽樣）校準：正常圖走道 ≥ 0.88、外框 ≥ 0.43；白底、漸層底都在 0.35 以下"""
+    if st["gutter"] is not None:
+        ok = st["gutter"] >= 0.7 and st["ring"] >= 0.25
+        why = f"格子間走道只有 {st['gutter']:.0%} 是純色背景"
+    else:   # 單張沒有走道，看外框
+        ok = st["ring"] >= 0.3 or st["all"] >= 0.2
+        why = f"外框只有 {st['ring']:.0%} 是純色背景"
+    return ok, "" if ok else f"背景不是純綠 / 洋紅（{why}），去背可能失敗"
+
+
+def check_image(out_path: Path, started_at: float | None, layout: str) -> tuple[bool, str]:
+    """檔案是這次寫的（started_at=None 時不檢查）、比例符合版型、背景是去背用的純色"""
     if not out_path.exists():
         return False, "沒有產生檔案"
-    if out_path.stat().st_mtime < started_at - 1:
+    if started_at is not None and out_path.stat().st_mtime < started_at - 1:
         return False, "檔案沒有更新（仍是舊圖）"
     try:
         from PIL import Image
-        im = Image.open(out_path).convert("RGB")
+        im = Image.open(out_path)
+        im.load()
     except Exception as e:
         return False, f"無法開啟圖片：{e}"
     w, h = im.size
-    ratio = w / h
     lo, hi = (1.3, 1.8) if layout == "4x2" else (0.85, 1.18)
-    if not lo <= ratio <= hi:
+    if not lo <= w / h <= hi:
         return False, f"比例 {w}x{h} 不符合 {layout} 版型"
-    pad, box = int(min(w, h) * 0.01), max(4, int(min(w, h) * 0.03))
-    corners = [(pad, pad), (w - pad - box, pad), (pad, h - pad - box), (w - pad - box, h - pad - box)]
-    means = [tuple(sum(c) / len(c) for c in zip(*im.crop((x, y, x + box, y + box)).getdata()))
-             for x, y in corners]
-    for name, key in KEY_COLORS.items():
-        if all(sum((a - b) ** 2 for a, b in zip(m, key)) ** 0.5 < 60 for m in means):
-            return True, f"OK（{w}x{h}，背景 {name}）"
-    return False, "四角不是純綠 / 洋紅背景，去背可能失敗"
+    st = background_stats(im, layout)
+    ok, msg = background_ok(st)
+    if not ok:
+        return False, msg
+    return True, f"OK（{w}x{h}，背景 {st['key']}）"
 
 
 def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout=DEFAULT_TIMEOUT,
