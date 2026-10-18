@@ -29,7 +29,9 @@ CONFIG = ROOT / "config" / "styles.json"
 
 
 def load_config():
-    return json.loads(CONFIG.read_text(encoding="utf-8"))
+    """config/styles.json 是本地資料（不進版控）；沒有的話用 styles.example.json"""
+    path = CONFIG if CONFIG.exists() else CONFIG.with_name("styles.example.json")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def job_for(style, token, scfg):

@@ -11,6 +11,15 @@ exports/*
 logs/
 archive/
 
+# 本地資源（專案、畫風、角色、圖庫）：只留在這台電腦，不進版控
+characters/
+style_lib/
+refs/*
+!refs/.gitkeep
+prompts/*
+!prompts/GUIDE.md
+config/styles.json
+
 # OS
 Thumbs.db
 desktop.ini
