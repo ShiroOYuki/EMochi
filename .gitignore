@@ -1,0 +1,17 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
+# 生成產物（不進版控）
+outputs/*
+!outputs/.gitkeep
+exports/*
+!exports/.gitkeep
+logs/
+archive/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

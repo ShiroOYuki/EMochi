@@ -1,0 +1,17 @@
+[project]
+name = "ai-sticker"
+version = "0.1.0"
+description = "AI 生成 Twitch / Discord 貼圖：Codex $imagegen 生成網格 → 切割去背 → 多尺寸輸出"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=10",
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+rembg = ["rembg"]   # postprocess.py --rembg 才需要
+
+[tool.uv]
+package = false

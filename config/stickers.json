@@ -1,0 +1,37 @@
+[
+  {"id": 1,  "group": 1, "name": "happy",       "label": "Happy",       "zh": "開心燦笑、眼睛彎起、耳朵豎起",       "prompt": "beaming happy smile, eyes curved into happy arcs, ears perked up"},
+  {"id": 2,  "group": 1, "name": "lol",         "label": "LOL",         "zh": "張嘴大笑、笑到流淚",                 "prompt": "laughing hard with mouth wide open, tears of laughter at the eye corners"},
+  {"id": 3,  "group": 1, "name": "cry",         "label": "Cry",         "zh": "傷心哭泣、眼淚滑落、耳朵下垂",       "prompt": "sad crying, tears streaming down the cheeks, ears drooping down"},
+  {"id": 4,  "group": 1, "name": "angry",       "label": "Angry",       "zh": "鼓臉生氣、皺眉、炸毛",               "prompt": "angry with puffed cheeks, furrowed brows, hair and fur bristling, small anger vein mark"},
+  {"id": 5,  "group": 1, "name": "shy",         "label": "Shy",         "zh": "臉紅害羞、視線飄移、摀嘴",           "prompt": "shy and blushing, eyes glancing to the side, one hand covering the mouth"},
+  {"id": 6,  "group": 1, "name": "love",        "label": "Love",        "zh": "愛心眼、臉紅、周圍漂浮愛心",         "prompt": "heart-shaped eyes, blushing cheeks, a few small hearts floating around the head"},
+  {"id": 7,  "group": 1, "name": "sleepy",      "label": "Sleepy",      "zh": "半閉眼睛、打哈欠、Zzz",               "prompt": "half-closed sleepy eyes, yawning, small 'Zzz' floating beside the head"},
+  {"id": 8,  "group": 1, "name": "smug",        "label": "Smug",        "zh": "挑眉壞笑、露出小虎牙",               "prompt": "smug grin with one eyebrow raised, showing a small fang"},
+
+  {"id": 9,  "group": 2, "name": "shock",       "label": "Shock",       "zh": "瞪大眼睛、張嘴震驚",                 "prompt": "shocked, eyes wide open with tiny pupils, mouth open in surprise"},
+  {"id": 10, "group": 2, "name": "huh",         "label": "Huh",         "zh": "歪頭疑惑、挑眉、問號",               "prompt": "head tilted in confusion, one eyebrow raised, a small question mark beside the head"},
+  {"id": 11, "group": 2, "name": "pout",        "label": "Pout",        "zh": "鼓起雙頰、噘嘴、不滿",               "prompt": "pouting with puffed cheeks and pursed lips, displeased look"},
+  {"id": 12, "group": 2, "name": "puppy_eyes",  "label": "Puppy Eyes",  "zh": "水汪汪大眼、委屈、耳朵垂下",         "prompt": "big watery sparkling puppy eyes, pleading and aggrieved, ears drooping"},
+  {"id": 13, "group": 2, "name": "nom",         "label": "Nom",         "zh": "嘴巴塞滿食物、開心咀嚼",             "prompt": "cheeks stuffed full of food, happily chewing, eyes closed contentedly"},
+  {"id": 14, "group": 2, "name": "bonk",        "label": "Bonk",        "zh": "被敲頭、眼冒金星、表情呆滯",         "prompt": "just got bonked on the head, a small bump on the head, dizzy stars circling, dazed blank expression"},
+  {"id": 15, "group": 2, "name": "wink",        "label": "Wink",        "zh": "單眼眨眼、俏皮微笑",                 "prompt": "playful wink with one eye closed, cheeky smile"},
+  {"id": 16, "group": 2, "name": "nervous",     "label": "Nervous",     "zh": "尷尬苦笑、額頭冒汗",                 "prompt": "awkward nervous smile, a big sweat drop on the forehead"},
+
+  {"id": 17, "group": 3, "name": "hi",          "label": "Hi",          "zh": "開心微笑、臉旁揮手",                 "prompt": "cheerful smile, waving one hand beside the face to say hi"},
+  {"id": 18, "group": 3, "name": "bye",         "label": "Bye",         "zh": "眨眼微笑、揮手道別",                 "prompt": "winking smile, waving one hand goodbye"},
+  {"id": 19, "group": 3, "name": "ok",          "label": "OK",          "zh": "自信微笑、比 OK 手勢",               "prompt": "confident smile, making an OK hand sign next to the face"},
+  {"id": 20, "group": 3, "name": "nope",        "label": "Nope",        "zh": "嚴肅拒絕、雙手交叉",                 "prompt": "serious refusing expression, arms crossed in an X shape in front of the chest"},
+  {"id": 21, "group": 3, "name": "hug",         "label": "Hug",         "zh": "開心張開雙手、討抱抱",               "prompt": "happy, both arms stretched open wide asking for a hug"},
+  {"id": 22, "group": 3, "name": "patpat",      "label": "Patpat",      "zh": "閉眼享受摸頭、滿足微笑",             "prompt": "eyes closed enjoying a head pat from a hand coming from above, content smile"},
+  {"id": 23, "group": 3, "name": "thanks",      "label": "Thanks",      "zh": "雙手合十、感激微笑、眼睛閃亮",       "prompt": "hands pressed together in thanks, grateful smile, sparkling eyes"},
+  {"id": 24, "group": 3, "name": "sorry",       "label": "Sorry",       "zh": "愧疚委屈、低頭道歉、眼眶泛淚",       "prompt": "guilty and apologetic, head bowed, eyes teary"},
+
+  {"id": 25, "group": 4, "name": "hype",        "label": "Hype",        "zh": "興奮歡呼、握拳、眼睛閃亮",           "prompt": "hyped and cheering, fists raised, sparkling excited eyes"},
+  {"id": 26, "group": 4, "name": "sus",         "label": "Sus",         "zh": "瞇眼斜視、懷疑的表情",               "prompt": "suspicious, eyes narrowed and looking sideways, doubtful expression"},
+  {"id": 27, "group": 4, "name": "gg",          "label": "GG",          "zh": "眨眼微笑、豎起大拇指",               "prompt": "winking smile, giving a thumbs up"},
+  {"id": 28, "group": 4, "name": "lurk",        "label": "Lurk",        "zh": "躲在邊緣偷看、只露出眼睛和耳朵",     "prompt": "peeking up from the bottom edge of the cell, only the top of the head, eyes and ears visible"},
+  {"id": 29, "group": 4, "name": "awoo",        "label": "Awoo",        "zh": "仰頭張嘴嚎叫、狐狸耳朵豎起",         "prompt": "head tilted back howling with mouth open, fox ears standing straight up"},
+  {"id": 30, "group": 4, "name": "panic",       "label": "Panic",       "zh": "抱頭慌張、眼睛睜大、冒汗",           "prompt": "panicking, both hands holding the head, eyes wide, sweat drops flying"},
+  {"id": 31, "group": 4, "name": "facepalm",    "label": "Facepalm",    "zh": "單手扶額、閉眼無奈",                 "prompt": "facepalm, one hand on the forehead, eyes closed, exasperated"},
+  {"id": 32, "group": 4, "name": "bruh",        "label": "Bruh",        "zh": "死魚眼、面無表情、無語",             "prompt": "dead-fish flat eyes, completely deadpan expressionless face, speechless"}
+]
