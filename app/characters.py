@@ -5,9 +5,9 @@ character.json
   images: [{file, use, source}]   use = 新畫風預設是否附上這張；source = 上傳時的原檔名
   next_index                      下一張圖的流水號
 
-圖片檔名統一為 <角色id>_<兩位數流水號>.png（c2_01.png、c2_02.png…）。
-流水號只增不減：移除 c2_02 之後新上傳的是 c2_03，不會沿用舊號，
-這樣已經記錄「用了 c2_02」的畫風專案不會在不知情下換成另一張圖。
+每個角色的圖片檔名都用同一套：ref_01.png、ref_02.png…（角色靠資料夾區分）。
+流水號只增不減：移除 ref_02 之後新上傳的是 ref_03，不會沿用舊號，
+這樣已經記錄「用了 ref_02」的畫風專案不會在不知情下換成另一張圖。
 """
 import json
 import re
@@ -54,18 +54,27 @@ def _save(c: dict) -> dict:
     return c
 
 
-def _std_re(cid: str) -> re.Pattern:
-    return re.compile(rf"^{re.escape(cid)}_(\d{{2,}})\.png$")
+PREFIX = "ref"
+STD_RE = re.compile(rf"^{PREFIX}_(\d{{2,}})\.png$")
+LEGACY_RE = re.compile(r"^c\d+_(\d{2,})\.png$")   # 前一版的 c2_01.png
 
 
-def _take_name(c: dict) -> str:
-    """發下一個標準檔名（並推進流水號）"""
-    used = [int(m.group(1)) for i in c["images"] if (m := _std_re(c["id"]).match(i["file"]))]
+def std_name(n: int) -> str:
+    return f"{PREFIX}_{n:02d}.png"
+
+
+def _take_name(c: dict, want: int | None = None) -> str:
+    """發下一個標準檔名（並推進流水號）；want = 想沿用的號碼（舊版改名時保留原本的號）"""
+    folder = refs_dir(c["id"])
+    if want is not None and not (folder / std_name(want)).exists():
+        c["next_index"] = max(c.get("next_index", 1), want + 1)
+        return std_name(want)
+    used = [int(m.group(1)) for i in c["images"] if (m := STD_RE.match(i["file"]))]
     n = max([c.get("next_index", 1), *(u + 1 for u in used)])
-    while (refs_dir(c["id"]) / f"{c['id']}_{n:02d}.png").exists():
+    while (folder / std_name(n)).exists():
         n += 1
     c["next_index"] = n + 1
-    return f"{c['id']}_{n:02d}.png"
+    return std_name(n)
 
 
 def _store(c: dict, files: list[tuple[str, bytes]], use: bool = True) -> None:
@@ -146,18 +155,19 @@ def normalize_names() -> dict[str, dict[str, str]]:
     renamed: dict[str, dict[str, str]] = {}
     with _lock:
         for c in list_all():
-            pat, mapping = _std_re(c["id"]), {}
+            mapping = {}
             known = {i["file"] for i in c["images"]}
             # 資料夾裡有、json 沒記錄的圖也收進來（預設不勾）
             for f in sorted(refs_dir(c["id"]).glob("*")):
                 if f.is_file() and f.name not in known and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
                     c["images"].append({"file": f.name, "use": False})
             for i in c["images"]:
-                if pat.match(i["file"]):
+                if STD_RE.match(i["file"]):
                     continue
                 old = i["file"]
                 src = refs_dir(c["id"]) / old
-                new = _take_name(c)
+                legacy = LEGACY_RE.match(old)
+                new = _take_name(c, int(legacy.group(1)) if legacy else None)
                 if src.suffix.lower() == ".png":
                     src.replace(refs_dir(c["id"]) / new)
                 else:   # jpg/webp → 轉 PNG，原檔移到 _removed/

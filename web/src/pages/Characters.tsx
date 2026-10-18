@@ -129,7 +129,7 @@ function CharacterView({ c, act }: { c: Character; act: (fn: () => Promise<Chara
           ))}
           <DropZone className="size-32" onFiles={async (files) => { const u = await readFiles(files); if (u.length) await act(() => api.post<Character>(`${base}/images`, u)); }} />
         </div>
-        <p className="mt-2 text-[11px] text-mute">檔名統一為「角色編號_流水號」（{c.id}_01、{c.id}_02…），流水號不會重複使用；滑過檔名可看原檔名。移除的圖會移到 refs/_removed/，不會真的刪掉。圖片會轉成 PNG、長邊縮到 1536px。</p>
+        <p className="mt-2 text-[11px] text-mute">每個角色的檔名都是 ref_01、ref_02…，流水號不會重複使用；滑過檔名可看原檔名。移除的圖會移到 refs/_removed/，不會真的刪掉。圖片會轉成 PNG、長邊縮到 1536px。</p>
       </Section>
 
       <Section title="角色特徵句"
