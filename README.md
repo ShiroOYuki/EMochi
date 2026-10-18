@@ -1,6 +1,6 @@
-# AI Sticker
+# EMochi
 
-用 Codex CLI 的 `$imagegen` 生成角色貼圖，再自動切割、去背、輸出 Twitch / Discord 需要的尺寸。
+EMochi（Emote ＋ Mochi）：用 Codex CLI 的 `$imagegen` 生成角色貼圖，再自動切割、去背、輸出 Twitch / Discord 需要的尺寸。
 
 - 每套 32 張，分 4 組、每組 8 張（定義在 `config/stickers.json`）
 - 每組生成一張 4×2 網格圖，背景純綠 `#00FF00` 方便去背
@@ -13,7 +13,7 @@
 - [Codex CLI](https://github.com/openai/codex)（使用 ChatGPT Pro 額度），需在 PATH 中
 
 ```cmd
-cd /d D:\CODE\Experimental\AI_Sticker
+cd /d D:\CODE\Experimental\EMochi
 uv sync
 ```
 

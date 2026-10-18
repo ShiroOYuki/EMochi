@@ -1,7 +1,7 @@
 # AI Sticker — 進度交接（2026-10-18）
 
 ## 專案位置與啟動
-- 位置：`D:\CODE\Experimental\AI_Sticker`（git、uv、pyproject.toml）
+- 位置：`D:\CODE\Experimental\EMochi`（git、uv、pyproject.toml）
 - 啟動：`scripts\app.bat`（= `uv run python -m app`），網址 http://127.0.0.1:8765
 - 改後端（app/*.py）要重開伺服器；改前端要在 `web/` 跑 `npm run build`（輸出到 `app/static`），瀏覽器重新整理
 - 回覆一律用繁體中文

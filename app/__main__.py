@@ -18,7 +18,7 @@ def main():
         except AttributeError:
             pass
     url = f"http://127.0.0.1:{a.port}"
-    print(f"AI Sticker 已啟動：{url}（Ctrl+C 結束）")
+    print(f"EMochi 已啟動：{url}（Ctrl+C 結束）")
     if not a.no_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     uvicorn.run("app.server:app", host="127.0.0.1", port=a.port, log_level="warning")

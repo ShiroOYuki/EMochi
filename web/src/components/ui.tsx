@@ -88,7 +88,7 @@ export function DropZone({ onFiles, disabled, children, className = "" }: {
 export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: unknown }, { error: Error | null }> {
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error("[AI Sticker] 畫面錯誤", error, info.componentStack); }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("[EMochi] 畫面錯誤", error, info.componentStack); }
   componentDidUpdate(prev: { resetKey?: unknown }) {
     if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
   }

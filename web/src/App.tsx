@@ -37,7 +37,7 @@ export default function App() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-4 bg-panel px-5 py-3 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)]">
-        <h1 className="flex items-center gap-2 text-lg"><Ears />AI Sticker</h1>
+        <h1 className="flex items-center gap-2 text-lg"><Ears />EMochi</h1>
         <nav className="flex rounded-full bg-panel2 p-1">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => go(t.id)}

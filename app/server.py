@@ -10,7 +10,7 @@ from . import characters, gallery, jobs, prompts, style_lib, trash, usage
 from .images import decode_data_url
 from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, add_sticker, load_stickers, next_style_id, read_json
 
-app = FastAPI(title="AI Sticker")
+app = FastAPI(title="EMochi")
 
 
 @app.on_event("startup")
@@ -503,6 +503,10 @@ if (STATIC / "assets").exists():
 
 @app.get("/{full:path}")
 def spa(full: str):
+    # web/public/ 的檔案（favicon.svg 等）建置後放在 static/ 根目錄
+    f = (STATIC / full).resolve()
+    if full and f.parent == STATIC.resolve() and f.is_file():
+        return FileResponse(f)
     index = STATIC / "index.html"
     if not index.exists():
         return JSONResponse({"error": "前端尚未建置：cd web && npm install && npm run build"}, 500)
