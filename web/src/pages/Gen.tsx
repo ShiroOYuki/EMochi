@@ -1,26 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, BUSY, fileUrl, readFiles, type Character, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
+import { api, BUSY, fileUrl, libCover, libImageUrl, readFiles, type Character, type LibStyle, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
 import { Elapsed, Modal, Section, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
 import RefPicker, { type TempRef } from "../components/RefPicker";
+import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
 
 type ProjectsResp = { projects: ProjectSummary[]; next_id: string; preview_ids: number[]; max_parallel: number };
 
 export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () => void; active: boolean }) {
   const [list, setList] = useState<ProjectsResp | null>(null);
-  const [current, setCurrent] = useState<string | null>(null);   // null = 新增畫風
+  const [current, setCurrent] = useState<string | null>(null);   // null = 新增貼圖
   const [project, setProject] = useState<Project | null>(null);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [err, setErr] = useState("");
-  const [newKey, setNewKey] = useState(0);   // 每按一次「新增畫風」+1，讓表單聚焦並閃一下
+  const [newKey, setNewKey] = useState(0);   // 每按一次「新增貼圖」+1，讓表單聚焦並閃一下
   const [chars, setChars] = useState<Character[]>([]);
   // 切回這頁就重抓角色（可能剛在「角色」分頁新增或改過）
-  useEffect(() => { if (active) api.get<Character[]>("/api/characters").then(setChars).catch(() => {}); }, [active]);
+  const [libs, setLibs] = useState<LibStyle[]>([]);
+  // 切回這頁就重抓角色和畫風庫（可能剛在其他分頁新增或改過）
+  useEffect(() => {
+    if (!active) return;
+    api.get<Character[]>("/api/characters").then(setChars).catch(() => {});
+    api.get<LibStyle[]>("/api/style-lib").then(setLibs).catch(() => {});
+  }, [active]);
 
+  const [trashKey, setTrashKey] = useState(0);   // 刪除後 +1，讓右下角垃圾桶重抓數量
   const loadList = useCallback(async () => setList(await api.get<ProjectsResp>("/api/projects")), []);
   const loadProject = useCallback(async (id: string) => setProject(await api.get<Project>(`/api/projects/${id}`)), []);
 
-  useEffect(() => { loadList(); api.get<Sticker[]>("/api/stickers").then(setStickers); }, [loadList]);
+  useEffect(() => { api.get<Sticker[]>("/api/stickers").then(setStickers); }, []);
+  // 切回這頁就重抓專案清單（可能剛在別的分頁從垃圾桶還原）
+  useEffect(() => { if (active) loadList(); }, [active, loadList]);
   useEffect(() => { setProject(null); setErr(""); if (current) loadProject(current); }, [current, loadProject]);
 
   // 執行中時輪詢
@@ -38,31 +48,60 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
     catch (e) { setErr((e as Error).message); }
   };
 
+  // 刪除專案：側欄垃圾桶圖示、右鍵選單、頁面內容的刪除鈕都走這裡（先跳確認框）
+  const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
+  const askDelete = (p: Pick<ProjectSummary, "id" | "name" | "status">) => setToDelete({
+    id: p.id, title: p.name,
+    warn: p.status === "done" ? "這個專案已完成，它的貼圖也會一起從 Gallery 消失（還原後會回來）。" : undefined,
+  });
+  const doDelete = async (id: string) => {
+    await api.del(`/api/projects/${id}`);
+    if (current === id) setCurrent(null);
+    setTrashKey((k) => k + 1);
+    loadList();
+  };
+  const [menu, openMenu] = useContextMenu();
+  const menuFor = (p: ProjectSummary): MenuItem[] => [
+    { label: "開啟", icon: MenuIcons.open, onSelect: () => setCurrent(p.id) },
+    ...(p.status === "done" ? [{ label: "在 Gallery 查看", icon: MenuIcons.gallery, onSelect: onOpenGallery }] : []),
+    { label: `複製編號 ${p.id}`, icon: MenuIcons.copy, onSelect: () => copyText(p.id) },
+    "sep",
+    { label: "刪除", icon: MenuIcons.trash, danger: true, disabled: BUSY.includes(p.status), hint: BUSY.includes(p.status) ? "執行中不能刪除" : undefined, onSelect: () => askDelete(p) },
+  ];
+
   return (
     <div className="flex h-full">
-      <aside className="w-64 shrink-0 overflow-y-auto p-4">
-        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增畫風</button>
-        <div className="mb-1 px-1 text-xs text-mute">畫風專案</div>
+      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto p-4">
+        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增貼圖</button>
+        <div className="mb-1 px-1 text-xs text-mute">貼圖專案</div>
         {list?.projects.length === 0 && <div className="px-1 text-xs text-mute">還沒有專案，在右邊描述第一個畫風就會出現在這裡</div>}
         {list?.projects.map((p) => (
-          <button key={p.id} onClick={() => setCurrent(p.id)}
-            className={`mb-1.5 block w-full rounded-2xl border px-3 py-2.5 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
-            <div className="flex items-center gap-2"><span >{p.id}</span><span className="truncate text-xs text-mute">{p.name}</span></div>
-            {p.character_id && <div className="mt-0.5 truncate text-[11px] text-mute">角色：{chars.find((c) => c.id === p.character_id)?.name ?? p.character_id}</div>}
-            <div className="mt-1"><StatusBadge status={p.status} /></div>
-          </button>
+          <div key={p.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(p))}>
+            <button onClick={() => setCurrent(p.id)}
+              className={`block w-full rounded-2xl border px-3 py-2.5 pr-9 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
+              <div className="flex items-center gap-2"><span >{p.id}</span><span className="truncate text-xs text-mute">{p.name}</span></div>
+              {p.character_id && <div className="mt-0.5 truncate text-[11px] text-mute">角色：{chars.find((c) => c.id === p.character_id)?.name ?? p.character_id}</div>}
+              <div className="mt-1"><StatusBadge status={p.status} /></div>
+            </button>
+            <SideDeleteIcon onClick={() => askDelete(p)} disabled={BUSY.includes(p.status)} label={`刪除專案 ${p.id}`} shown={current === p.id} />
+          </div>
         ))}
+        {menu}
+        <DeleteConfirm target={toDelete} noun="專案" onConfirm={doDelete} onClose={() => setToDelete(null)} />
         <p className="mt-4 px-1 text-[11px] leading-relaxed text-mute">s1～s5 是在這個工具之前做的，沒有專案紀錄，但都已經在 Gallery 裡。</p>
+        <TrashButton kind="projects" active={active} refreshKey={trashKey}
+          onRestored={(id) => { loadList(); setCurrent(id); }} />
       </aside>
 
       <div className="min-w-0 flex-1 overflow-y-auto p-5">
         <div className="mx-auto max-w-6xl space-y-4">
           {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
           {current === null
-            ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
+            ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} libs={libs} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
             : project
               ? <ProjectView p={project} stickers={stickers} act={act} setStickers={setStickers} chars={chars}
-                  previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery} />
+                  previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery}
+                  onDelete={() => askDelete(project)} />
               : <div className="flex items-center gap-2 text-mute"><Spinner />載入中…</div>}
         </div>
       </div>
@@ -72,10 +111,12 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
 
 // ---------- 0. 新增 ----------
 
-type CreateBody = { request: string; character_id: string | null; character_images: string[] | null; temp_refs: Upload[] };
+type CreateBody = { request: string; character_id: string | null; character_images: string[] | null; temp_refs: Upload[]; style_lib_id: string | null };
 
-function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; onCreate: (b: CreateBody) => void; focusKey: number; chars: Character[] }) {
+function NewProject({ nextId, onCreate, focusKey, chars, libs }: { nextId?: string; onCreate: (b: CreateBody) => void; focusKey: number; chars: Character[]; libs: LibStyle[] }) {
   const [text, setText] = useState("");
+  const [libId, setLibId] = useState<string | null>(null);   // null = 自己描述
+  const lib = libs.find((s) => s.id === libId) ?? null;
   // 角色：預設選第一個（原角色）；undefined = 還沒動過
   const [pick, setPick] = useState<{ id: string | null; images: string[] | null } | undefined>();
   const charSel = pick ?? { id: chars[0]?.id ?? null, images: null };
@@ -87,11 +128,11 @@ function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; on
   const hasStyleRef = temp.some((t) => t.role === "style");
   const submit = () => onCreate({
     request: text, character_id: charSel.id, character_images: charSel.images,
-    temp_refs: temp.map((t) => ({ name: t.name, data: t.data, role: t.role })),
+    temp_refs: temp.map((t) => ({ name: t.name, data: t.data, role: t.role })), style_lib_id: lib?.id ?? null,
   });
   const [flash, setFlash] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
-  // 按「新增畫風」時：聚焦輸入框並短暫亮起，讓人知道表單在這裡（就算本來就在顯示）
+  // 按「新增貼圖」時：聚焦輸入框並短暫亮起，讓人知道表單在這裡（就算本來就在顯示）
   useEffect(() => {
     if (!focusKey) return;
     box.current?.focus();
@@ -102,12 +143,39 @@ function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; on
   }, [focusKey]);
   const examples = ["黏土公仔風，霧面質感、圓潤立體", "美式卡通粗線條，表情誇張，適合迷因", "貼紙風，角色外圍一圈粗白邊", "水彩繪本風，柔和暈染"];
   return (
-    <Section title={`新增畫風${nextId ? `（將建立 ${nextId}）` : ""}`} step={1}>
+    <Section title={`新增貼圖${nextId ? `（將建立 ${nextId}）` : ""}`} step={1}>
+      {libs.length > 0 && (
+        <div className="mb-4">
+          <label className="label">畫風來源</label>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setLibId(null)} aria-pressed={!lib}
+              className={`rounded-full border-2 px-3.5 py-1 text-sm transition ${!lib ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>✏️ 自己描述</button>
+            {libs.map((s) => {
+              const on = s.id === libId, cover = libCover(s), ready = !!s.style_block.trim();
+              return (
+                <button key={s.id} onClick={() => setLibId(s.id)} aria-pressed={on} disabled={!ready} title={ready ? s.notes_zh : "還沒分析，請先到「畫風」分頁讓 Codex 分析"}
+                  className={`flex items-center gap-2 rounded-full border-2 py-1 pr-3.5 pl-1 text-sm transition ${on ? "border-pink bg-pink-soft" : "border-line bg-panel hover:border-acc"} disabled:opacity-50`}>
+                  {cover ? <img src={libImageUrl(s, cover)} className="checker size-8 rounded-full object-cover" alt="" />
+                    : <span className="flex size-8 items-center justify-center rounded-full bg-panel2 text-xs text-mute">?</span>}
+                  {s.name || s.id}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {lib ? (
+        <div className="rounded-2xl bg-panel2 p-3 text-sm">
+          <div className="mb-1">套用畫風庫的「{lib.name || lib.id}」：不用擴寫，直接進入畫風描述（之後仍可修改），勾選的 {lib.images.filter((i) => i.use).length} 張範例圖會當作畫風參考附上。</div>
+          <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap font-mono text-xs text-mute">{lib.style_block}</pre>
+        </div>
+      ) : <>
       <label className="label">用中文描述想要的畫風，Codex 會把它擴寫成英文畫風描述，再套進固定模板（網格、綠幕、角色特徵）</label>
       <textarea ref={box} className={`input h-28 resize-y transition-shadow ${flash ? "border-pink ring-4 ring-pink/30" : ""}`} value={text} onChange={(e) => setText(e.target.value)} placeholder="例如：像日本動畫截圖的賽璐珞上色，陰影硬邊，眼睛有亮點…" />
       <div className="mt-2 flex flex-wrap gap-1.5">
         {examples.map((e) => <button key={e} className="btn btn-sm" onClick={() => setText(e)}>{e}</button>)}
       </div>
+      </>}
       <div className="mt-5 border-t border-line pt-4">
         <h3 className="mb-2 text-sm">參考圖</h3>
         <RefPicker characters={chars} characterId={charSel.id} characterImages={charSel.images}
@@ -117,8 +185,8 @@ function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; on
           onRemoveTemp={(key) => setTemp((t) => t.filter((x) => x.key !== key))} />
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">
-        {!text.trim() && !hasStyleRef && <span className="text-xs text-mute">先寫下想要的畫風、點一個範例，或上傳一張「畫風」參考圖</span>}
-        <button className="btn btn-primary" disabled={!text.trim() && !hasStyleRef} onClick={submit}>交給 Codex 擴寫</button>
+        {!lib && !text.trim() && !hasStyleRef && <span className="text-xs text-mute">先寫下想要的畫風、點一個範例、上傳一張「畫風」參考圖，或從畫風庫挑一個</span>}
+        <button className="btn btn-primary" disabled={!lib && !text.trim() && !hasStyleRef} onClick={submit}>{lib ? "套用這個畫風" : "交給 Codex 擴寫"}</button>
       </div>
     </Section>
   );
@@ -129,10 +197,10 @@ function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; on
 type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
   setStickers: React.Dispatch<React.SetStateAction<Sticker[]>>; previewIds: number[]; maxParallel: number; onOpenGallery: () => void;
-  chars: Character[];
+  chars: Character[]; onDelete: () => void;
 };
 
-function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, onOpenGallery, chars }: ViewProps) {
+function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, onOpenGallery, chars, onDelete }: ViewProps) {
   const stage = { expanding: 1, draft: 1, previewing: 2, preview_ready: 3, generating: 4, review: 4, processing: 5, done: 5 }[p.status];
   const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入 Gallery"];
   const byId = useMemo(() => new Map(stickers.map((s) => [s.id, s])), [stickers]);
@@ -147,6 +215,7 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
             <li key={s} className={`rounded-full px-2.5 py-1 ${i + 1 < stage ? "bg-ok/15 text-ok" : i + 1 === stage ? "bg-gold text-on-gold" : "bg-panel text-mute"}`}>{i + 1}. {s}</li>
           ))}
         </ol>
+        <DeleteButton onClick={onDelete} disabled={BUSY.includes(p.status)} title={BUSY.includes(p.status) ? "執行中不能刪除" : "移到垃圾桶"} />
       </div>
       {p.error && <div className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-sm text-warn">{p.error}</div>}
 
@@ -181,6 +250,16 @@ function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars
   };
   const setFraming = (framing: "closeup" | "whole") =>
     setF({ ...f, framing, square: framing === "closeup" ? 0.5 : null, margin: framing === "closeup" ? 0 : 0.04 });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState("");
+  useEffect(() => { setSaved(null); setSaveErr(""); }, [p.id, p.style_block]);
+  const toLibrary = async () => {
+    setSaving(true); setSaveErr("");
+    try { setSaved((await api.post<LibStyle>(`/api/projects/${p.id}/to-library`)).id); }
+    catch (e) { setSaveErr(`存到畫風庫失敗：${(e as Error).message}`); }
+    finally { setSaving(false); }
+  };
 
   if (p.status === "expanding") {
     return <Section title="描述畫風" step={1}><div className="flex items-center gap-2 text-mute"><Spinner />Codex 正在把「{p.request}」擴寫成畫風描述，大約 30 秒～1 分鐘…</div></Section>;
@@ -206,7 +285,12 @@ function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars
       <ProjectRefs p={p} act={act} chars={chars} editable={editable} />
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-mute">
         <span>後處理：{f.square === null ? "不裁切" : `裁成正方形（上方比例 ${f.square}）`}、留白 {f.margin}</span>
+        {p.style_lib_id && <span>・套用自畫風庫 {p.style_lib_id}</span>}
+        {saveErr && <span className="text-bad">{saveErr}</span>}
         <div className="ml-auto flex gap-2">
+          <button className="btn" disabled={!p.style_block || dirty || saving} onClick={toLibrary}
+            title={dirty ? "先儲存修改" : "把目前的畫風描述和範例圖（預覽圖＋畫風參考圖）存成畫風庫的一筆"}>
+            {saving ? <span className="flex items-center gap-1.5"><Spinner className="size-3" />存入中…</span> : saved ? `已存成 ${saved} ✓` : "存到畫風庫"}</button>
           <button className="btn" disabled={!editable || !dirty} onClick={save}>儲存修改</button>
           <button className="btn btn-primary" disabled={!editable || !f.style_block.trim()}
             onClick={async () => { if (dirty) await save(); await act(() => api.post<Project>(`/api/projects/${p.id}/preview`)); }}>
@@ -238,13 +322,13 @@ function PreviewStep({ p, act, previewIds, byId }: { p: Project; act: ViewProps[
       {pv?.status === "running" ? (
         <div className="flex items-center gap-2 text-mute"><Spinner />Codex 正在生成預覽圖 <Elapsed since={pv.started} />（通常 1～3 分鐘）</div>
       ) : pv?.status === "failed" ? (
-        <FailedImage path={pv.image} v={p.updated} message={`預覽失敗：${pv.message}`} className="w-72"
+        <FailedImage path={pv.image} v={p.updated} message={`預覽失敗：${pv.message}`} className="w-72" tokens={pv.tokens}
           onRecheck={() => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/preview`))} />
       ) : pv ? (
         <div className="flex flex-wrap items-start gap-4">
-          <img src={fileUrl(pv.image, p.updated)} onClick={() => setZoom(true)} className="w-72 cursor-zoom-in rounded-lg" />
+          <img src={fileUrl(pv.image, p.updated)} onClick={() => setZoom(true)} className="w-72 cursor-pointer rounded-lg" />
           <div className="max-w-md space-y-2 text-sm">
-            <p className="text-mute">{pv.message}</p>
+            <p className="flex flex-wrap items-center gap-2 text-mute">{pv.message}<TokenBadge tokens={pv.tokens} /></p>
             {p.status === "preview_ready" && <>
               <p>喜歡這個風格嗎？</p>
               <ul className="list-disc space-y-1 pl-5 text-mute">
@@ -263,24 +347,41 @@ function PreviewStep({ p, act, previewIds, byId }: { p: Project; act: ViewProps[
 
 // ---------- 3. 選擇貼圖 ----------
 
+const LAYOUT_OPTIONS: { id: "3x2" | "4x2w"; label: string; hint: string }[] = [
+  { id: "4x2w", label: "4×2 寬版 2:1（每組 8 張）", hint: "2048×1024，每格 512 正方形，32 張只要 4 組" },
+  { id: "3x2", label: "3×2（每組 6 張）", hint: "1536×1024，每格 512 正方形；2:1 出問題時的備案" },
+];
+
 function PickStep({ p, act, stickers, setStickers, maxParallel }: {
   p: Project; act: ViewProps["act"]; stickers: Sticker[]; setStickers: ViewProps["setStickers"]; maxParallel: number;
 }) {
   const locked = p.status !== "preview_ready";
   const [ids, setIds] = useState<number[]>(p.sticker_ids.length ? p.sticker_ids : stickers.filter((s) => s.group >= 1 && s.group <= 4).map((s) => s.id));
   useEffect(() => { if (p.sticker_ids.length) setIds(p.sticker_ids); }, [p.sticker_ids]);
-  const groups = Math.ceil(ids.length / 8);
+  const [layout, setLayout] = useState<"3x2" | "4x2w">("4x2w");
+  const size = layout === "4x2w" ? 8 : 6;
+  const groups = Math.ceil(ids.length / size);
   return (
     <Section title="確認風格，選擇要生成的貼圖" step={3} dim={locked}>
       {locked && p.groups.length > 0 ? (
         <p className="text-sm text-mute">已送出 {p.sticker_ids.length} 張、{p.groups.length} 組。想換一批表情，可以再開一個新畫風，或沿用描述另建專案。</p>
       ) : (
         <>
-          <StickerPicker stickers={stickers} value={ids} onChange={setIds} onAdded={(s) => setStickers((x) => [...x, s])} />
-          <div className="mt-4 flex items-center justify-end gap-3 text-xs text-mute">
+          <StickerPicker stickers={stickers} value={ids} onChange={setIds} onAdded={(s) => setStickers((x) => [...x, s])} groupSize={size} />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm">網格版型</span>
+            {LAYOUT_OPTIONS.map((o) => (
+              <button key={o.id} onClick={() => setLayout(o.id)} aria-pressed={layout === o.id} title={o.hint}
+                className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${layout === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
+                {o.label}
+              </button>
+            ))}
+            <span className="text-[11px] text-mute">{LAYOUT_OPTIONS.find((o) => o.id === layout)?.hint}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-end gap-3 text-xs text-mute">
             <span>同時最多 {maxParallel} 組，預估 {Math.ceil(groups / maxParallel) * 3} 分鐘左右</span>
             <button className="btn btn-primary" disabled={!ids.length}
-              onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/generate`, { ids }))}>
+              onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/generate`, { ids, layout }))}>
               開始生成 {ids.length} 張（{groups} 組）
             </button>
           </div>
@@ -330,6 +431,7 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
         <span >第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}，{g.ids.length} 張</span>
         <StatusBadge status={g.status} />{g.status === "running" && <Elapsed since={g.started} />}
         {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
+        {g.status !== "running" && <TokenBadge tokens={g.tokens} />}
         <div className="ml-auto flex gap-1.5">
           {g.log && <LogLink path={g.log} style={p.id} />}
           <button className="btn btn-sm" disabled={!canRegen} onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/groups/${g.index}/regenerate`))}>重生</button>
@@ -340,7 +442,7 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
       </div>
       {g.status === "done" ? (
         <>
-          <img src={fileUrl(g.image, g.finished)} onClick={() => setZoom(true)} className="w-full cursor-zoom-in rounded-md" />
+          <img src={fileUrl(g.image, g.finished)} onClick={() => setZoom(true)} className="w-full cursor-pointer rounded-md" />
           <Modal open={zoom} onClose={() => setZoom(false)} wide><img src={fileUrl(g.image, g.finished)} className="w-full rounded-lg" /></Modal>
         </>
       ) : g.status === "failed" ? (
@@ -401,13 +503,13 @@ function ProjectRefs({ p, act, chars, editable }: { p: Project; act: ViewProps["
 }
 
 /** 檢查沒過的圖：圖還在的話照樣顯示，讓人自己判斷；被誤判時可以「重新檢查」而不用花額度重生 */
-function FailedImage({ path, v, message, className, onRecheck }: {
-  path: string; v?: string; message: string; className: string; onRecheck?: () => void;
+function FailedImage({ path, v, message, className, onRecheck, tokens }: {
+  path: string; v?: string; message: string; className: string; onRecheck?: () => void; tokens?: number | null;
 }) {
   const [exists, setExists] = useState(true);
   return (
     <div className="space-y-2">
-      <p className="text-sm text-bad">{message}</p>
+      <p className="flex flex-wrap items-center gap-2 text-sm text-bad">{message}<TokenBadge tokens={tokens} /></p>
       {exists && <>
         <img src={fileUrl(path, v)} onError={() => setExists(false)} className={`${className} rounded-lg opacity-90 ring-2 ring-bad/40`} />
         {onRecheck && <div className="flex items-center gap-2 text-xs text-mute">
@@ -418,3 +520,16 @@ function FailedImage({ path, v, message, className, onRecheck }: {
     </div>
   );
 }
+
+/** 這張圖花了多少 token（放在圖片旁的文字區，不蓋住圖）（從 Codex 紀錄最後的「tokens used」讀出；被中斷的沒有） */
+function TokenBadge({ tokens }: { tokens?: number | null }) {
+  if (tokens == null) return null;
+  const short = tokens >= 1000 ? `${(tokens / 1000).toFixed(tokens >= 100_000 ? 0 : 1)}k` : String(tokens);
+  return (
+    <span title={`這張圖花了 ${tokens.toLocaleString()} tokens`}
+      className="shrink-0 rounded-full bg-panel px-2 py-0.5 text-[11px] text-mute tabular-nums ring-1 ring-line">
+      {short} tokens
+    </span>
+  );
+}
+

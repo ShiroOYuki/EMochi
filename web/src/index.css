@@ -83,6 +83,12 @@ body {
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
 }
+/* Tailwind 4 預設讓按鈕顯示一般箭頭；這裡把所有可點的東西統一改成手指，停用時顯示禁止符號 */
+@layer base {
+  button, [role="button"], a[href], summary, select, label:has(input), label[for],
+  input[type="checkbox"], input[type="radio"], input[type="file"], [onclick] { cursor: pointer; }
+  button:disabled, select:disabled, input:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+}
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-acc) 45%, transparent); outline-offset: 2px; }
 ::selection { background: color-mix(in srgb, var(--color-pink) 35%, transparent); }
 

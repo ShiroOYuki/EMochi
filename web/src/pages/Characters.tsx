@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, charImageUrl, readFiles, type Character, type Upload } from "../api";
+import { api, charImageUrl, readFiles, type Character, type ProjectSummary, type Upload } from "../api";
 import { DropZone, Section, Spinner } from "../components/ui";
+import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
 
 /** 角色庫：每個角色是一個資料夾（characters/<id>/refs/ + character.json） */
 export default function CharactersPage({ active }: { active: boolean }) {
@@ -26,16 +27,43 @@ export default function CharactersPage({ active }: { active: boolean }) {
   };
   const char = list.find((c) => c.id === current) ?? null;
 
+  // 刪除：側欄垃圾桶圖示、右鍵選單、頁面內容的刪除鈕都走這裡（先跳確認框，移到垃圾桶）
+  const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
+  const [trashKey, setTrashKey] = useState(0);
+  const askDelete = async (c: Character) => {
+    // 先查有哪些專案用到這個角色，提醒一下
+    const used = await api.get<{ projects: ProjectSummary[] }>("/api/projects")
+      .then((r) => r.projects.filter((p) => p.character_id === c.id).map((p) => p.id)).catch(() => [] as string[]);
+    setToDelete({
+      id: c.id, title: c.name,
+      warn: used.length ? `${used.join("、")} 用到這個角色；刪除後這些專案重新生成時會找不到角色圖（還原後就恢復）。` : undefined,
+    });
+  };
+  const doDelete = async (id: string) => {
+    await api.del(`/api/characters/${id}`);
+    setTrashKey((k) => k + 1);
+    const l = await load();
+    if (current === id) setCurrent(l[0]?.id ?? null);
+  };
+  const [menu, openMenu] = useContextMenu();
+  const menuFor = (c: Character): MenuItem[] => [
+    { label: "開啟", icon: MenuIcons.open, onSelect: () => setCurrent(c.id) },
+    { label: `複製編號 ${c.id}`, icon: MenuIcons.copy, onSelect: () => copyText(c.id) },
+    "sep",
+    { label: "刪除", icon: MenuIcons.trash, danger: true, onSelect: () => askDelete(c) },
+  ];
+
   return (
     <div className="flex h-full">
-      <aside className="w-64 shrink-0 overflow-y-auto p-4">
+      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto p-4">
         <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增角色</button>
         <div className="mb-1 px-1 text-xs text-mute">角色</div>
         {list.map((c) => {
           const cover = c.images.find((i) => i.use)?.file ?? c.images[0]?.file;
           return (
-            <button key={c.id} onClick={() => setCurrent(c.id)}
-              className={`mb-1.5 flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 text-left transition ${current === c.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
+            <div key={c.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(c))}>
+            <button onClick={() => setCurrent(c.id)}
+              className={`flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-9 text-left transition ${current === c.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
               {cover
                 ? <img src={charImageUrl(c, cover)} className="checker size-10 rounded-xl object-cover" alt="" />
                 : <span className="flex size-10 items-center justify-center rounded-xl bg-panel2 text-mute">?</span>}
@@ -44,8 +72,14 @@ export default function CharactersPage({ active }: { active: boolean }) {
                 <span className="text-[11px] text-mute">{c.id}・{c.images.length} 張圖</span>
               </span>
             </button>
+            <SideDeleteIcon onClick={() => askDelete(c)} label={`刪除角色 ${c.id}`} shown={current === c.id} />
+            </div>
           );
         })}
+        {menu}
+        <DeleteConfirm target={toDelete} noun="角色" onConfirm={doDelete} onClose={() => setToDelete(null)} />
+        <TrashButton kind="characters" active={active} refreshKey={trashKey}
+          onRestored={(id) => { load(); setCurrent(id); }} />
       </aside>
 
       <div className="min-w-0 flex-1 overflow-y-auto p-5">
@@ -53,7 +87,7 @@ export default function CharactersPage({ active }: { active: boolean }) {
           {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
           {current === null || !char
             ? <NewCharacter focusKey={newKey} onCreate={(name, images) => act(() => api.post<Character>("/api/characters", { name, images }))} />
-            : <CharacterView key={char.id} c={char} act={act} />}
+            : <CharacterView key={char.id} c={char} act={act} onRemove={() => askDelete(char)} />}
         </div>
       </div>
     </div>
@@ -93,7 +127,9 @@ function NewCharacter({ onCreate, focusKey }: { onCreate: (name: string, images:
   );
 }
 
-function CharacterView({ c, act }: { c: Character; act: (fn: () => Promise<Character>) => Promise<Character | undefined> }) {
+const EAR_OPTIONS: [boolean | null, string][] = [[true, "有"], [false, "沒有"], [null, "自動判斷"]];
+
+function CharacterView({ c, act, onRemove }: { c: Character; act: (fn: () => Promise<Character>) => Promise<Character | undefined>; onRemove: () => void }) {
   const [f, setF] = useState({ name: c.name, identity: c.identity });
   useEffect(() => setF({ name: c.name, identity: c.identity }), [c.name, c.identity]);
   const dirty = f.name !== c.name || f.identity !== c.identity;
@@ -139,12 +175,26 @@ function CharacterView({ c, act }: { c: Character; act: (fn: () => Promise<Chara
         <label className="label">英文，會放進每個 prompt 的「Character identity」段落，配合參考圖一起鎖住長相（髮色、耳朵、眼睛、飾品在哪一側…）</label>
         <textarea className="input h-28 resize-y font-mono text-xs leading-relaxed" value={f.identity}
           onChange={(e) => setF({ ...f, identity: e.target.value })} placeholder="Character identity to keep: ..." />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm">獸耳</span>
+          {EAR_OPTIONS.map(([v, label]) => {
+            const on = (c.ears ?? null) === v;
+            return (
+              <button key={label} onClick={() => act(() => api.patch<Character>(base, { ears: v }))} aria-pressed={on}
+                className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${on ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
+                {label}
+              </button>
+            );
+          })}
+          <span className="text-[11px] text-mute">沒有獸耳時，表情裡「耳朵豎起、炸毛」之類的描述會換成不提耳朵的版本</span>
+        </div>
         {c.notes_zh && <p className="mt-2 text-xs text-mute">💡 {c.notes_zh}</p>}
         {describing && <p className="mt-2 text-xs text-mute">大約 30 秒～1 分鐘，可以先去別的分頁。</p>}
       </Section>
 
-      <div className="flex justify-end">
-        <button className="btn btn-primary" disabled={!dirty || !f.name.trim()} onClick={() => act(() => api.patch<Character>(base, f))}>儲存修改</button>
+      <div className="flex items-center gap-3">
+        <DeleteButton onClick={onRemove} title="移到垃圾桶" />
+        <button className="btn btn-primary ml-auto" disabled={!dirty || !f.name.trim()} onClick={() => act(() => api.patch<Character>(base, f))}>儲存修改</button>
       </div>
     </>
   );

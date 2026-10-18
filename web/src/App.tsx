@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
+import CodexUsage from "./components/CodexUsage";
 import { ErrorBoundary } from "./components/ui";
 import GenPage from "./pages/Gen";
 import GalleryPage from "./pages/Gallery";
 import CharactersPage from "./pages/Characters";
+import StylesPage from "./pages/Styles";
 
-type Tab = "gen" | "characters" | "gallery";
+type Tab = "gen" | "styles" | "characters" | "gallery";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "gen", label: "Gen 生成" }, { id: "characters", label: "角色" }, { id: "gallery", label: "Gallery 圖庫" },
+  { id: "gen", label: "Gen 生成" }, { id: "styles", label: "畫風" }, { id: "characters", label: "角色" }, { id: "gallery", label: "Gallery 圖庫" },
 ];
 const readTab = (): Tab => TABS.find((t) => location.hash.startsWith(`#/${t.id}`))?.id ?? "gen";
 
@@ -44,11 +46,13 @@ export default function App() {
           </button>
         ))}
         </nav>
-        <ThemeToggle className="ml-auto" />
+        <CodexUsage className="ml-auto" />
+        <ThemeToggle />
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
         <div className={tab === "gen" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GenPage onOpenGallery={() => go("gallery")} active={tab === "gen"} /></ErrorBoundary></div>
+        <div className={tab === "styles" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><StylesPage active={tab === "styles"} /></ErrorBoundary></div>
         <div className={tab === "characters" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><CharactersPage active={tab === "characters"} /></ErrorBoundary></div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GalleryPage active={tab === "gallery"} /></ErrorBoundary></div>
       </main>

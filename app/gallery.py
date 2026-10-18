@@ -8,6 +8,7 @@ import zipfile
 
 from PIL import Image, ImageDraw, ImageFont
 
+from . import characters
 from .paths import EXPORTS, OUTPUTS, load_styles_cfg, read_json, sticker_map
 
 FORMATS = {
@@ -22,6 +23,9 @@ FORMATS = {
 def scan() -> list[dict]:
     meta = sticker_map()
     names = {k: v.get("name", "") for k, v in load_styles_cfg().get("styles", {}).items()}
+    chars = {c["id"]: c["name"] for c in characters.list_all()}
+    # s1～s5 是網頁工具之前做的、沒有 project.json，畫的都是原角色（啟動時被搬成角色庫第一個角色）
+    legacy_char = next(iter(chars), None)
     styles = []
     for master in sorted(OUTPUTS.glob("*/final/master")):
         final = master.parent
@@ -42,8 +46,10 @@ def scan() -> list[dict]:
                           "group": info.get("group") or ((num - 1) // 8 + 1), "files": files,
                           "mtime": int(f.stat().st_mtime)})
         if items:
-            proj = read_json(OUTPUTS / sid / "project.json") or {}
-            styles.append({"id": sid, "name": proj.get("name") or names.get(sid, ""), "items": items})
+            proj = read_json(OUTPUTS / sid / "project.json")
+            cid = ((proj.get("refs") or {}).get("character_id")) if proj else legacy_char
+            styles.append({"id": sid, "name": (proj or {}).get("name") or names.get(sid, ""), "items": items,
+                           "character_id": cid, "character_name": chars.get(cid, "") if cid else ""})
     styles.sort(key=lambda s: (len(s["id"]), s["id"]))
     return styles
 

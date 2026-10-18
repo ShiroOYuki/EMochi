@@ -25,13 +25,24 @@ def file_name(sid: int, name: str, folder: str) -> str:
     return f"{name}.png" if folder == "discord" else f"{sid:02d}_{name}.png"
 
 
+def _bbox(img: Image.Image) -> tuple[int, int, int, int] | None:
+    a = np.asarray(img)[..., 3]
+    ys, xs = np.where(a > 8)
+    return None if len(xs) == 0 else (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+
+
 def cut_cells(grid_path: Path, layout: str, process: dict) -> list[Image.Image | None]:
-    """回傳每一格去背、裁切後的 RGBA（空格回傳 None）"""
+    """回傳每一格去背、裁切後的 RGBA（空格回傳 None）
+
+    特寫（process.square 不是 None）：同一張網格的每一格用「同樣大小」的正方形框去裁，
+    框的邊長＝這張網格裡角色寬度的中位數。之後每張都縮到 512，所以整組貼圖的縮放倍率一致——
+    旁邊多畫了愛心、問號、手的那張，臉不會因為外框變大而被縮小。
+    整顆入鏡（square 是 None）：維持每張各自裁到內容外框。"""
     L = LAYOUTS[layout]
     full = np.array(Image.open(grid_path).convert("RGB"))
     key = pp.detect_key(full)
     H, W = full.shape[:2]
-    out = []
+    cells = []
     for r in range(L["rows"]):
         for c in range(L["cols"]):
             x0, x1 = round(c * W / L["cols"]), round((c + 1) * W / L["cols"])
@@ -39,10 +50,29 @@ def cut_cells(grid_path: Path, layout: str, process: dict) -> list[Image.Image |
             rgba = pp.key_out(full[y0:y1, x0:x1], key, process.get("tol", 70), process.get("soft", 60))
             rgba = pp.choke(rgba, process.get("choke", 1))
             rgba = pp.drop_specks(rgba, process.get("min_blob", 0.0003))
-            img = pp.trim(Image.fromarray(rgba, "RGBA"))
-            if img is not None and process.get("square") is not None:
-                img = pp.square_crop(img, process["square"])
-            out.append(img)
+            cells.append(Image.fromarray(rgba, "RGBA"))
+
+    top_ratio = process.get("square")
+    if top_ratio is None:
+        return [pp.trim(img) for img in cells]
+
+    boxes = [_bbox(img) for img in cells]
+    widths = sorted(b[2] - b[0] for b in boxes if b)
+    if not widths:
+        return [None] * len(cells)
+    cell_w = min(img.width for img in cells)
+    side = min(widths[len(widths) // 2], cell_w)
+    out = []
+    for img, b in zip(cells, boxes):
+        if b is None:
+            out.append(None)
+            continue
+        bx0, by0, bx1, by1 = b
+        left = round((bx0 + bx1) / 2 - side / 2)
+        extra = (by1 - by0) - side
+        # 比框高：依 square（上方比例）分配要裁掉的上下高度；比框矮（例如 lurk 只露半顆頭）：貼齊底部
+        top = by0 + round(extra * min(max(top_ratio, 0), 1)) if extra > 0 else by1 - side
+        out.append(img.crop((left, top, left + side, top + side)))   # 超出格子的部分 PIL 會補透明
     return out
 
 

@@ -55,7 +55,8 @@ def generation_finished(out_path: Path, started_at: float, log_text: str) -> boo
     return False
 
 
-GRID = {"1x1": (1, 1), "2x2": (2, 2), "4x2": (4, 2)}
+GRID = {"1x1": (1, 1), "2x2": (2, 2), "3x2": (3, 2), "4x2": (4, 2), "4x2w": (4, 2)}
+RATIO = {"3x2": (1.3, 1.8), "4x2": (1.3, 1.8), "4x2w": (1.8, 2.25)}   # 其他（方形）：0.85～1.18
 
 
 def background_stats(im, layout: str) -> dict:
@@ -106,7 +107,7 @@ def check_image(out_path: Path, started_at: float | None, layout: str) -> tuple[
     except Exception as e:
         return False, f"無法開啟圖片：{e}"
     w, h = im.size
-    lo, hi = (1.3, 1.8) if layout == "4x2" else (0.85, 1.18)
+    lo, hi = RATIO.get(layout, (0.85, 1.18))
     if not lo <= w / h <= hi:
         return False, f"比例 {w}x{h} 不符合 {layout} 版型"
     st = background_stats(im, layout)

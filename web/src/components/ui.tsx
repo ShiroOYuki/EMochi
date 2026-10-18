@@ -7,7 +7,7 @@ export function Spinner({ className = "" }: { className?: string }) {
 }
 
 const tone: Record<string, string> = {
-  done: "bg-ok/20 text-ok", preview_ready: "bg-ok/20 text-ok", review: "bg-warn/20 text-warn",
+  done: "bg-ok/20 text-ok", preview_ready: "bg-gold/20 text-gold-deep", review: "bg-warn/20 text-warn",
   failed: "bg-bad/20 text-bad", draft: "bg-panel2 text-mute", pending: "bg-panel2 text-mute",
 };
 

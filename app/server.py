@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import characters, gallery, jobs, prompts
+from . import characters, gallery, jobs, prompts, style_lib, trash, usage
 from .images import decode_data_url
 from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, add_sticker, load_stickers, next_style_id, read_json
 
@@ -27,6 +27,11 @@ def _err(e: Exception):
 
 
 # ---------- 共用 ----------
+
+@app.get("/api/codex-usage")
+def codex_usage(refresh: bool = False):
+    return usage.rate_limits(force=refresh)
+
 
 @app.get("/api/stickers")
 def stickers():
@@ -51,7 +56,7 @@ def create_sticker(body: NewSticker):
 def files(path: str):
     """outputs/ 與 exports/ 底下的檔案（圖片、zip、json）"""
     p = (ROOT / path).resolve()
-    bases = (OUTPUTS, EXPORTS, characters.CHAR_DIR)
+    bases = (OUTPUTS, EXPORTS, characters.CHAR_DIR, style_lib.LIB_DIR)
     if not any(base.resolve() in p.parents for base in bases) or not p.is_file():
         raise HTTPException(404)
     headers = {"Cache-Control": "no-store"}
@@ -76,6 +81,47 @@ def project(style: str):
     return jobs.view(p)
 
 
+@app.get("/api/trash/{kind}")
+def trash_list(kind: str):
+    try:
+        return trash.list_items(kind)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/trash/{kind}/{name}/restore")
+def trash_restore(kind: str, name: str):
+    try:
+        return {"id": trash.restore(kind, name)}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/trash/{kind}/{name}")
+def trash_purge(kind: str, name: str):
+    try:
+        return {"deleted": trash.purge(kind, name)}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/trash/{kind}")
+def trash_empty(kind: str):
+    try:
+        return {"deleted": trash.purge(kind, None)}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/projects/{style}")
+def delete_project(style: str):
+    try:
+        jobs.delete(style)
+        return {"ok": True}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
 class Upload(BaseModel):
     """前端用 FileReader 讀成 data URL 傳上來，免裝 python-multipart"""
     name: str = "image.png"
@@ -95,6 +141,7 @@ class CreateBody(BaseModel):
     character_id: str | None = None
     character_images: list[str] | None = None
     temp_refs: list[Upload] = []
+    style_lib_id: str | None = None
 
 
 class ExpandBody(BaseModel):
@@ -104,7 +151,7 @@ class ExpandBody(BaseModel):
 @app.post("/api/projects")
 def create(body: CreateBody):
     try:
-        return jobs.view(jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs)))
+        return jobs.view(jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs), body.style_lib_id))
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -158,6 +205,15 @@ def update_character(cid: str, body: dict):
         _err(e)
 
 
+@app.delete("/api/characters/{cid}")
+def delete_character(cid: str):
+    try:
+        characters.delete(cid)
+        return {"ok": True}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
 @app.post("/api/characters/{cid}/images")
 def add_character_images(cid: str, files: list[Upload]):
     try:
@@ -179,6 +235,110 @@ def describe_character(cid: str):
     """同步等 Codex 看圖（約 30~90 秒）；前端顯示讀取中"""
     try:
         return characters.describe(cid)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+# ---------- 畫風庫 ----------
+
+@app.get("/api/style-lib")
+def list_style_lib():
+    return style_lib.list_all()
+
+
+@app.get("/api/style-lib/importable")
+def style_lib_importable():
+    return style_lib.importable()
+
+
+class NewLibStyle(BaseModel):
+    name: str = ""
+    request: str = ""
+    images: list[Upload] = []
+    analyze: bool = True
+
+
+@app.post("/api/style-lib")
+def create_lib_style(body: NewLibStyle):
+    """建立＋（預設）立刻讓 Codex 分析；分析失敗時畫風仍會留著，回傳裡帶 error"""
+    try:
+        s = style_lib.create(body.name, [(n, d) for n, d, _ in _decode(body.images)], body.request)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+    if not body.analyze:
+        return s
+    try:
+        return style_lib.analyze(s["id"], jobs.style_examples())
+    except Exception as e:  # noqa: BLE001
+        return {**s, "error": f"分析失敗：{e}"}
+
+
+class ImportBody(BaseModel):
+    project: str
+
+
+@app.post("/api/style-lib/import")
+def import_lib_style(body: ImportBody):
+    try:
+        return style_lib.import_project(body.project)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/projects/{style}/to-library")
+def project_to_library(style: str):
+    """把專案目前的畫風存進畫風庫：範例圖＝預覽圖＋專案的畫風參考圖"""
+    p = jobs.load(style)
+    if not p:
+        raise HTTPException(404, f"找不到專案 {style}")
+    try:
+        return style_lib.import_project(style, jobs.ref_paths(p)["style"])
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.patch("/api/style-lib/{sid}")
+def update_lib_style(sid: str, body: dict):
+    try:
+        return style_lib.update(sid, body)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/style-lib/{sid}")
+def delete_lib_style(sid: str):
+    try:
+        style_lib.delete(sid)
+        return {"ok": True}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/style-lib/{sid}/images")
+def add_lib_images(sid: str, files: list[Upload]):
+    try:
+        return style_lib.add_images(sid, [(n, d) for n, d, _ in _decode(files)])
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/style-lib/{sid}/images/{file}")
+def remove_lib_image(sid: str, file: str):
+    try:
+        return style_lib.remove_image(sid, file)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+class AnalyzeBody(BaseModel):
+    request: str | None = None
+
+
+@app.post("/api/style-lib/{sid}/analyze")
+def analyze_lib_style(sid: str, body: AnalyzeBody):
+    """同步等 Codex 看圖（約 30~90 秒）"""
+    try:
+        return style_lib.analyze(sid, jobs.style_examples(), body.request)
     except Exception as e:  # noqa: BLE001
         _err(e)
 
@@ -219,12 +379,13 @@ def preview(style: str):
 
 class GenBody(BaseModel):
     ids: list[int]
+    layout: str = "4x2w"   # 4x2w（2:1 畫布、8 格，預設）或 3x2（3:2 畫布、6 格）
 
 
 @app.post("/api/projects/{style}/generate")
 def generate(style: str, body: GenBody):
     try:
-        return jobs.view(jobs.start_generate(style, body.ids))
+        return jobs.view(jobs.start_generate(style, body.ids, body.layout))
     except Exception as e:  # noqa: BLE001
         _err(e)
 

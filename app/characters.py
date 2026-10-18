@@ -2,6 +2,7 @@
 
 character.json
   id, name, identity（放進 prompt 的英文角色特徵）, notes_zh,
+  ears                            有沒有獸耳（true/false；沒填過就用 guess_ears() 從 identity 猜）
   images: [{file, use, source}]   use = 新畫風預設是否附上這張；source = 上傳時的原檔名
   next_index                      下一張圖的流水號
 
@@ -84,10 +85,32 @@ def _store(c: dict, files: list[tuple[str, bytes]], use: bool = True) -> None:
 
 
 def _new_id() -> str:
+    from .trash import reserved_ids
+    used = reserved_ids("characters")
     n = 1
-    while (CHAR_DIR / f"c{n}").exists():
+    while (CHAR_DIR / f"c{n}").exists() or f"c{n}" in used:
         n += 1
     return f"c{n}"
+
+
+_ANIMAL_EARS = re.compile(r"\b(?<!human )ears\b|\b(?:kemonomimi|nekomimi)\b", re.I)
+
+
+def guess_ears(identity: str) -> bool:
+    """角色還沒設定 ears 時，從英文特徵句猜有沒有獸耳。
+
+    只認完整單字、複數的 "ears"（fox ears、cat ears、white wolf ears…）：
+    - "earrings"、"inner ear"、"ear piercing" 都不算，所以 c2 的 "dangling earrings" 不會誤判
+    - 人類角色的特徵句通常不會特地寫耳朵，有寫多半就是獸耳（"human ears" 例外）
+    拿不準時偏向「沒有」：有耳的角色被判成沒耳只是少了耳朵動作，
+    沒耳的角色被判成有耳則可能真的長出狐耳。
+    """
+    return bool(_ANIMAL_EARS.search(identity or ""))
+
+
+def has_ears(c: dict) -> bool:
+    v = c.get("ears")
+    return guess_ears(c.get("identity", "")) if v is None else bool(v)
 
 
 def ensure_default() -> None:
@@ -97,12 +120,19 @@ def ensure_default() -> None:
     tpl = read_json(CONFIG / "prompt_template.json", {}) or {}
     with _lock:
         cid = _new_id()
-        c = {"id": cid, "name": "白狐（原角色）", "identity": tpl.get("identity", ""), "notes_zh": "",
+        c = {"id": cid, "name": "白狐（原角色）", "identity": tpl.get("identity", ""), "notes_zh": "", "ears": True,
              "images": [], "next_index": 1, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         for name in ("ref.png", "ref_tvd.png"):
             if (REFS / name).exists():
                 _store(c, [(name, (REFS / name).read_bytes())], use=name == "ref.png")
         _save(c)
+
+
+def delete(cid: str) -> None:
+    """整個角色移到垃圾桶 characters/_removed/（見 trash.py）；用到它的專案在還原前會找不到角色圖"""
+    from .trash import move_to_trash
+    with _lock:
+        move_to_trash("characters", cid)
 
 
 def create(name: str, files: list[tuple[str, bytes]]) -> dict:
@@ -123,6 +153,8 @@ def update(cid: str, fields: dict) -> dict:
         for k in ("name", "identity", "notes_zh"):
             if k in fields:
                 c[k] = fields[k]
+        if "ears" in fields:
+            c["ears"] = None if fields["ears"] is None else bool(fields["ears"])
         if "use" in fields:   # {file: bool}
             for i in c["images"]:
                 if i["file"] in fields["use"]:
@@ -232,9 +264,10 @@ def rel_paths(cid: str, files: list[str] | None = None) -> list[str]:
 
 DESCRIBE_SCHEMA = {
     "type": "object", "additionalProperties": False,
-    "required": ["identity", "notes_zh"],
+    "required": ["identity", "ears", "notes_zh"],
     "properties": {
         "identity": {"type": "string"},
+        "ears": {"type": "boolean"},
         "notes_zh": {"type": "string"},
     },
 }
@@ -253,10 +286,12 @@ illustrator must keep to draw this exact character in ANY art style: hair color/
 eye color, skin tone if notable, signature accessories (say which side of the head, from the character's point of view and
 the viewer's), and the key outfit color/neckwear. Max ~45 words, concrete colors, no rendering-style words.
 
+`ears`: true only if the character has animal ears (fox, cat, dog, rabbit…) on the head; plain human ears → false.
+
 `notes_zh`: 繁體中文，一兩句說明你抓到的特徵，以及哪些細節在 28x28 小圖會看不出來。"""
     schema = codex.LOGS / "characters" / f"{cid}_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(DESCRIBE_SCHEMA), encoding="utf-8")
     answer = codex.run_text(prompt, schema, codex.log_path_for("characters", f"{cid}_describe"), images=imgs)
     data = json.loads(answer)
-    return update(cid, {"identity": data["identity"], "notes_zh": data.get("notes_zh", "")})
+    return update(cid, {"identity": data["identity"], "notes_zh": data.get("notes_zh", ""), "ears": data.get("ears")})

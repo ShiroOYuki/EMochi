@@ -5,26 +5,38 @@ export type Sticker = { id: number; group: number; name: string; label: string; 
 export type GroupStatus = "pending" | "running" | "done" | "failed";
 export type Group = {
   index: number; ids: number[]; layout: string; prompt: string; image: string;
-  status: GroupStatus; message: string; attempts: number; log?: string; started?: string; finished?: string;
+  status: GroupStatus; message: string; attempts: number; log?: string; tokens?: number | null; started?: string; finished?: string;
 };
 export type ProjectStatus = "expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done";
 export type Project = {
   id: string; name: string; request: string; style_block: string; framing: "closeup" | "whole";
   process: { square: number | null; margin: number; min_blob: number }; notes_zh: string;
   status: ProjectStatus; error: string | null; created: string; updated: string;
-  preview: null | { image: string; ids: number[]; prompt: string; layout: string; status: GroupStatus; message: string; log?: string; started?: string };
+  preview: null | { image: string; ids: number[]; prompt: string; layout: string; status: GroupStatus; message: string; log?: string; started?: string; tokens?: number | null };
   sticker_ids: number[]; groups: Group[]; finished_ids?: number[];
   refs: ProjectRefs; ref_paths: { character: string[]; style: string[]; identity: string };
+  style_lib_id?: string | null;
 };
 export type RefRole = "character" | "style";
 export type ProjectRefs = { character_id: string | null; character_images: string[] | null; temp: { file: string; role: RefRole }[] };
 
 export type CharImage = { file: string; use: boolean; source?: string };
-export type Character = { id: string; name: string; identity: string; notes_zh: string; images: CharImage[]; created: string; updated: string };
+/** ears：有沒有獸耳；null／沒填 = 由後端從特徵句自動判斷 */
+export type Character = { id: string; name: string; identity: string; notes_zh: string; ears?: boolean | null; images: CharImage[]; created: string; updated: string };
 export const charImageUrl = (c: Character, file: string) => fileUrl(`characters/${c.id}/refs/${file}`, c.updated);
 /** 角色這次要用的圖：selected 是 null 時用角色預設勾選的 */
 export const charUsed = (c: Character, selected: string[] | null) =>
   c.images.filter((i) => (selected === null ? i.use : selected.includes(i.file))).map((i) => i.file);
+
+/** 畫風庫：style_lib/<id>/style.json ＋ refs/；error 只有「建立並分析」失敗時才會帶 */
+export type LibStyle = {
+  id: string; name: string; request: string; style_block: string; framing: "closeup" | "whole";
+  process: { square: number | null; margin: number }; notes_zh: string; images: CharImage[];
+  source_project: string | null; created: string; updated: string; error?: string;
+};
+export const libImageUrl = (s: LibStyle, file: string) => fileUrl(`style_lib/${s.id}/refs/${file}`, s.updated);
+export const libCover = (s: LibStyle) => s.images.find((i) => i.use)?.file ?? s.images[0]?.file;
+export type Importable = { id: string; name: string; image: string | null; imported: boolean; needs_analyze?: boolean };
 
 export type Upload = { name: string; data: string; role?: RefRole };
 /** 瀏覽器端把檔案讀成 data URL（後端再轉成 PNG） */
@@ -38,7 +50,8 @@ export const readFiles = (files: Iterable<File>, role?: RefRole): Promise<Upload
 export type ProjectSummary = Pick<Project, "id" | "name" | "status" | "updated" | "request"> & { character_id: string | null };
 
 export type GalleryItem = { id: number; name: string; label: string; zh: string; group: number; files: Record<string, string>; mtime: number };
-export type GalleryStyle = { id: string; name: string; items: GalleryItem[] };
+/** character_id：null ＝ 沒指定角色（只靠附圖）的畫風 */
+export type GalleryStyle = { id: string; name: string; items: GalleryItem[]; character_id: string | null; character_name: string };
 export type SelectionInfo = { file: string; count: number; created: string; kind: string; tag: string | null };
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -67,4 +80,18 @@ export const BUSY: ProjectStatus[] = ["expanding", "previewing", "generating", "
 export const STATUS_TEXT: Record<ProjectStatus, string> = {
   expanding: "Codex 擴寫中", draft: "草稿", previewing: "預覽生成中", preview_ready: "預覽完成",
   generating: "貼圖生成中", review: "待審核", processing: "後處理中", done: "已完成",
+};
+
+/** Codex 額度（ChatGPT 方案）：primary＝5 小時窗口、secondary＝每週窗口；時間都是 unix 秒 */
+export type RateWindow = { used_percent: number; window_minutes: number | null; resets_at: number | null };
+export type CodexUsage = {
+  available: boolean; primary: RateWindow | null; secondary: RateWindow | null;
+  plan_type: string | null; updated: number | null; now: number; message: string;
+};
+
+/** 垃圾桶（<root>/_removed/）裡的項目；name 是資料夾名 <id>_<刪除時間>；thumb 是可用 fileUrl 顯示的縮圖 */
+export type TrashKind = "projects" | "styles" | "characters";
+export type TrashItem = {
+  name: string; id: string; title: string; status: ProjectStatus | null; removed: string; size: number;
+  thumb: string | null; restorable: boolean;
 };

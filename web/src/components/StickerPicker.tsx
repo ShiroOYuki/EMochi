@@ -4,7 +4,8 @@ import { api, type Sticker } from "../api";
 const GROUP_NAMES: Record<number, string> = { 1: "基礎情緒", 2: "反應表情", 3: "社群互動", 4: "Twitch / 迷因", 0: "自訂" };
 
 /** 從貼圖清單勾選要生成的表情，也可以新增自訂表情 */
-export default function StickerPicker({ stickers, value, onChange, onAdded, disabled }: {
+export default function StickerPicker({ stickers, value, onChange, onAdded, disabled, groupSize = 8 }: {
+  groupSize?: number;
   stickers: Sticker[]; value: number[]; onChange: (ids: number[]) => void; onAdded: (s: Sticker) => void; disabled?: boolean;
 }) {
   const sel = new Set(value);
@@ -41,7 +42,7 @@ export default function StickerPicker({ stickers, value, onChange, onAdded, disa
         <button className="btn btn-sm" onClick={() => onChange([])}>清空</button>
         <button className="btn btn-sm" onClick={() => setAdding((v) => !v)}>＋ 新增自訂表情</button>
         <span className="ml-auto text-xs text-mute">
-          已選 {value.length} 張，會分成 {Math.ceil(value.length / 8)} 組生成（每組最多 8 張）
+          已選 {value.length} 張，會分成 {Math.ceil(value.length / groupSize)} 組生成（每組最多 {groupSize} 張）
         </span>
       </div>
 

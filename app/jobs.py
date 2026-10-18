@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from . import characters, codex, pipeline, prompts
+from . import characters, codex, pipeline, prompts, style_lib, usage
 from .images import move_to_removed, save_png
 from .paths import (OUTPUTS, PROMPTS_DIR, ROOT, load_styles_cfg, next_style_id, read_json,
                     save_styles_cfg, sticker_map, write_json)
@@ -71,6 +71,18 @@ def list_projects() -> list[dict]:
     return sorted(out, key=lambda x: x.get("updated") or "", reverse=True)
 
 
+def delete(style: str) -> None:
+    """刪除專案：移到垃圾桶 outputs/_removed/（見 trash.py）。已完成的專案，貼圖也會一起從 Gallery 消失。執行中不能刪"""
+    from . import trash
+    with _lock(style):
+        p = load(style)
+        if not p:
+            raise KeyError(style)
+        if p.get("status") in BUSY:
+            raise ValueError("專案正在執行中，等它結束再刪除")
+        trash.move_to_trash("projects", style)
+
+
 def recover_interrupted() -> None:
     """伺服器重啟時，把還停在「執行中」的專案標記為中斷"""
     for f in OUTPUTS.glob("*/project.json"):
@@ -108,11 +120,18 @@ def save_prompt_file(style: str, name: str, text: str) -> None:
 # ---------- 1. 建立專案＋用 Codex 擴寫需求 ----------
 
 def create(request: str, character_id: str | None = None, character_images: list[str] | None = None,
-           temp: list[tuple[str, bytes, str]] | None = None) -> dict:
-    """temp = [(檔名, 圖片 bytes, role)]，role 是 "character" 或 "style"""
+           temp: list[tuple[str, bytes, str]] | None = None, style_lib_id: str | None = None) -> dict:
+    """temp = [(檔名, 圖片 bytes, role)]，role 是 "character" 或 "style"
+
+    style_lib_id：直接套用畫風庫的畫風 → 不擴寫，描述照抄、勾選的範例圖當畫風參考圖，直接進入 draft"""
     if character_id and not characters.get(character_id):
         raise KeyError(f"角色 {character_id}")
-    if not request.strip() and not any(_role(r) == "style" for _, _, r in temp or []):
+    lib = style_lib.get(style_lib_id) if style_lib_id else None
+    if style_lib_id and not lib:
+        raise KeyError(f"畫風庫 {style_lib_id}")
+    if lib and not lib.get("style_block", "").strip():
+        raise ValueError("這個畫風還沒有描述，請先到「畫風」分頁讓 Codex 分析")
+    if not lib and not request.strip() and not any(_role(r) == "style" for _, _, r in temp or []):
         raise ValueError("請描述想要的畫風，或上傳畫風參考圖")
     style = next_style_id()
     p = {"id": style, "name": "", "request": request.strip(), "style_block": "", "framing": "closeup",
@@ -120,11 +139,19 @@ def create(request: str, character_id: str | None = None, character_images: list
          "refs": {"character_id": character_id, "character_images": character_images, "temp": []},
          "status": "expanding", "error": None, "created": now(),
          "preview": None, "sticker_ids": [], "groups": []}
+    if lib:
+        p.update(name=lib["name"], request=lib.get("request", ""), style_block=lib["style_block"],
+                 framing=lib["framing"], notes_zh=lib.get("notes_zh", ""), status="draft", style_lib_id=lib["id"])
+        p["process"].update(square=lib["process"].get("square"), margin=lib["process"].get("margin", 0))
+        # 檔名加上畫風庫 id（st1_ref_01.png），在專案參考圖裡和角色圖分得出來
+        temp = [*((f"{lib['id']}_{Path(r).name}", (ROOT / r).read_bytes(), "style") for r in style_lib.rel_paths(lib["id"])),
+                *(temp or [])]
     for name, raw, role in temp or []:
         p["refs"]["temp"].append({"file": save_png(raw, temp_dir(style), name), "role": _role(role)})
     with _lock(style):
         save(p)
-    _pool.submit(_expand, style)
+    if not lib:
+        _pool.submit(_expand, style)
     return p
 
 
@@ -138,7 +165,7 @@ def reexpand(style: str, request: str) -> dict:
     return p
 
 
-def _style_examples() -> list[str]:
+def style_examples() -> list[str]:
     """拿既有畫風的描述當範例，讓 Codex 寫出同樣格式"""
     ex = []
     for s in ("s5", "s4"):
@@ -158,7 +185,7 @@ def _expand(style: str) -> None:
         schema.parent.mkdir(parents=True, exist_ok=True)
         prompts.write_schema(schema)
         style_refs = ref_paths(p)["style"]
-        answer = codex.run_text(prompts.expand_request_prompt(p["request"], _style_examples(), style_refs),
+        answer = codex.run_text(prompts.expand_request_prompt(p["request"], style_examples(), style_refs),
                                 schema, codex.log_path_for(style, "expand"), images=style_refs)
         data = json.loads(answer)
 
@@ -220,21 +247,32 @@ def refs_of(p: dict) -> dict:
 def view(p: dict) -> dict:
     """給前端的專案資料：補上整理過的參考圖資訊。所有回傳專案的 API 都要經過這裡，
     否則前端拿到的欄位會時有時無（之前白畫面就是這樣來的）"""
-    return {**p, "refs": refs_of(p), "ref_paths": ref_paths(p)}
+    out = {**p, "refs": refs_of(p), "ref_paths": ref_paths(p)}
+    if p.get("preview"):
+        out["preview"] = _with_tokens(p["preview"])
+    out["groups"] = [_with_tokens(g) for g in p.get("groups") or []]
+    return out
+
+
+def _with_tokens(item: dict) -> dict:
+    """從這張圖的 Codex 紀錄讀出花了多少 token（重生後 log 會換成新的那次）"""
+    log = item.get("log")
+    return {**item, "tokens": usage.tokens_from_log(ROOT / log) if log else None}
 
 
 def ref_paths(p: dict) -> dict:
     """{"character": [...], "style": [...], "identity": str|None}，路徑相對於專案根目錄（Codex 的 cwd）"""
     r = refs_of(p)
-    char, identity = [], ""   # 角色特徵句只來自角色庫；沒選角色就靠附圖，不塞原角色的特徵
+    char, identity, ears = [], "", True   # 角色特徵句只來自角色庫；沒選角色就靠附圖，不塞原角色的特徵
     if r["character_id"]:
         char = characters.rel_paths(r["character_id"], r["character_images"])
-        identity = (characters.get(r["character_id"]) or {}).get("identity", "")
+        c = characters.get(r["character_id"]) or {}
+        identity, ears = c.get("identity", ""), characters.has_ears(c)
     tmp = {"character": [], "style": []}
     for t in r["temp"]:
         if (temp_dir(p["id"]) / t["file"]).exists():
             tmp[_role(t["role"])].append(rel(temp_dir(p["id"]) / t["file"]))
-    return {"character": char + tmp["character"], "style": tmp["style"], "identity": identity}
+    return {"character": char + tmp["character"], "style": tmp["style"], "identity": identity, "ears": ears}
 
 
 def add_temp_refs(style: str, files: list[tuple[str, bytes, str]]) -> dict:
@@ -266,9 +304,11 @@ def update_temp_ref(style: str, file: str, role: str | None = None, remove: bool
 
 # ---------- prompt 組裝 ----------
 
-def cells_for(ids: list[int]) -> list[str]:
+def cells_for(ids: list[int], ears: bool = True) -> list[str]:
+    """沒有獸耳的角色：有 prompt_no_ears 的表情改用那句（耳朵豎起、炸毛之類的描述會讓 Codex 長出耳朵）"""
     meta = sticker_map()
-    return [meta[i]["prompt"] for i in ids if i in meta]
+    return [(meta[i]["prompt"] if ears else meta[i].get("prompt_no_ears") or meta[i]["prompt"])
+            for i in ids if i in meta]
 
 
 def preview_prompt(p: dict) -> tuple[str, list[int], str, list[str]]:
@@ -276,20 +316,20 @@ def preview_prompt(p: dict) -> tuple[str, list[int], str, list[str]]:
     ids = prompts.template().get("preview_ids", [1, 3, 4, 9])
     out = f"outputs/{p['id']}/grids/{p['id']}_preview.png"
     rp = ref_paths(p)
-    text = prompts.build_prompt(style_block=p["style_block"], framing=p["framing"], cells=cells_for(ids),
-                                output=out, identity=rp["identity"],
-                                ref_line=prompts.ref_line(character=rp["character"], style=rp["style"]))
-    return text, ids, out, rp["character"] + rp["style"]
+    text = prompts.build_prompt(style_block=p["style_block"], framing=p["framing"], cells=cells_for(ids, rp["ears"]),
+                                output=out, identity=rp["identity"], ears=rp["ears"],
+                                ref_line=prompts.ref_line(character=rp["character"], style=rp["style"], ears=rp["ears"]))
+    return text, ids, out, rp["style"] + rp["character"]   # 畫風圖排前面（順序和 ref_line 的說明一致）
 
 
-def group_prompt(p: dict, index: int, ids: list[int]) -> tuple[str, str, list[str]]:
+def group_prompt(p: dict, index: int, ids: list[int], layout: str | None = None) -> tuple[str, str, list[str]]:
     out = f"outputs/{p['id']}/grids/{p['id']}_group{index}.png"
     rp = ref_paths(p)
     pv = p["preview"]["image"]
     # 批次時有了核准樣張，畫風參考圖就不再附：樣張已經是「畫風＋這個角色」的答案，多給反而會拉偏
-    text = prompts.build_prompt(style_block=p["style_block"], framing=p["framing"], cells=cells_for(ids),
-                                output=out, identity=rp["identity"],
-                                ref_line=prompts.ref_line(character=rp["character"], style=[], preview=pv))
+    text = prompts.build_prompt(style_block=p["style_block"], framing=p["framing"], cells=cells_for(ids, rp["ears"]),
+                                output=out, identity=rp["identity"], ears=rp["ears"], layout=layout,
+                                ref_line=prompts.ref_line(character=rp["character"], style=[], preview=pv, ears=rp["ears"]))
     return text, out, rp["character"] + [pv]
 
 
@@ -330,7 +370,9 @@ def _run_preview(style: str) -> None:
 
 # ---------- 3. 確認風格 → 批次生成 ----------
 
-def start_generate(style: str, ids: list[int]) -> dict:
+def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
+    if layout not in prompts.GROUP_LAYOUTS:
+        raise ValueError(f"不支援的版型 {layout}")
     meta = sticker_map()
     ids = [i for i in dict.fromkeys(ids) if i in meta]
     if not ids:
@@ -340,11 +382,12 @@ def start_generate(style: str, ids: list[int]) -> dict:
         if p["status"] != "preview_ready":
             raise ValueError("請先產生並確認風格預覽圖")
         groups = []
-        for n, chunk in enumerate(prompts.chunk(ids), 1):
-            text, out, refs = group_prompt(p, n, chunk)
-            groups.append({"index": n, "ids": chunk, "layout": prompts.layout_for(len(chunk)),
+        for n, chunk in enumerate(prompts.chunk(ids, prompts.GROUP_LAYOUTS[layout]), 1):
+            lay = prompts.layout_for_group(len(chunk), layout)
+            text, out, refs = group_prompt(p, n, chunk, lay)
+            groups.append({"index": n, "ids": chunk, "layout": lay,
                            "prompt": text, "refs": refs, "image": out, "status": "pending", "message": "", "attempts": 0})
-        p.update(sticker_ids=ids, groups=groups, status="generating", error=None)
+        p.update(sticker_ids=ids, groups=groups, group_layout=layout, status="generating", error=None)
     p = mutate(style, fn)
     for g in p["groups"]:
         _pool.submit(_run_group, style, g["index"])

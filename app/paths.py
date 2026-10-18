@@ -66,7 +66,13 @@ def add_sticker(label: str, zh: str, prompt: str, align: str | None = None) -> d
 # ---------- 畫風設定 ----------
 
 def load_styles_cfg() -> dict:
-    return read_json(CONFIG / "styles.json", {"codex": {"args": []}, "styles": {}})
+    """config/styles.json 是本地資料（不進版控）；還沒有的話用 styles.example.json 當起點"""
+    cfg = read_json(CONFIG / "styles.json")
+    if cfg is None:
+        cfg = read_json(CONFIG / "styles.example.json", {}) or {}
+        cfg.setdefault("codex", {"args": ["exec", "--skip-git-repo-check", "-s", "workspace-write"]})
+        cfg.setdefault("styles", {})
+    return cfg
 
 
 def save_styles_cfg(cfg: dict) -> None:
@@ -76,6 +82,9 @@ def save_styles_cfg(cfg: dict) -> None:
 def next_style_id() -> str:
     used = {p.name for p in OUTPUTS.iterdir() if p.is_dir()} if OUTPUTS.exists() else set()
     used |= set(load_styles_cfg().get("styles", {}))
+    # 垃圾桶裡的、永久刪除過的編號都不重用，免得和舊的 logs/、prompts/ 混在一起
+    from .trash import reserved_ids
+    used |= reserved_ids("projects")
     n = 1
     while f"s{n}" in used:
         n += 1

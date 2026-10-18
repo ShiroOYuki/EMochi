@@ -16,8 +16,27 @@ function useStored<T>(key: string, init: T) {
 }
 
 export default function GalleryPage({ active }: { active: boolean }) {
-  const [styles, setStyles] = useState<GalleryStyle[]>([]);
+  const [allStyles, setStyles] = useState<GalleryStyle[]>([]);
   const [mode, setMode] = useStored<string>("gallery.mode", "__all");
+  // 角色過濾：__all ＝ 全部；__none ＝ 沒指定角色的畫風；其他 ＝ 角色 id
+  const [charF, setCharF] = useStored<string>("gallery.char", "__all");
+  const charOpts = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; n: number }>();
+    for (const s of allStyles) {
+      const id = s.character_id ?? "__none";
+      const o = m.get(id) ?? { id, name: s.character_id ? s.character_name || s.character_id : "未指定角色", n: 0 };
+      o.n += 1;
+      m.set(id, o);
+    }
+    return [...m.values()];
+  }, [allStyles]);
+  const styles = useMemo(
+    () => (charF === "__all" ? allStyles : allStyles.filter((s) => (s.character_id ?? "__none") === charF)),
+    [allStyles, charF]);
+  // 換了角色、原本選的畫風不在清單裡 → 回到並排比較
+  useEffect(() => {
+    if (mode !== "__all" && allStyles.length && !styles.some((s) => s.id === mode)) setMode("__all");
+  }, [styles, allStyles.length, mode, setMode]);
   const [group, setGroup] = useState(0);
   const [selArr, setSelArr] = useStored<string[]>("gallery.sel", []);
   const sel = useMemo(() => new Set(selArr), [selArr]);
@@ -74,6 +93,17 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full flex-col">
+      {charOpts.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+          <span className="text-sm text-mute">角色</span>
+          {[{ id: "__all", name: "全部", n: allStyles.length }, ...charOpts].map((o) => (
+            <button key={o.id} onClick={() => setCharF(o.id)} aria-pressed={charF === o.id}
+              className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${charF === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
+              {o.name}<span className="ml-1 opacity-70">{o.n} 套</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3">
         <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => setMode("__all")}>並排比較（全部版本）</button>
         {styles.map((s) => (
@@ -94,7 +124,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto p-4">
-          {styles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
+          {allStyles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
           {rows ? (
             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
               {rows.map((r) => {
@@ -116,7 +146,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
             <div className="flex flex-wrap gap-2.5">{view.map(card)}</div>
           )}
         </div>
-        <SidePanel sel={selArr} setSel={setSelArr} styles={styles} />
+        <SidePanel sel={selArr} setSel={setSelArr} styles={allStyles} />
       </div>
 
       <Modal open={open !== null && !!view[open]} onClose={() => setOpen(null)}>
