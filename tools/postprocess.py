@@ -315,4 +315,9 @@ def main():
 
 
 if __name__ == "__main__":
+    for _st in (sys.stdout, sys.stderr):  # Windows cp950 印不出 ✓
+        try:
+            _st.reconfigure(encoding="utf-8", errors="replace")
+        except AttributeError:
+            pass
     main()

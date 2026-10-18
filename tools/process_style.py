@@ -20,8 +20,9 @@ from postprocess import checker  # noqa: E402
 
 
 def run(args):
+    env = {**os.environ, "PYTHONUTF8": "1"}  # 子程序也用 UTF-8，避免 cp950 印不出 ✓
     subprocess.run([sys.executable, str(TOOLS / "postprocess.py"), *args], check=True,
-                   stdout=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, env=env)
 
 
 def load_process_cfg(style):
@@ -31,6 +32,15 @@ def load_process_cfg(style):
         return cfg["styles"][style].get("process", {})
     except (OSError, KeyError, ValueError):
         return {}
+
+
+def _utf8_console():
+    """Windows cmd 預設 cp950，避免中文訊息變亂碼或 UnicodeEncodeError"""
+    for st in (sys.stdout, sys.stderr):
+        try:
+            st.reconfigure(encoding="utf-8", errors="replace")
+        except AttributeError:
+            pass
 
 
 def main():
@@ -93,4 +103,5 @@ def main():
 
 
 if __name__ == "__main__":
+    _utf8_console()
     main()

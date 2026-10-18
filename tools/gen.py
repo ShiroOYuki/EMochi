@@ -66,16 +66,41 @@ def backup_existing(job):
         return dst
 
 
-def check_result(out_path: Path, started_at: float) -> bool:
-    """判斷 Codex 這次是否真的產出了可用的網格圖。
+KEY_COLORS = {"#00FF00": (0, 255, 0), "#FF00FF": (255, 0, 255)}  # postprocess.py --key auto 支援的背景色
 
-    目前只檢查「檔案存在且是這次執行後才寫入的」。
-    TODO(Ciel)：這裡可以加強驗證，例如
-      - 用 PIL 開檔，確認是橫式（寬 > 高，接近 3:2）
-      - 抽樣四角像素，確認背景是 #00FF00（去背才會準）
-    驗證失敗時回傳 False，main() 會停在第 1 組不浪費額度跑後面三組。
+
+def check_result(out_path: Path, started_at: float, grid: bool = True) -> tuple[bool, str]:
+    """判斷 Codex 這次是否真的產出了可用的圖，回傳 (是否可用, 原因)。
+
+    1. 檔案存在，且是這次執行後才寫入的（避免把舊圖當成功）
+    2. 網格圖必須是橫式、接近 3:2（4×2 格）；單張圖接近 1:1
+    3. 四個角落是純色去背底色（#00FF00 或 #FF00FF），否則去背會失敗
     """
-    return out_path.exists() and out_path.stat().st_mtime >= started_at - 1
+    if not out_path.exists():
+        return False, "沒有產生檔案"
+    if out_path.stat().st_mtime < started_at - 1:
+        return False, "檔案沒有更新（仍是舊圖）"
+    try:
+        from PIL import Image
+        im = Image.open(out_path).convert("RGB")
+    except Exception as e:  # 檔案寫一半或格式錯誤
+        return False, f"無法開啟圖片：{e}"
+
+    w, h = im.size
+    ratio = w / h
+    lo, hi = (1.3, 1.8) if grid else (0.85, 1.18)
+    if not lo <= ratio <= hi:
+        return False, f"比例 {w}x{h}（{ratio:.2f}）不符，預期 {'3:2 橫式' if grid else '1:1'}"
+
+    # 每個角落取一小塊平均色，跟去背色比距離
+    pad, box = int(min(w, h) * 0.01), max(4, int(min(w, h) * 0.03))
+    corners = [(pad, pad), (w - pad - box, pad), (pad, h - pad - box), (w - pad - box, h - pad - box)]
+    means = [tuple(sum(c) / len(c) for c in zip(*im.crop((x, y, x + box, y + box)).getdata()))
+             for x, y in corners]
+    for name, key in KEY_COLORS.items():
+        if all(sum((a - b) ** 2 for a, b in zip(m, key)) ** 0.5 < 60 for m in means):
+            return True, f"OK（{w}x{h}，背景 {name}）"
+    return False, "四角不是純綠 / 洋紅背景，去背可能失敗"
 
 
 def start(job, codex, cfg, dry):
@@ -106,11 +131,22 @@ def finish(job):
     code = job["proc"].wait()
     job["logf"].write(f"\n[{datetime.now():%Y-%m-%d %H:%M:%S}] exit {code}\n")
     job["logf"].close()
-    ok = code == 0 and check_result(ROOT / job["out"], job["started"])
+    ok, why = check_result(ROOT / job["out"], job["started"], grid=job["token"].isdigit())
+    if code != 0:
+        ok, why = False, f"codex 結束碼 {code}"
     mins = (time.time() - job["started"]) / 60
-    print(f"[{job['token']}] {'完成' if ok else '失敗'}（{mins:.1f} 分）→ "
-          f"{job['out'].as_posix() if ok else job['log'].relative_to(ROOT).as_posix()}")
+    target = job["out"].as_posix() if ok else f"看紀錄 {job['log'].relative_to(ROOT).as_posix()}"
+    print(f"[{job['token']}] {'完成' if ok else '失敗'}（{mins:.1f} 分）{why} → {target}")
     return ok
+
+
+def _utf8_console():
+    """Windows cmd 預設 cp950，避免中文訊息變亂碼或 UnicodeEncodeError"""
+    for st in (sys.stdout, sys.stderr):
+        try:
+            st.reconfigure(encoding="utf-8", errors="replace")
+        except AttributeError:
+            pass
 
 
 def main():
@@ -153,4 +189,5 @@ def main():
 
 
 if __name__ == "__main__":
+    _utf8_console()
     main()
