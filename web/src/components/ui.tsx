@@ -39,7 +39,7 @@ export function Modal({ open, onClose, children, wide }: { open: boolean; onClos
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#34315a]/45 p-4 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1b2e]/55 p-4 backdrop-blur-[2px]" onClick={onClose}>
       <div className={`max-h-[92vh] overflow-auto rounded-[26px] bg-panel p-6 shadow-2xl ${wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]"}`}
         onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>
@@ -50,7 +50,7 @@ export function Section({ title, step, right, children, dim }: { title: string; 
   return (
     <section className={`card ${dim ? "opacity-50" : ""}`}>
       <div className="mb-3 flex items-center gap-2">
-        {step !== undefined && <span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm text-white shadow-[0_2px_0_#d0921a]">{step}</span>}
+        {step !== undefined && <span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm text-on-gold shadow-[0_2px_0_var(--c-gold-deep)]">{step}</span>}
         <h2 className="text-base">{title}</h2>
         <div className="ml-auto">{right}</div>
       </div>

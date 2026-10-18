@@ -1,30 +1,82 @@
 @import "tailwindcss";
 
-/* 配色取自角色本身：白色狐狸毛、粉紅耳內、藍眼睛、金色麥穗 */
-@theme {
-  --color-bg: #eef1fa;        /* 淡藍紫紙色（頁面底） */
-  --color-panel: #ffffff;     /* 白毛（面板、卡片） */
-  --color-panel2: #f5f7fd;    /* 輸入框、次要區塊 */
-  --color-line: #dde2f2;
-  --color-text: #34315a;      /* 深靛藍墨色 */
-  --color-mute: #8a87a8;
-  --color-acc: #5a86f0;       /* 藍眼睛：主要動作 */
-  --color-acc-deep: #3f68cf;
-  --color-sel: #5a86f0;
-  --color-pink: #ff8db3;      /* 耳內粉：勾選、選取 */
-  --color-pink-soft: #fff0f6;
-  --color-gold: #f2b531;      /* 麥穗金：步驟、進度 */
-  --color-ok: #2fb98f;
-  --color-warn: #e9a21c;
-  --color-bad: #f0607a;
+/* 配色取自角色本身：白色狐狸毛、粉紅耳內、藍眼睛、金色麥穗
+   顏色用 CSS 變數定義，淺色 / 深色主題只換變數值（data-theme 掛在 <html> 上） */
+:root {
+  color-scheme: light;
+  --c-bg: #eef1fa;        /* 淡藍紫紙色（頁面底） */
+  --c-panel: #ffffff;     /* 白毛（面板、卡片） */
+  --c-panel2: #f5f7fd;    /* 輸入框、次要區塊 */
+  --c-line: #dde2f2;
+  --c-text: #34315a;      /* 深靛藍墨色 */
+  --c-mute: #8a87a8;
+  --c-acc: #5a86f0;       /* 藍眼睛：主要動作 */
+  --c-acc-deep: #3f68cf;
+  --c-pink: #ff8db3;      /* 耳內粉：勾選、選取 */
+  --c-pink-soft: #fff0f6;
+  --c-gold: #f2b531;      /* 麥穗金：步驟、進度 */
+  --c-gold-deep: #d0921a;
+  --c-ok: #2fb98f;
+  --c-warn: #e9a21c;
+  --c-bad: #f0607a;
+  --c-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 8px 24px -10px rgb(52 49 90 / 0.18);
+  --c-check-a: #e6e9f5;
+  --c-check-b: #f7f8fd;
+  --c-on-acc: #ffffff;    /* 藍色按鈕上的字 */
+}
+
+/* 深色：夜晚的同一隻狐狸。底色是帶紫的深靛藍，不用死黑；白毛變成柔和的夜色面板 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: #1d1b2e;
+  --c-panel: #2a2742;
+  --c-panel2: #332f4f;
+  --c-line: #45406a;
+  --c-text: #ece9ff;
+  --c-mute: #a29fc4;
+  --c-acc: #7c9dff;
+  --c-acc-deep: #5674d6;
+  --c-pink: #ff9cc0;
+  --c-pink-soft: #3b2c4c;
+  --c-gold: #f5c04a;
+  --c-gold-deep: #c99520;
+  --c-ok: #45d1a3;
+  --c-warn: #f0b43c;
+  --c-bad: #ff7b92;
+  --c-shadow: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 12px 28px -14px rgb(0 0 0 / 0.7);
+  --c-check-a: #2f2c48;
+  --c-check-b: #3a3656;
+  --c-on-acc: #17152a;    /* 深色主題的藍較亮，改用深色字才清楚 */
+}
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-panel: var(--c-panel);
+  --color-panel2: var(--c-panel2);
+  --color-line: var(--c-line);
+  --color-text: var(--c-text);
+  --color-mute: var(--c-mute);
+  --color-acc: var(--c-acc);
+  --color-acc-deep: var(--c-acc-deep);
+  --color-sel: var(--c-acc);
+  --color-on-acc: var(--c-on-acc);
+  --color-on-gold: #4a3407;
+  --color-pink: var(--c-pink);
+  --color-pink-soft: var(--c-pink-soft);
+  --color-gold: var(--c-gold);
+  --color-gold-deep: var(--c-gold-deep);
+  --color-ok: var(--c-ok);
+  --color-warn: var(--c-warn);
+  --color-bad: var(--c-bad);
   --font-sans: "Huninn", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
-  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 8px 24px -10px rgb(52 49 90 / 0.18);
-  --shadow-gummy: 0 3px 0 var(--color-acc-deep);
+  --shadow-soft: var(--c-shadow);
+  --shadow-gummy: 0 3px 0 var(--c-acc-deep);
 }
 
 html, body, #root { height: 100%; }
 body {
   margin: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -41,7 +93,7 @@ body {
   }
   /* 主要按鈕：底部一條深色邊，按下時往下沉，像軟糖 */
   .btn-primary {
-    @apply border-acc bg-acc text-white hover:border-acc hover:text-white hover:brightness-105 active:translate-y-[2px];
+    @apply border-acc bg-acc text-on-acc hover:border-acc hover:text-on-acc hover:brightness-105 active:translate-y-[2px];
     box-shadow: var(--shadow-gummy);
   }
   .btn-primary:active { box-shadow: 0 1px 0 var(--color-acc-deep); }
@@ -54,7 +106,7 @@ body {
   .card { @apply rounded-[22px] bg-panel p-5; box-shadow: var(--shadow-soft); }
   .label { @apply mb-1 block text-xs text-mute; }
   .chk { @apply size-4 accent-[var(--color-pink)]; }
-  .checker { background: repeating-conic-gradient(#e6e9f5 0 25%, #f7f8fd 0 50%) 0 0 / 16px 16px; }
+  .checker { background: repeating-conic-gradient(var(--c-check-a) 0 25%, var(--c-check-b) 0 50%) 0 0 / 16px 16px; }
 
   /* Gallery 貼紙：去背貼圖外圍加白色模切邊＋投影，像一張真的貼紙 */
   .sticker-img {

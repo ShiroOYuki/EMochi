@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ThemeToggle from "./components/ThemeToggle";
 import GenPage from "./pages/Gen";
 import GalleryPage from "./pages/Gallery";
 
@@ -9,9 +10,9 @@ const readTab = (): Tab => (location.hash.startsWith("#/gallery") ? "gallery" : 
 function Ears() {
   return (
     <svg width="30" height="22" viewBox="0 0 30 22" aria-hidden="true">
-      <path d="M2 21 L7 2 L14 15 Z" fill="#fff" stroke="#34315a" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M2 21 L7 2 L14 15 Z" fill="var(--c-panel)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
       <path d="M6.5 15 L8 7 L11.5 13.5 Z" fill="#ff8db3" />
-      <path d="M28 21 L23 2 L16 15 Z" fill="#fff" stroke="#34315a" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M28 21 L23 2 L16 15 Z" fill="var(--c-panel)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
       <path d="M23.5 15 L22 7 L18.5 13.5 Z" fill="#ff8db3" />
     </svg>
   );
@@ -33,11 +34,12 @@ export default function App() {
         <nav className="flex rounded-full bg-panel2 p-1">
         {(["gen", "gallery"] as Tab[]).map((t) => (
           <button key={t} onClick={() => go(t)}
-            className={`rounded-full px-5 py-1.5 text-sm transition ${tab === t ? "bg-acc text-white shadow-[0_2px_0_var(--color-acc-deep)]" : "text-mute hover:text-text"}`}>
+            className={`rounded-full px-5 py-1.5 text-sm transition ${tab === t ? "bg-acc text-on-acc shadow-[0_2px_0_var(--color-acc-deep)]" : "text-mute hover:text-text"}`}>
             {t === "gen" ? "Gen 生成" : "Gallery 圖庫"}
           </button>
         ))}
         </nav>
+        <ThemeToggle className="ml-auto" />
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}

@@ -78,7 +78,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
         <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => setMode("__all")}>並排比較（全部版本）</button>
         {styles.map((s) => (
           <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => setMode(s.id)}>
-            {s.id}<span className={mode === s.id ? "text-white/75" : "text-mute"}>（{s.items.length}）</span>
+            {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
         <select className="input !w-32 !py-1" value={group} onChange={(e) => setGroup(+e.target.value)}>

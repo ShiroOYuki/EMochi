@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, BUSY, fileUrl, type Group, type Project, type ProjectSummary, type Sticker } from "../api";
 import { Elapsed, Modal, Section, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
@@ -11,6 +11,7 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
   const [project, setProject] = useState<Project | null>(null);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [err, setErr] = useState("");
+  const [newKey, setNewKey] = useState(0);   // 每按一次「新增畫風」+1，讓表單聚焦並閃一下
 
   const loadList = useCallback(async () => setList(await api.get<ProjectsResp>("/api/projects")), []);
   const loadProject = useCallback(async (id: string) => setProject(await api.get<Project>(`/api/projects/${id}`)), []);
@@ -36,9 +37,9 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
   return (
     <div className="flex h-full">
       <aside className="w-64 shrink-0 overflow-y-auto p-4">
-        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => setCurrent(null)}>＋ 新增畫風</button>
+        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增畫風</button>
         <div className="mb-1 px-1 text-xs text-mute">畫風專案</div>
-        {list?.projects.length === 0 && <div className="px-1 text-xs text-mute">還沒有專案</div>}
+        {list?.projects.length === 0 && <div className="px-1 text-xs text-mute">還沒有專案，在右邊描述第一個畫風就會出現在這裡</div>}
         {list?.projects.map((p) => (
           <button key={p.id} onClick={() => setCurrent(p.id)}
             className={`mb-1.5 block w-full rounded-2xl border px-3 py-2.5 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
@@ -53,7 +54,7 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
         <div className="mx-auto max-w-6xl space-y-4">
           {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
           {current === null
-            ? <NewProject nextId={list?.next_id} onCreate={(request) => act(() => api.post<Project>("/api/projects", { request }))} />
+            ? <NewProject focusKey={newKey} nextId={list?.next_id} onCreate={(request) => act(() => api.post<Project>("/api/projects", { request }))} />
             : project
               ? <ProjectView p={project} stickers={stickers} act={act} setStickers={setStickers}
                   previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery} />
@@ -66,17 +67,29 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
 
 // ---------- 0. 新增 ----------
 
-function NewProject({ nextId, onCreate }: { nextId?: string; onCreate: (request: string) => void }) {
+function NewProject({ nextId, onCreate, focusKey }: { nextId?: string; onCreate: (request: string) => void; focusKey: number }) {
   const [text, setText] = useState("");
+  const [flash, setFlash] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // 按「新增畫風」時：聚焦輸入框並短暫亮起，讓人知道表單在這裡（就算本來就在顯示）
+  useEffect(() => {
+    if (!focusKey) return;
+    box.current?.focus();
+    box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 900);
+    return () => clearTimeout(t);
+  }, [focusKey]);
   const examples = ["黏土公仔風，霧面質感、圓潤立體", "美式卡通粗線條，表情誇張，適合迷因", "貼紙風，角色外圍一圈粗白邊", "水彩繪本風，柔和暈染"];
   return (
     <Section title={`新增畫風${nextId ? `（將建立 ${nextId}）` : ""}`} step={1}>
       <label className="label">用中文描述想要的畫風，Codex 會把它擴寫成英文畫風描述，再套進固定模板（網格、綠幕、角色特徵）</label>
-      <textarea className="input h-28 resize-y" value={text} onChange={(e) => setText(e.target.value)} placeholder="例如：像日本動畫截圖的賽璐珞上色，陰影硬邊，眼睛有亮點…" />
+      <textarea ref={box} className={`input h-28 resize-y transition-shadow ${flash ? "border-pink ring-4 ring-pink/30" : ""}`} value={text} onChange={(e) => setText(e.target.value)} placeholder="例如：像日本動畫截圖的賽璐珞上色，陰影硬邊，眼睛有亮點…" />
       <div className="mt-2 flex flex-wrap gap-1.5">
         {examples.map((e) => <button key={e} className="btn btn-sm" onClick={() => setText(e)}>{e}</button>)}
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex items-center justify-end gap-3">
+        {!text.trim() && <span className="text-xs text-mute">先寫下想要的畫風，或點一個範例</span>}
         <button className="btn btn-primary" disabled={!text.trim()} onClick={() => onCreate(text)}>交給 Codex 擴寫</button>
       </div>
     </Section>
@@ -102,7 +115,7 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
         <StatusBadge status={p.status} />
         <ol className="ml-auto flex flex-wrap gap-1 text-xs">
           {steps.map((s, i) => (
-            <li key={s} className={`rounded-full px-2.5 py-1 ${i + 1 < stage ? "bg-ok/15 text-ok" : i + 1 === stage ? "bg-gold text-white" : "bg-panel text-mute"}`}>{i + 1}. {s}</li>
+            <li key={s} className={`rounded-full px-2.5 py-1 ${i + 1 < stage ? "bg-ok/15 text-ok" : i + 1 === stage ? "bg-gold text-on-gold" : "bg-panel text-mute"}`}>{i + 1}. {s}</li>
           ))}
         </ol>
       </div>
