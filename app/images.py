@@ -24,8 +24,10 @@ def safe_stem(name: str) -> str:
     return stem[:40] or "image"
 
 
-def save_png(raw: bytes, folder: Path, name: str) -> str:
-    """存成 PNG（保留透明）、長邊縮到 MAX_SIDE；檔名重複時自動加編號，回傳檔名"""
+def save_png(raw: bytes, folder: Path, name: str, exact: str | None = None) -> str:
+    """存成 PNG（保留透明）、長邊縮到 MAX_SIDE，回傳檔名。
+
+    exact 有給就用這個檔名（呼叫端負責不重複）；否則用原檔名，重複時自動加編號"""
     try:
         im = Image.open(io.BytesIO(raw))
         im.load()
@@ -36,8 +38,8 @@ def save_png(raw: bytes, folder: Path, name: str) -> str:
         im.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
     folder.mkdir(parents=True, exist_ok=True)
     stem, n = safe_stem(name), 1
-    fname = f"{stem}.png"
-    while (folder / fname).exists():
+    fname = exact or f"{stem}.png"
+    while not exact and (folder / fname).exists():
         n += 1
         fname = f"{stem}_{n}.png"
     im.save(folder / fname, optimize=True)

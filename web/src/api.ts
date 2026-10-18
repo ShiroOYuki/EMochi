@@ -19,7 +19,7 @@ export type Project = {
 export type RefRole = "character" | "style";
 export type ProjectRefs = { character_id: string | null; character_images: string[] | null; temp: { file: string; role: RefRole }[] };
 
-export type CharImage = { file: string; use: boolean };
+export type CharImage = { file: string; use: boolean; source?: string };
 export type Character = { id: string; name: string; identity: string; notes_zh: string; images: CharImage[]; created: string; updated: string };
 export const charImageUrl = (c: Character, file: string) => fileUrl(`characters/${c.id}/refs/${file}`, c.updated);
 /** 角色這次要用的圖：selected 是 null 時用角色預設勾選的 */

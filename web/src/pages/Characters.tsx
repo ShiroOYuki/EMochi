@@ -122,14 +122,14 @@ function CharacterView({ c, act }: { c: Character; act: (fn: () => Promise<Chara
                 <img src={charImageUrl(c, i.file)} className="size-full object-contain" alt={i.file} />
               </button>
               <div className="mt-1 flex items-center gap-1 text-[11px] text-mute">
-                <span className="truncate" title={i.file}>{i.file}</span>
+                <span className="truncate" title={i.source ? `原檔名：${i.source}` : undefined}>{i.file.replace(/\.png$/, "")}</span>
                 <button className="ml-auto shrink-0 hover:text-bad" onClick={() => act(() => api.del<Character>(`${base}/images/${encodeURIComponent(i.file)}`))}>移除</button>
               </div>
             </div>
           ))}
           <DropZone className="size-32" onFiles={async (files) => { const u = await readFiles(files); if (u.length) await act(() => api.post<Character>(`${base}/images`, u)); }} />
         </div>
-        <p className="mt-2 text-[11px] text-mute">移除的圖會移到 refs/_removed/，不會真的刪掉。圖片會轉成 PNG、長邊縮到 1536px。</p>
+        <p className="mt-2 text-[11px] text-mute">檔名統一為「角色編號_流水號」（{c.id}_01、{c.id}_02…），流水號不會重複使用；滑過檔名可看原檔名。移除的圖會移到 refs/_removed/，不會真的刪掉。圖片會轉成 PNG、長邊縮到 1536px。</p>
       </Section>
 
       <Section title="角色特徵句"

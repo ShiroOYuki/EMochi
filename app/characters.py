@@ -2,16 +2,22 @@
 
 character.json
   id, name, identity（放進 prompt 的英文角色特徵）, notes_zh,
-  images: [{file, use}]   use = 新畫風預設是否附上這張
+  images: [{file, use, source}]   use = 新畫風預設是否附上這張；source = 上傳時的原檔名
+  next_index                      下一張圖的流水號
+
+圖片檔名統一為 <角色id>_<兩位數流水號>.png（c2_01.png、c2_02.png…）。
+流水號只增不減：移除 c2_02 之後新上傳的是 c2_03，不會沿用舊號，
+這樣已經記錄「用了 c2_02」的畫風專案不會在不知情下換成另一張圖。
 """
 import json
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
 
 from . import codex
 from .images import move_to_removed, save_png
-from .paths import CONFIG, REFS, ROOT, read_json, write_json
+from .paths import CONFIG, OUTPUTS, REFS, ROOT, load_styles_cfg, read_json, save_styles_cfg, write_json
 
 CHAR_DIR = ROOT / "characters"
 _lock = threading.Lock()
@@ -48,6 +54,26 @@ def _save(c: dict) -> dict:
     return c
 
 
+def _std_re(cid: str) -> re.Pattern:
+    return re.compile(rf"^{re.escape(cid)}_(\d{{2,}})\.png$")
+
+
+def _take_name(c: dict) -> str:
+    """發下一個標準檔名（並推進流水號）"""
+    used = [int(m.group(1)) for i in c["images"] if (m := _std_re(c["id"]).match(i["file"]))]
+    n = max([c.get("next_index", 1), *(u + 1 for u in used)])
+    while (refs_dir(c["id"]) / f"{c['id']}_{n:02d}.png").exists():
+        n += 1
+    c["next_index"] = n + 1
+    return f"{c['id']}_{n:02d}.png"
+
+
+def _store(c: dict, files: list[tuple[str, bytes]], use: bool = True) -> None:
+    for fname, raw in files:
+        c["images"].append({"file": save_png(raw, refs_dir(c["id"]), fname, exact=_take_name(c)),
+                            "use": use, "source": fname})
+
+
 def _new_id() -> str:
     n = 1
     while (CHAR_DIR / f"c{n}").exists():
@@ -62,23 +88,22 @@ def ensure_default() -> None:
     tpl = read_json(CONFIG / "prompt_template.json", {}) or {}
     with _lock:
         cid = _new_id()
-        images = []
+        c = {"id": cid, "name": "白狐（原角色）", "identity": tpl.get("identity", ""), "notes_zh": "",
+             "images": [], "next_index": 1, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         for name in ("ref.png", "ref_tvd.png"):
-            src = REFS / name
-            if src.exists():
-                images.append({"file": save_png(src.read_bytes(), refs_dir(cid), name), "use": name == "ref.png"})
-        _save({"id": cid, "name": "白狐（原角色）", "identity": tpl.get("identity", ""), "notes_zh": "",
-               "images": images, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+            if (REFS / name).exists():
+                _store(c, [(name, (REFS / name).read_bytes())], use=name == "ref.png")
+        _save(c)
 
 
 def create(name: str, files: list[tuple[str, bytes]]) -> dict:
     if not name.strip():
         raise ValueError("請輸入角色名稱")
     with _lock:
-        cid = _new_id()
-        images = [{"file": save_png(raw, refs_dir(cid), fname), "use": True} for fname, raw in files]
-        return _save({"id": cid, "name": name.strip(), "identity": "", "notes_zh": "", "images": images,
-                      "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+        c = {"id": _new_id(), "name": name.strip(), "identity": "", "notes_zh": "", "images": [],
+             "next_index": 1, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        _store(c, files)
+        return _save(c)
 
 
 def update(cid: str, fields: dict) -> dict:
@@ -101,8 +126,7 @@ def add_images(cid: str, files: list[tuple[str, bytes]]) -> dict:
         c = get(cid)
         if not c:
             raise KeyError(cid)
-        for fname, raw in files:
-            c["images"].append({"file": save_png(raw, refs_dir(cid), fname), "use": True})
+        _store(c, files)
         return _save(c)
 
 
@@ -114,6 +138,75 @@ def remove_image(cid: str, file: str) -> dict:
         move_to_removed(refs_dir(cid) / Path(file).name)
         c["images"] = [i for i in c["images"] if i["file"] != file]
         return _save(c)
+
+
+def normalize_names() -> dict[str, dict[str, str]]:
+    """把不是標準檔名的角色圖改名（舊版上傳、手動丟進資料夾的），
+    並同步更新引用到它們的畫風專案與 styles.json。回傳 {角色id: {舊檔名: 新檔名}}"""
+    renamed: dict[str, dict[str, str]] = {}
+    with _lock:
+        for c in list_all():
+            pat, mapping = _std_re(c["id"]), {}
+            known = {i["file"] for i in c["images"]}
+            # 資料夾裡有、json 沒記錄的圖也收進來（預設不勾）
+            for f in sorted(refs_dir(c["id"]).glob("*")):
+                if f.is_file() and f.name not in known and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                    c["images"].append({"file": f.name, "use": False})
+            for i in c["images"]:
+                if pat.match(i["file"]):
+                    continue
+                old = i["file"]
+                src = refs_dir(c["id"]) / old
+                new = _take_name(c)
+                if src.suffix.lower() == ".png":
+                    src.replace(refs_dir(c["id"]) / new)
+                else:   # jpg/webp → 轉 PNG，原檔移到 _removed/
+                    save_png(src.read_bytes(), refs_dir(c["id"]), old, exact=new)
+                    move_to_removed(src)
+                i.update(file=new, source=i.get("source") or old)
+                mapping[old] = new
+            if mapping or "next_index" not in c:
+                c.setdefault("next_index", 1)
+                _save(c)
+            if mapping:
+                renamed[c["id"]] = mapping
+    if renamed:
+        _rewrite_references(renamed)
+    return renamed
+
+
+def _rewrite_references(renamed: dict[str, dict[str, str]]) -> None:
+    def path_map(p: str) -> str:
+        for cid, m in renamed.items():
+            prefix = f"characters/{cid}/refs/"
+            if p.startswith(prefix) and p[len(prefix):] in m:
+                return prefix + m[p[len(prefix):]]
+        return p
+
+    for f in OUTPUTS.glob("*/project.json"):
+        p = read_json(f)
+        if not p:
+            continue
+        before = json.dumps(p, ensure_ascii=False)
+        r = p.get("refs") or {}
+        m = renamed.get(r.get("character_id") or "")
+        if m and r.get("character_images"):
+            r["character_images"] = [m.get(x, x) for x in r["character_images"]]
+        for item in [p.get("preview") or {}, *p.get("groups", [])]:
+            if item.get("refs"):
+                item["refs"] = [path_map(x) for x in item["refs"]]
+        if json.dumps(p, ensure_ascii=False) != before:
+            write_json(f, p)
+    cfg = load_styles_cfg()
+    changed = False
+    for s in cfg.get("styles", {}).values():
+        for key in ("refs", "group1_refs"):
+            if s.get(key):
+                new = [path_map(x) for x in s[key]]
+                changed |= new != s[key]
+                s[key] = new
+    if changed:
+        save_styles_cfg(cfg)
 
 
 def rel_paths(cid: str, files: list[str] | None = None) -> list[str]:

@@ -16,6 +16,7 @@ app = FastAPI(title="AI Sticker")
 @app.on_event("startup")
 def _startup():
     characters.ensure_default()
+    characters.normalize_names()
     jobs.recover_interrupted()
 
 

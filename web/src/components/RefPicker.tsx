@@ -66,7 +66,7 @@ export default function RefPicker(props: Props) {
                 {char.images.map((i) => {
                   const on = used.includes(i.file);
                   return (
-                    <button key={i.file} disabled={disabled} onClick={() => toggleImage(i.file)} title={i.file} aria-pressed={on}
+                    <button key={i.file} disabled={disabled} onClick={() => toggleImage(i.file)} title={i.source ? `${i.file}（原檔名 ${i.source}）` : i.file} aria-label={i.file} aria-pressed={on}
                       className={`checker size-20 overflow-hidden rounded-xl border-[3px] transition ${on ? "border-pink" : "border-transparent opacity-40 hover:opacity-80"}`}>
                       <img src={charImageUrl(char, i.file)} className="size-full object-contain" alt={i.file} />
                     </button>
