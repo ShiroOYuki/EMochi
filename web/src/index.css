@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #1e1f22;
+  --color-panel: #2b2d31;
+  --color-panel2: #232428;
+  --color-line: #3a3c42;
+  --color-text: #e6e6e6;
+  --color-mute: #9a9ca3;
+  --color-acc: #7aa2ff;
+  --color-sel: #5865f2;
+  --color-ok: #3ba55d;
+  --color-warn: #faa61a;
+  --color-bad: #ed4245;
+  --font-sans: system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif;
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); font-size: 14px; }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-line bg-[#383a40] px-3 py-1.5 text-sm text-text transition hover:border-acc disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-primary { @apply border-sel bg-sel hover:brightness-110 hover:border-sel; }
+  .btn-sm { @apply px-2 py-0.5 text-xs; }
+  .input { @apply w-full rounded-md border border-line bg-panel2 px-2.5 py-1.5 text-sm text-text outline-none focus:border-acc; }
+  .card { @apply rounded-xl bg-panel p-4; }
+  .label { @apply mb-1 block text-xs font-medium text-mute; }
+  .checker { background: repeating-conic-gradient(#555 0 25%, #444 0 50%) 0 0 / 16px 16px; }
+}

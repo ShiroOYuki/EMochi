@@ -17,12 +17,45 @@ cd /d D:\CODE\Experimental\AI_Sticker
 uv sync
 ```
 
+## 快速開始：網頁工具
+
+```cmd
+scripts\app.bat          :: 或 uv run python -m app
+```
+
+瀏覽器會開啟 http://127.0.0.1:8765 ，有兩個分頁：
+
+- **Gen**：新增畫風的完整流程
+  1. 用中文描述想要的畫風 → Codex 擴寫成英文畫風描述（可直接修改），並自動判斷構圖與後處理參數
+  2. 確認後生成一張 2×2 **風格預覽圖**（Happy / Cry / Angry / Shock）
+  3. 喜歡就勾選要生成的貼圖（可新增自訂表情），每 8 張一組、最多 3 組同時生成；預覽圖會當作每一組的畫風範本
+  4. 逐組審核，不滿意的按「重生」；全部確認後自動切割、去背、輸出各尺寸
+  5. 完成的畫風自動出現在 Gallery
+- **Gallery**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴）、組合總覽圖、勾選清單 JSON 存讀
+
+每個畫風的進度存在 `outputs/<畫風>/project.json`，關掉伺服器再開也不會遺失；prompt 會同步寫到 `prompts/<畫風>/`。
+
+### 修改前端
+
+```cmd
+cd web
+npm install
+npm run dev        :: http://localhost:5173（API 轉給 8765，需先開 scripts\app.bat）
+npm run build      :: 輸出到 app\static，提交時一起 commit
+```
+
 ## 資料夾結構
 
 ```
+app/                網頁工具後端（FastAPI）
+  server.py         API 路由；codex.py 執行 Codex；jobs.py Gen 流程狀態機
+  pipeline.py       網格 → 成品；gallery.py 匯出、組合；prompts.py 組 prompt
+  static/           前端 build 結果（由 web/ 產生）
+web/                前端原始碼（React + Vite + TypeScript + Tailwind）
 config/
-  stickers.json     32 張貼圖的編號、名稱、中文說明、表情 prompt
-  styles.json       每種畫風的參考圖與後處理參數
+  stickers.json     貼圖的編號、名稱、中文說明、表情 prompt（Gen 新增的自訂表情也存這裡）
+  styles.json       每種畫風的參考圖與後處理參數（Gen 完成時自動登記）
+  prompt_template.json  Gen 組 prompt 用的共用段落：角色特徵、構圖、版面規則、預覽用表情
 refs/               角色參考圖（ref.png 主設定、ref_tvd.png）
 prompts/
   GUIDE.md          prompt 撰寫說明與範本
@@ -50,6 +83,8 @@ archive/            早期試驗品                                            �
 | s5 | 賽璐璐動畫截圖風 | 正方形特寫裁切 |
 
 ## 流程
+
+## 命令列流程（舊方式，仍可使用）
 
 ### 1. 生成網格
 
