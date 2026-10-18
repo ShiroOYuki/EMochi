@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import GenPage from "./pages/Gen";
 import GalleryPage from "./pages/Gallery";
+import CharactersPage from "./pages/Characters";
 
-type Tab = "gen" | "gallery";
-const readTab = (): Tab => (location.hash.startsWith("#/gallery") ? "gallery" : "gen");
+type Tab = "gen" | "characters" | "gallery";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "gen", label: "Gen 生成" }, { id: "characters", label: "角色" }, { id: "gallery", label: "Gallery 圖庫" },
+];
+const readTab = (): Tab => TABS.find((t) => location.hash.startsWith(`#/${t.id}`))?.id ?? "gen";
 
 /** 標誌：一對狐狸耳朵（白毛＋粉紅耳內） */
 function Ears() {
@@ -32,10 +36,10 @@ export default function App() {
       <header className="flex items-center gap-4 bg-panel px-5 py-3 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)]">
         <h1 className="flex items-center gap-2 text-lg"><Ears />AI Sticker</h1>
         <nav className="flex rounded-full bg-panel2 p-1">
-        {(["gen", "gallery"] as Tab[]).map((t) => (
-          <button key={t} onClick={() => go(t)}
-            className={`rounded-full px-5 py-1.5 text-sm transition ${tab === t ? "bg-acc text-on-acc shadow-[0_2px_0_var(--color-acc-deep)]" : "text-mute hover:text-text"}`}>
-            {t === "gen" ? "Gen 生成" : "Gallery 圖庫"}
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => go(t.id)}
+            className={`rounded-full px-5 py-1.5 text-sm transition ${tab === t.id ? "bg-acc text-on-acc shadow-[0_2px_0_var(--color-acc-deep)]" : "text-mute hover:text-text"}`}>
+            {t.label}
           </button>
         ))}
         </nav>
@@ -43,7 +47,8 @@ export default function App() {
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
-        <div className={tab === "gen" ? "h-full" : "hidden"}><GenPage onOpenGallery={() => go("gallery")} /></div>
+        <div className={tab === "gen" ? "h-full" : "hidden"}><GenPage onOpenGallery={() => go("gallery")} active={tab === "gen"} /></div>
+        <div className={tab === "characters" ? "h-full" : "hidden"}><CharactersPage active={tab === "characters"} /></div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}><GalleryPage active={tab === "gallery"} /></div>
       </main>
     </div>

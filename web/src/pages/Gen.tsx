@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, BUSY, fileUrl, type Group, type Project, type ProjectSummary, type Sticker } from "../api";
+import { api, BUSY, fileUrl, readFiles, type Character, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
 import { Elapsed, Modal, Section, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
+import RefPicker, { type TempRef } from "../components/RefPicker";
 
 type ProjectsResp = { projects: ProjectSummary[]; next_id: string; preview_ids: number[]; max_parallel: number };
 
-export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }) {
+export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () => void; active: boolean }) {
   const [list, setList] = useState<ProjectsResp | null>(null);
   const [current, setCurrent] = useState<string | null>(null);   // null = 新增畫風
   const [project, setProject] = useState<Project | null>(null);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [err, setErr] = useState("");
   const [newKey, setNewKey] = useState(0);   // 每按一次「新增畫風」+1，讓表單聚焦並閃一下
+  const [chars, setChars] = useState<Character[]>([]);
+  // 切回這頁就重抓角色（可能剛在「角色」分頁新增或改過）
+  useEffect(() => { if (active) api.get<Character[]>("/api/characters").then(setChars).catch(() => {}); }, [active]);
 
   const loadList = useCallback(async () => setList(await api.get<ProjectsResp>("/api/projects")), []);
   const loadProject = useCallback(async (id: string) => setProject(await api.get<Project>(`/api/projects/${id}`)), []);
@@ -44,6 +48,7 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
           <button key={p.id} onClick={() => setCurrent(p.id)}
             className={`mb-1.5 block w-full rounded-2xl border px-3 py-2.5 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
             <div className="flex items-center gap-2"><span >{p.id}</span><span className="truncate text-xs text-mute">{p.name}</span></div>
+            {p.character_id && <div className="mt-0.5 truncate text-[11px] text-mute">角色：{chars.find((c) => c.id === p.character_id)?.name ?? p.character_id}</div>}
             <div className="mt-1"><StatusBadge status={p.status} /></div>
           </button>
         ))}
@@ -54,9 +59,9 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
         <div className="mx-auto max-w-6xl space-y-4">
           {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
           {current === null
-            ? <NewProject focusKey={newKey} nextId={list?.next_id} onCreate={(request) => act(() => api.post<Project>("/api/projects", { request }))} />
+            ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
             : project
-              ? <ProjectView p={project} stickers={stickers} act={act} setStickers={setStickers}
+              ? <ProjectView p={project} stickers={stickers} act={act} setStickers={setStickers} chars={chars}
                   previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery} />
               : <div className="flex items-center gap-2 text-mute"><Spinner />載入中…</div>}
         </div>
@@ -67,8 +72,23 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
 
 // ---------- 0. 新增 ----------
 
-function NewProject({ nextId, onCreate, focusKey }: { nextId?: string; onCreate: (request: string) => void; focusKey: number }) {
+type CreateBody = { request: string; character_id: string | null; character_images: string[] | null; temp_refs: Upload[] };
+
+function NewProject({ nextId, onCreate, focusKey, chars }: { nextId?: string; onCreate: (b: CreateBody) => void; focusKey: number; chars: Character[] }) {
   const [text, setText] = useState("");
+  // 角色：預設選第一個（原角色）；undefined = 還沒動過
+  const [pick, setPick] = useState<{ id: string | null; images: string[] | null } | undefined>();
+  const charSel = pick ?? { id: chars[0]?.id ?? null, images: null };
+  const [temp, setTemp] = useState<(TempRef & { data: string })[]>([]);
+  const addTemp = async (files: File[]) => {
+    const ups = await readFiles(files);
+    setTemp((t) => [...t, ...ups.map((u, i) => ({ key: `${Date.now()}_${i}`, url: u.data, data: u.data, name: u.name, role: "character" as RefRole }))]);
+  };
+  const hasStyleRef = temp.some((t) => t.role === "style");
+  const submit = () => onCreate({
+    request: text, character_id: charSel.id, character_images: charSel.images,
+    temp_refs: temp.map((t) => ({ name: t.name, data: t.data, role: t.role })),
+  });
   const [flash, setFlash] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   // 按「新增畫風」時：聚焦輸入框並短暫亮起，讓人知道表單在這裡（就算本來就在顯示）
@@ -88,9 +108,17 @@ function NewProject({ nextId, onCreate, focusKey }: { nextId?: string; onCreate:
       <div className="mt-2 flex flex-wrap gap-1.5">
         {examples.map((e) => <button key={e} className="btn btn-sm" onClick={() => setText(e)}>{e}</button>)}
       </div>
+      <div className="mt-5 border-t border-line pt-4">
+        <h3 className="mb-2 text-sm">參考圖</h3>
+        <RefPicker characters={chars} characterId={charSel.id} characterImages={charSel.images}
+          onCharacter={(id, images) => setPick({ id, images })}
+          temp={temp} onAddTemp={addTemp}
+          onTempRole={(key, role) => setTemp((t) => t.map((x) => (x.key === key ? { ...x, role } : x)))}
+          onRemoveTemp={(key) => setTemp((t) => t.filter((x) => x.key !== key))} />
+      </div>
       <div className="mt-4 flex items-center justify-end gap-3">
-        {!text.trim() && <span className="text-xs text-mute">先寫下想要的畫風，或點一個範例</span>}
-        <button className="btn btn-primary" disabled={!text.trim()} onClick={() => onCreate(text)}>交給 Codex 擴寫</button>
+        {!text.trim() && !hasStyleRef && <span className="text-xs text-mute">先寫下想要的畫風、點一個範例，或上傳一張「畫風」參考圖</span>}
+        <button className="btn btn-primary" disabled={!text.trim() && !hasStyleRef} onClick={submit}>交給 Codex 擴寫</button>
       </div>
     </Section>
   );
@@ -101,9 +129,10 @@ function NewProject({ nextId, onCreate, focusKey }: { nextId?: string; onCreate:
 type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
   setStickers: React.Dispatch<React.SetStateAction<Sticker[]>>; previewIds: number[]; maxParallel: number; onOpenGallery: () => void;
+  chars: Character[];
 };
 
-function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, onOpenGallery }: ViewProps) {
+function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, onOpenGallery, chars }: ViewProps) {
   const stage = { expanding: 1, draft: 1, previewing: 2, preview_ready: 3, generating: 4, review: 4, processing: 5, done: 5 }[p.status];
   const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入 Gallery"];
   const byId = useMemo(() => new Map(stickers.map((s) => [s.id, s])), [stickers]);
@@ -121,7 +150,7 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
       </div>
       {p.error && <div className="rounded-lg border border-warn/50 bg-warn/10 px-3 py-2 text-sm text-warn">{p.error}</div>}
 
-      <StyleStep p={p} act={act} />
+      <StyleStep p={p} act={act} chars={chars} />
       <PreviewStep p={p} act={act} previewIds={previewIds} byId={byId} />
       {(p.status === "preview_ready" || p.groups.length > 0) &&
         <PickStep p={p} act={act} stickers={stickers} setStickers={setStickers} maxParallel={maxParallel} />}
@@ -132,7 +161,7 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
 
 // ---------- 1. 畫風描述 ----------
 
-function StyleStep({ p, act }: { p: Project; act: ViewProps["act"] }) {
+function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars: Character[] }) {
   const editable = ["draft", "preview_ready"].includes(p.status);
   const [f, setF] = useState({ request: p.request, name: p.name, framing: p.framing, style_block: p.style_block, square: p.process.square, margin: p.process.margin });
   // 伺服器端內容變了（例如擴寫完成）就同步到表單
@@ -162,7 +191,7 @@ function StyleStep({ p, act }: { p: Project; act: ViewProps["act"] }) {
       <div className="grid gap-3 md:grid-cols-[1fr_200px_200px]">
         <div><label className="label">你的需求</label>
           <div className="flex gap-2"><input className="input" value={f.request} disabled={!editable} onChange={(e) => setF({ ...f, request: e.target.value })} />
-            <button className="btn shrink-0" disabled={!editable || !f.request.trim()} title="用新的需求讓 Codex 重寫畫風描述"
+            <button className="btn shrink-0" disabled={!editable || (!f.request.trim() && !p.ref_paths.style.length)} title="用新的需求（和畫風參考圖）讓 Codex 重寫畫風描述"
               onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/expand`, { request: f.request }))}>重新擴寫</button></div></div>
         <div><label className="label">畫風名稱</label><input className="input" value={f.name} disabled={!editable} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
         <div><label className="label">構圖</label>
@@ -174,6 +203,7 @@ function StyleStep({ p, act }: { p: Project; act: ViewProps["act"] }) {
         <textarea className="input h-44 resize-y font-mono text-xs leading-relaxed" value={f.style_block} disabled={!editable}
           onChange={(e) => setF({ ...f, style_block: e.target.value })} /></div>
       {p.notes_zh && <p className="mt-2 text-xs text-mute">💡 {p.notes_zh}</p>}
+      <ProjectRefs p={p} act={act} chars={chars} editable={editable} />
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-mute">
         <span>後處理：{f.square === null ? "不裁切" : `裁成正方形（上方比例 ${f.square}）`}、留白 {f.margin}</span>
         <div className="ml-auto flex gap-2">
@@ -333,5 +363,35 @@ function LogLink({ path, style }: { path: string; style: string }) {
         <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs">{text}</pre>
       </Modal>
     </>
+  );
+}
+
+// 已建立專案的參考圖：每個動作直接存到伺服器
+function ProjectRefs({ p, act, chars, editable }: { p: Project; act: ViewProps["act"]; chars: Character[]; editable: boolean }) {
+  const base = `/api/projects/${p.id}`;
+  const temp: TempRef[] = p.refs.temp.map((t) => ({ key: t.file, name: t.file, role: t.role, url: fileUrl(`outputs/${p.id}/refs/${t.file}`) }));
+  const [open, setOpen] = useState(false);
+  const n = p.ref_paths.character.length + p.ref_paths.style.length;
+  const charName = chars.find((c) => c.id === p.refs.character_id)?.name;
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-panel2/60 p-3">
+      <button className="flex w-full items-center gap-2 text-left text-sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span>參考圖</span>
+        <span className="text-xs text-mute">{charName ? `角色：${charName}` : "未指定角色"}・附 {n} 張{p.ref_paths.style.length ? `（含畫風參考 ${p.ref_paths.style.length} 張）` : ""}</span>
+        <span className="ml-auto text-xs text-acc">{open ? "收起" : editable ? "調整" : "查看"}</span>
+      </button>
+      {open && (
+        <div className="mt-3">
+          <RefPicker characters={chars} characterId={p.refs.character_id} characterImages={p.refs.character_images} disabled={!editable}
+            onCharacter={(id, images) => act(() => api.patch<Project>(base, { character_id: id, character_images: id === p.refs.character_id ? images : null }))}
+            temp={temp}
+            onAddTemp={async (files) => { const ups = await readFiles(files, "character"); if (ups.length) await act(() => api.post<Project>(`${base}/refs`, ups)); }}
+            onTempRole={(file, role) => act(() => api.patch<Project>(`${base}/refs/${encodeURIComponent(file)}`, { role }))}
+            onRemoveTemp={(file) => act(() => api.patch<Project>(`${base}/refs/${encodeURIComponent(file)}`, { remove: true }))} />
+          {editable && p.preview && <p className="mt-2 text-xs text-mute">改了參考圖之後，記得按「重新產生預覽」才會套用到樣張。</p>}
+          {!editable && <p className="mt-2 text-xs text-mute">生成中或已完成時不能改參考圖。</p>}
+        </div>
+      )}
+    </div>
   );
 }

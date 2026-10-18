@@ -35,7 +35,7 @@ def sheet_line(n: int, layout: str, kind: str) -> str:
 
 
 def build_prompt(*, style_block: str, framing: str, cells: list[str], output: str,
-                 ref_line: str, kind: str = "chibi-style") -> str:
+                 ref_line: str, identity: str | None = None, kind: str = "chibi-style") -> str:
     t = template()
     layout = layout_for(len(cells))
     cell_text = "\n".join(f"{i}. {c}" for i, c in enumerate(cells, 1))
@@ -43,13 +43,41 @@ def build_prompt(*, style_block: str, framing: str, cells: list[str], output: st
         f"$imagegen {ref_line}",
         sheet_line(len(cells), layout, kind),
         "Art style (this is the most important part):\n" + style_block.strip(),
-        t.get("identity", ""),
+        t.get("identity", "") if identity is None else identity,
         t["framings"].get(framing, t["framings"]["closeup"]),
         t.get("layout_rules", ""),
         ("Cells, left to right, top row first:\n" if layout != "1x1" else "Expression:\n") + cell_text,
         f"Save the result as {output} (inside the current folder).",
     ]
     return "\n\n".join(p for p in parts if p)
+
+
+def _list(paths: list[str]) -> str:
+    return ", ".join(paths)
+
+
+def ref_line(*, character: list[str], style: list[str], preview: str | None = None) -> str:
+    """依附圖的角色組出「每張圖拿來做什麼」的說明。
+
+    character：角色長相（角色庫的圖＋暫時上傳、標成角色的圖）
+    style    ：畫風參考（只學畫法，不抄角色）
+    preview  ：已核准的風格樣張（批次生成時才有）
+    """
+    lines = []
+    if character:
+        lines.append(f"{_list(character)} show the character's identity (face, hair, ears, eyes, accessories, outfit) — "
+                     "keep these traits, but do NOT copy their rendering style unless told below.")
+    if style:
+        lines.append(f"{_list(style)} are art-style references only — match their rendering style (lineart, coloring, "
+                     "shading, proportions) but do NOT copy their character, pose, text or content.")
+    if preview:
+        lines.append(f"{preview} is the approved style sample for this set — match its art style, proportions, lineart, "
+                     "colors, shading, framing and cropping exactly.")
+    elif not style:
+        lines.append("Redraw the character in the new art style described below.")
+    if not lines:
+        return ""
+    return "Use the attached reference images: " + " ".join(lines)
 
 
 # ---------- 用 Codex 把需求擴寫成畫風描述 ----------
@@ -69,14 +97,20 @@ EXPAND_SCHEMA = {
 }
 
 
-def expand_request_prompt(request: str, examples: list[str]) -> str:
+def expand_request_prompt(request: str, examples: list[str], style_refs: list[str] | None = None) -> str:
     ex = "\n\n".join(f"Example style block:\n{e.strip()}" for e in examples if e.strip())
+    if style_refs:
+        refs = (f"\nThe user also attached art-style reference images ({_list(style_refs)}). Study how they are rendered and "
+                "describe THAT rendering style (ignore who or what is drawn in them). The written request, if any, "
+                "takes priority where they disagree.\n")
+    else:
+        refs = ""
     return f"""You are an art director writing prompts for an image model that draws Twitch/Discord emote sheets of ONE fixed character.
 Do not run any tools and do not generate images. Only answer with the JSON object required by the output schema.
 
 The user (writing in Chinese) wants this new art style:
-\"\"\"{request.strip()}\"\"\"
-
+\"\"\"{request.strip() or "(no text — follow the attached style references)"}\"\"\"
+{refs}
 Write `style_block`: 5-8 English bullet lines starting with "- " that describe ONLY the rendering style
 (proportions, line art, coloring/shading, eyes/face treatment, how effects like tears or hearts are drawn).
 Be concrete and visual. Do not describe the character's identity (it is added separately), the background, the grid,

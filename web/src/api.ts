@@ -14,8 +14,28 @@ export type Project = {
   status: ProjectStatus; error: string | null; created: string; updated: string;
   preview: null | { image: string; ids: number[]; prompt: string; layout: string; status: GroupStatus; message: string; log?: string; started?: string };
   sticker_ids: number[]; groups: Group[]; finished_ids?: number[];
+  refs: ProjectRefs; ref_paths: { character: string[]; style: string[]; identity: string };
 };
-export type ProjectSummary = Pick<Project, "id" | "name" | "status" | "updated" | "request">;
+export type RefRole = "character" | "style";
+export type ProjectRefs = { character_id: string | null; character_images: string[] | null; temp: { file: string; role: RefRole }[] };
+
+export type CharImage = { file: string; use: boolean };
+export type Character = { id: string; name: string; identity: string; notes_zh: string; images: CharImage[]; created: string; updated: string };
+export const charImageUrl = (c: Character, file: string) => fileUrl(`characters/${c.id}/refs/${file}`, c.updated);
+/** 角色這次要用的圖：selected 是 null 時用角色預設勾選的 */
+export const charUsed = (c: Character, selected: string[] | null) =>
+  c.images.filter((i) => (selected === null ? i.use : selected.includes(i.file))).map((i) => i.file);
+
+export type Upload = { name: string; data: string; role?: RefRole };
+/** 瀏覽器端把檔案讀成 data URL（後端再轉成 PNG） */
+export const readFiles = (files: Iterable<File>, role?: RefRole): Promise<Upload[]> =>
+  Promise.all([...files].filter((f) => f.type.startsWith("image/")).map((f) => new Promise<Upload>((ok, bad) => {
+    const r = new FileReader();
+    r.onload = () => ok({ name: f.name || "pasted.png", data: String(r.result), role });
+    r.onerror = () => bad(r.error);
+    r.readAsDataURL(f);
+  })));
+export type ProjectSummary = Pick<Project, "id" | "name" | "status" | "updated" | "request"> & { character_id: string | null };
 
 export type GalleryItem = { id: number; name: string; label: string; zh: string; group: number; files: Record<string, string>; mtime: number };
 export type GalleryStyle = { id: string; name: string; items: GalleryItem[] };
@@ -36,6 +56,7 @@ export const api = {
   get: <T,>(url: string) => req<T>("GET", url),
   post: <T,>(url: string, body: unknown = {}) => req<T>("POST", url, body),
   patch: <T,>(url: string, body: unknown) => req<T>("PATCH", url, body),
+  del: <T,>(url: string) => req<T>("DELETE", url),
 };
 
 /** outputs/、exports/ 底下的檔案網址；v 用來避免瀏覽器快取舊圖 */

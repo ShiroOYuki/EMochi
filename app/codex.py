@@ -138,13 +138,18 @@ def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path:
     return True, why
 
 
-def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int = 5 * 60) -> str:
-    """不生圖、只要文字（JSON）回覆：唯讀沙盒、不留 session"""
+def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int = 5 * 60,
+             images: list[str] | None = None) -> str:
+    """不生圖、只要文字（JSON）回覆：唯讀沙盒、不留 session；images 可附參考圖讓 Codex 看"""
     out = log_path.with_suffix(".answer.json")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()
     cmd = [codex_bin(), "exec", "--skip-git-repo-check", "-s", "read-only", "--ephemeral",
-           "--output-schema", str(schema_path), "-o", str(out), "-"]
+           "--output-schema", str(schema_path), "-o", str(out)]
+    for img in images or []:
+        cmd += ["-i", img]
+    cmd.append("-")
     code, reason = _run(cmd, prompt, log_path, timeout=timeout)
     if not out.exists():
         raise RuntimeError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {log_path.relative_to(ROOT)}")

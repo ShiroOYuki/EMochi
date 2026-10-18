@@ -6,7 +6,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import gallery, jobs, prompts
+from . import characters, gallery, jobs, prompts
+from .images import decode_data_url
 from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, add_sticker, load_stickers, next_style_id, read_json
 
 app = FastAPI(title="AI Sticker")
@@ -14,6 +15,7 @@ app = FastAPI(title="AI Sticker")
 
 @app.on_event("startup")
 def _startup():
+    characters.ensure_default()
     jobs.recover_interrupted()
 
 
@@ -48,7 +50,8 @@ def create_sticker(body: NewSticker):
 def files(path: str):
     """outputs/ 與 exports/ 底下的檔案（圖片、zip、json）"""
     p = (ROOT / path).resolve()
-    if not any(base.resolve() in p.parents for base in (OUTPUTS, EXPORTS)) or not p.is_file():
+    bases = (OUTPUTS, EXPORTS, characters.CHAR_DIR)
+    if not any(base.resolve() in p.parents for base in bases) or not p.is_file():
         raise HTTPException(404)
     headers = {"Cache-Control": "no-store"}
     if p.suffix == ".zip":
@@ -69,22 +72,118 @@ def project(style: str):
     p = jobs.load(style)
     if not p:
         raise HTTPException(404, f"找不到專案 {style}")
-    return p
+    return {**p, "refs": jobs.refs_of(p), "ref_paths": jobs.ref_paths(p)}
+
+
+class Upload(BaseModel):
+    """前端用 FileReader 讀成 data URL 傳上來，免裝 python-multipart"""
+    name: str = "image.png"
+    data: str
+    role: str = "character"   # 暫時參考圖：character / style
+
+
+def _decode(files: list[Upload]) -> list[tuple[str, bytes, str]]:
+    try:
+        return [(f.name, decode_data_url(f.data), f.role) for f in files]
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(400, f"圖片讀取失敗：{e}")
 
 
 class CreateBody(BaseModel):
+    request: str = ""
+    character_id: str | None = None
+    character_images: list[str] | None = None
+    temp_refs: list[Upload] = []
+
+
+class ExpandBody(BaseModel):
     request: str
 
 
 @app.post("/api/projects")
 def create(body: CreateBody):
-    if not body.request.strip():
-        raise HTTPException(400, "請描述想要的畫風")
-    return jobs.create(body.request)
+    try:
+        return jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs))
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/projects/{style}/refs")
+def add_refs(style: str, files: list[Upload]):
+    try:
+        return jobs.add_temp_refs(style, _decode(files))
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+class RefPatch(BaseModel):
+    role: str | None = None
+    remove: bool = False
+
+
+@app.patch("/api/projects/{style}/refs/{file}")
+def patch_ref(style: str, file: str, body: RefPatch):
+    try:
+        return jobs.update_temp_ref(style, file, body.role, body.remove)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+# ---------- 角色庫 ----------
+
+@app.get("/api/characters")
+def list_characters():
+    return characters.list_all()
+
+
+class NewCharacter(BaseModel):
+    name: str
+    images: list[Upload] = []
+
+
+@app.post("/api/characters")
+def create_character(body: NewCharacter):
+    try:
+        return characters.create(body.name, [(n, d) for n, d, _ in _decode(body.images)])
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.patch("/api/characters/{cid}")
+def update_character(cid: str, body: dict):
+    try:
+        return characters.update(cid, body)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/characters/{cid}/images")
+def add_character_images(cid: str, files: list[Upload]):
+    try:
+        return characters.add_images(cid, [(n, d) for n, d, _ in _decode(files)])
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.delete("/api/characters/{cid}/images/{file}")
+def remove_character_image(cid: str, file: str):
+    try:
+        return characters.remove_image(cid, file)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/characters/{cid}/describe")
+def describe_character(cid: str):
+    """同步等 Codex 看圖（約 30~90 秒）；前端顯示讀取中"""
+    try:
+        return characters.describe(cid)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
 
 
 @app.post("/api/projects/{style}/expand")
-def reexpand(style: str, body: CreateBody):
+def reexpand(style: str, body: ExpandBody):
     try:
         return jobs.reexpand(style, body.request)
     except Exception as e:  # noqa: BLE001
@@ -105,8 +204,8 @@ def prompt_preview(style: str):
     p = jobs.load(style)
     if not p:
         raise HTTPException(404)
-    text, ids, out = jobs.preview_prompt(p)
-    return {"prompt": text, "ids": ids, "output": out}
+    text, ids, out, refs = jobs.preview_prompt(p)
+    return {"prompt": text, "ids": ids, "output": out, "refs": refs}
 
 
 @app.post("/api/projects/{style}/preview")
