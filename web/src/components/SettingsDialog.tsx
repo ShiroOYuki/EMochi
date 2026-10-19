@@ -108,7 +108,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
         </div>
         {!info && !err && <div className="flex items-center gap-2 py-8 text-mute"><Spinner />讀取中…</div>}
         {info && vals && <>
-          <Group title="資料夾" note="可以填絕對路徑，或相對於專案資料夾的路徑。儲存時可以選擇把現有檔案搬過去。">
+          <Group title="資料夾" note="一律填完整路徑（例如 D:\EMochiData\logs），或按「選擇…」挑資料夾。儲存時可以選擇把現有檔案搬過去。">
             {info.dirs.map((x) => (
               <DirRow key={x.key} d={x} value={dirs[x.key] ?? x.value} check={checks[x.key]}
                 onChange={(v) => setDir(x.key, v)} onPick={() => pick(x.key, checks[x.key]?.path ?? x.path)}
@@ -203,7 +203,7 @@ function DirRow({ d, value, check, onChange, onPick, onOpen, onReset }: {
         {changed && <span className="ml-auto shrink-0 rounded-full bg-gold/20 px-2 text-[11px] text-gold-deep">已修改</span>}
       </div>
       <div className="flex gap-1.5">
-        <input className="input bg-panel font-mono text-xs" value={value} spellCheck={false} onChange={(e) => onChange(e.target.value)} aria-label={d.label} />
+        <input className="input bg-panel font-mono text-xs" value={value} spellCheck={false} placeholder="完整路徑" onChange={(e) => onChange(e.target.value)} aria-label={d.label} />
         <button className="btn btn-sm shrink-0" onClick={onPick} title="跳出資料夾選擇視窗（在這台電腦上）">選擇…</button>
         <button className="btn btn-sm shrink-0" onClick={onOpen} title="在檔案總管開啟">開啟</button>
         {value.trim() !== d.default && <button className="btn btn-sm shrink-0" onClick={onReset} title={`恢復預設（${d.default}）`}>預設</button>}

@@ -57,7 +57,7 @@ def info() -> dict:
     dirs = []
     for key, (default, label, desc) in settings.DIRS.items():
         d = settings.resolve(cur[key])
-        dirs.append({"key": key, "label": label, "desc": desc, "value": cur[key], "default": default,
+        dirs.append({"key": key, "label": label, "desc": desc, "value": str(d), "default": str(settings.default_dir(key)),
                      "path": str(d), "exists": d.exists(), **_stat(key, d)})
     return {
         "dirs": dirs,
@@ -79,7 +79,10 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
     """others：這次一起改的其他資料夾設定（還沒存），一起檢查有沒有互相包含"""
     if key not in settings.DIRS:
         raise KeyError(key)
-    value = str(value or "").strip() or settings.DIRS[key][0]
+    value = str(value or "").strip()
+    if not value or not Path(value).is_absolute():
+        return {"key": key, "value": value, "path": value, "exists": False, "files": 0, "size": 0, "warn": None,
+                "error": f"請填完整路徑，例如 D:\\EMochiData\\{settings.DIRS[key][0]}"}
     d = settings.resolve(value)
     out = {"key": key, "value": value, "path": str(d), "exists": d.exists(), "error": None, "warn": None, **_stat(key, d)}
     cur = {**settings.load(), **(others or {})}
@@ -127,7 +130,7 @@ def plan(changes: dict) -> dict:
     others = {k: v for k, v in changes.items() if k in settings.DIRS}
     items, errors = [], []
     for key, value in others.items():
-        value = str(value or "").strip() or settings.DIRS[key][0]
+        value = str(value or "").strip() or str(settings.default_dir(key))
         src, dst = settings.resolve(cur[key]), settings.resolve(value)
         if src == dst:
             continue

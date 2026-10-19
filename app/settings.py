@@ -2,10 +2,9 @@
 
 設定檔本身的位置固定，不能被設定改走。檔案不存在或缺欄位時用 DEFAULTS；改了立即生效（每次用到都重讀）。
 
-資料夾設定（DIRS）可以填絕對路徑，或相對於資料根目錄的路徑（支援 ~）。
+資料夾設定（DIRS）一律用完整路徑（使用者要求 2026-10-19）；預設值是資料根目錄底下的同名資料夾。
 outputs/ 不開放：Codex 生圖的沙盒只能寫入 cwd（資料根目錄）底下。
 """
-import os
 import threading
 from pathlib import Path
 
@@ -60,9 +59,13 @@ def get(key: str):
 
 
 def resolve(value: str) -> Path:
-    """設定值 → 實際路徑：展開 ~、相對路徑接在資料根目錄後面"""
-    p = Path(os.path.expandvars(os.path.expanduser(str(value).strip())))
+    """設定值 → 實際路徑。畫面上只收完整路徑；相對路徑只出現在 DEFAULTS（接在資料根目錄後面）"""
+    p = Path(str(value).strip())
     return (p if p.is_absolute() else ROOT / p).resolve()
+
+
+def default_dir(key: str) -> Path:
+    return resolve(DEFAULTS[key])
 
 
 def dir_of(key: str) -> Path:
@@ -76,7 +79,12 @@ def validate(changes: dict) -> dict:
         if k not in DEFAULTS or k == "codex_args":
             continue
         if k in DIRS:
-            v = str(v or "").strip() or DEFAULTS[k]
+            v = str(v or "").strip()
+            if not v:
+                v = str(default_dir(k))
+            elif not Path(v).is_absolute():
+                raise ValueError(f"{DIRS[k][1]}請填完整路徑（例如 D:\\EMochiData\\{DEFAULTS[k]}）")
+            v = str(resolve(v))
         elif k in LIMITS:
             lo, hi = LIMITS[k]
             try:
@@ -95,8 +103,10 @@ def save(changes: dict) -> dict:
     with _lock:
         data = read_json(FILE, {}) or {}
         data.update(changes)
-        # 和預設一樣的就不寫進檔案，檔案只留真的改過的
-        data = {k: v for k, v in data.items() if k in DEFAULTS and v != DEFAULTS[k] or k == "codex_args"}
+        # 和預設一樣的就不寫進檔案，檔案只留真的改過的（資料夾比對實際路徑）
+        def same(k, v):
+            return resolve(v) == default_dir(k) if k in DIRS else v == DEFAULTS[k]
+        data = {k: v for k, v in data.items() if k in DEFAULTS and (k == "codex_args" or not same(k, v))}
         write_json(FILE, data)
         _cache["sig"] = None
         return load()

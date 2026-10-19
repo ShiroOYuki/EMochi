@@ -36,15 +36,21 @@ def test_info_and_validate(client, clean):
 
 def test_check(client, data_root, clean, ext):
     chk = lambda k, v: client.post("/api/settings/check", json={"key": k, "value": v}).json()
-    assert "outputs" in chk("logs_dir", "outputs")["error"]
-    assert chk("logs_dir", "outputs/x")["error"]
-    assert chk("logs_dir", str(data_root))["error"]
-    assert "重疊" in chk("logs_dir", "characters/sub")["error"]
-    (data_root / "afile.txt").write_text("x")
-    assert "檔案" in chk("logs_dir", "afile.txt")["error"]
+    R = data_root
+    assert "完整路徑" in chk("logs_dir", "my_logs")["error"]          # 一律要完整路徑
+    assert "完整路徑" in chk("logs_dir", "")["error"]
+    assert "outputs" in chk("logs_dir", str(R / "outputs"))["error"]
+    assert chk("logs_dir", str(R / "outputs" / "x"))["error"]
+    assert chk("logs_dir", str(R))["error"]
+    assert "重疊" in chk("logs_dir", str(R / "characters" / "sub"))["error"]
+    (R / "afile.txt").write_text("x")
+    assert "檔案" in chk("logs_dir", str(R / "afile.txt"))["error"]
     ok = chk("characters_dir", str(ext / "chars"))
     assert ok["error"] is None and "絕對路徑" in ok["warn"] and "建立" in ok["warn"]
-    assert chk("logs_dir", "my_logs")["error"] is None
+    assert chk("logs_dir", str(R / "my_logs"))["error"] is None
+    d = client.get("/api/settings").json()["dirs"][0]
+    assert d["value"] == str((R / "logs").resolve()) == d["default"]   # 預設也顯示完整路徑
+    assert client.put("/api/settings", json={"changes": {"logs_dir": "relative"}}).status_code == 400
 
 
 def test_move_logs_and_rewrite(client, data_root, clean, ext):
@@ -68,8 +74,9 @@ def test_move_logs_and_rewrite(client, data_root, clean, ext):
     assert p["groups"][0]["refs"] == ["logsX/keep.png"]           # 只換開頭完全相符的
     assert client.get("/api/projects/s70/log", params={"path": p["groups"][0]["log"]}).status_code == 200
     # 搬回預設
-    r = client.put("/api/settings", json={"changes": {"logs_dir": "logs"}, "move": True})
+    r = client.put("/api/settings", json={"changes": {"logs_dir": str(data_root / "logs")}, "move": True})
     assert r.status_code == 200 and log.exists()
+    assert not (data_root / "settings.local.json").exists() or "logs_dir" not in json.loads((data_root / "settings.local.json").read_text())   # 和預設一樣就不存
     assert json.loads(proj.read_text(encoding="utf-8"))["groups"][0]["log"] == "logs/s70/g1_20261019_100000.log"
 
 
@@ -86,7 +93,7 @@ def test_conflict_and_keep_path(client, data_root, clean, ext):
     assert r.json()["report"]["moved"][0]["skipped"] == 1
     assert json.loads((new / "a.json").read_text())["v"] == "new"
     # 只改路徑：檔案不動
-    r = client.put("/api/settings", json={"changes": {"exports_dir": "exports"}, "move": False})
+    r = client.put("/api/settings", json={"changes": {"exports_dir": str(data_root / "exports")}, "move": False})
     assert r.status_code == 200 and paths.exports_dir() == (data_root / "exports").resolve()
     assert (new / "a.json").exists()
 
@@ -109,7 +116,7 @@ def test_characters_dir_live(client, data_root, clean, ext):
     data["images"] = [{"file": "ref_01.png", "use": True}]
     (new / c["id"] / "character.json").write_text(json.dumps(data), encoding="utf-8")
     assert characters.rel_paths(c["id"])[0] == (new / c["id"] / "refs" / "ref_01.png").resolve().as_posix()
-    client.put("/api/settings", json={"changes": {"characters_dir": "characters"}, "move": True})
+    client.put("/api/settings", json={"changes": {"characters_dir": str(data_root / "characters")}, "move": True})
 
 
 def test_config_dir_and_busy(client, data_root, clean, ext):
@@ -125,5 +132,5 @@ def test_config_dir_and_busy(client, data_root, clean, ext):
     assert r.status_code == 200, r.text
     assert (new / "stickers.json").exists() and (data_root / "config" / "stickers.example.json").exists()
     assert [s for s in paths.load_stickers() if s["id"] == 2][0]["zh"] == "設定頁測試"
-    client.put("/api/settings", json={"changes": {"config_dir": "config"}, "move": True})
+    client.put("/api/settings", json={"changes": {"config_dir": str(data_root / "config")}, "move": True})
     (data_root / "config" / "stickers.json").unlink()   # 還原成沒有 stickers.json（test_stickers 要測 example fallback）
