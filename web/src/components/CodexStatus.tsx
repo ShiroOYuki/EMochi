@@ -159,7 +159,7 @@ function Usage({ d }: { d: CodexStatus["usage"] }) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Bars title="依用途" items={d.by_kind} total={d.total_tokens} />
-        <Bars title="依專案／範圍" items={d.by_scope.slice(0, 8)} total={d.total_tokens} />
+        <Bars title="依專案／範圍" items={d.by_scope} total={d.total_tokens} />
       </div>
 
       <RecentRuns runs={d.recent} days={d.days} />
@@ -174,20 +174,26 @@ function Stat({ label, value, tip }: { label: string; value: string; tip?: strin
     </div>
   );
 }
+const BAR_ROW = 30;      // 每一列固定高度（文字 + 進度條 + 間距），最多顯示 BAR_ROWS 列，多的捲動
+const BAR_ROWS = 8;
+
 function Bars({ title, items, total }: { title: string; items: CodexTally[]; total: number }) {
   const max = Math.max(1, ...items.map((x) => x.tokens));
+  const scroll = items.length > BAR_ROWS;
   return (
     <div>
-      <h5 className="mb-1.5 text-xs text-mute">{title}</h5>
-      {items.length ? items.map((x) => (
-        <div key={x.key} className="mb-1.5" title={`${x.label}：${fmtFull(x.tokens)} tokens、${x.runs} 次（${total ? Math.round((x.tokens / total) * 100) : 0}%）`}>
+      <h5 className="mb-1.5 text-xs text-mute">{title}{scroll && <span className="ml-1 text-[11px]">（共 {items.length} 項，捲動看更多）</span>}</h5>
+      {items.length ? <div className={scroll ? "scroll-inset-sm overflow-y-auto overscroll-contain pr-2" : ""} style={scroll ? { maxHeight: BAR_ROW * BAR_ROWS } : undefined}>
+      {items.map((x) => (
+        <div key={x.key} className="flex flex-col justify-center" style={{ height: BAR_ROW }} title={`${x.label}：${fmtFull(x.tokens)} tokens、${x.runs} 次（${total ? Math.round((x.tokens / total) * 100) : 0}%）`}>
           <div className="mb-0.5 flex items-baseline gap-2 text-xs">
             <span className="min-w-0 truncate">{x.label}</span><span className="text-[11px] text-mute">{x.runs} 次</span>
             <span className="ml-auto tabular-nums">{fmtTok(x.tokens)}</span>
           </div>
           <div className="h-1.5 rounded-full bg-panel"><div className="h-full rounded-full bg-acc" style={{ width: `${(x.tokens / max) * 100}%` }} /></div>
         </div>
-      )) : <p className="text-xs text-mute">沒有資料</p>}
+      ))}
+      </div> : <p className="text-xs text-mute">沒有資料</p>}
     </div>
   );
 }
