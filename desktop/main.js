@@ -129,7 +129,7 @@ const isLocal = (url) => url.startsWith(baseUrl);
 
 function splash() {
   const dark = nativeTheme.shouldUseDarkColors;
-  const html = `<html><body style="margin:0;display:grid;place-items:center;height:100vh;font:15px 'Microsoft JhengHei UI',sans-serif;
+  const html = `<html><body style="-webkit-app-region:drag;margin:0;display:grid;place-items:center;height:100vh;font:15px 'Microsoft JhengHei UI',sans-serif;
     background:${dark ? "#1c1b29" : "#faf8ff"};color:${dark ? "#cfcbe6" : "#4a4668"}">EMochi 啟動中…</body></html>`;
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
 }
@@ -142,6 +142,9 @@ function createWindow() {
     icon: path.join(__dirname, "assets", "icon.png"),
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1c1b29" : "#faf8ff",
     autoHideMenuBar: true,
+    // 不用 Windows 的標題列：拖曳區、縮小／最大化／關閉按鈕畫在網頁的 Navbar 上（WindowControls.tsx）。
+    // "hidden" 仍保留視窗邊框的縮放、陰影與 Aero Snap
+    titleBarStyle: "hidden",
     show: false,
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true },
   });
@@ -190,11 +193,21 @@ function createWindow() {
     app.quit();
   });
   win.on("closed", () => { win = null; });
+  const sendMax = () => win?.webContents.send("win-maximized", win.isMaximized());
+  win.on("maximize", sendMax);
+  win.on("unmaximize", sendMax);
 }
 
 // ---------- 給前端的功能 ----------
 
 ipcMain.on("app-version", (e) => { e.returnValue = app.getVersion(); });
+ipcMain.on("win-is-maximized", (e) => { e.returnValue = !!win?.isMaximized(); });
+ipcMain.on("win", (_e, action) => {
+  if (!win) return;
+  if (action === "minimize") win.minimize();
+  else if (action === "toggle-maximize") win.isMaximized() ? win.unmaximize() : win.maximize();
+  else if (action === "close") win.close();   // 走 close 事件：Codex 執行中會先詢問
+});
 ipcMain.handle("pick-folder", async (_e, initial) => {
   const r = await dialog.showOpenDialog(win, {
     title: "選擇資料夾",

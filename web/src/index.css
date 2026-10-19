@@ -231,3 +231,8 @@ textarea::-webkit-resizer { background: transparent; }
 @media (prefers-reduced-motion: reduce) { .select-pop[data-state] { animation: none; } }
 /* 選單項目用底色表示目前位置，不要再疊全站的 focus 外框（全域 :focus-visible 不在 layer 裡，會蓋過 outline-none） */
 .select-pop [role="option"]:focus-visible { outline: none; }
+
+/* 桌面版自訂標題列：.app-drag 的空白處拖曳視窗；可點的東西、對話框要排除，不然點不到 */
+.app-drag { -webkit-app-region: drag; user-select: none; }
+.app-drag :is(button, a, input, select, textarea, [role="button"], [role="tab"], [role="group"]) { -webkit-app-region: no-drag; }
+.no-drag { -webkit-app-region: no-drag; }

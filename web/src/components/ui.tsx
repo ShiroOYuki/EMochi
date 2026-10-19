@@ -60,13 +60,13 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
+        <DialogOverlay className="no-drag fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
         <DialogContent aria-describedby={undefined} from="top" transition={reduce ? { duration: 0 } : SPRING}
           // 置中用 inset-0 + m-auto + h-fit（不用 translate -50%：寬高是奇數時會落在半像素上，文字發糊）
           // 打開時焦點放在框本身（仍鎖在框內），不要自動跳到第一顆按鈕上冒出焦點框；框裡有 autoFocus 的就交給它
           onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; if (!el.contains(document.activeElement)) el.focus(); }}
           onCloseAutoFocus={(e) => { const o = opener.current; if (o?.isConnected) { e.preventDefault(); o.focus({ preventScroll: true }); } }}
-          className={cn("scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
+          className={cn("no-drag scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
             wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]")}>
           <DialogTitle className="sr-only">{label}</DialogTitle>
           {open ? children : last.current}

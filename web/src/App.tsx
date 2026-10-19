@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
+import { WindowControls } from "./components/WindowControls";
+import { desktop } from "./desktop";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
@@ -41,7 +43,8 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 bg-panel px-5 py-3 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)]">
+      {/* 桌面版：Navbar 兼當標題列（空白處可拖曳視窗、雙擊最大化），右邊多一組視窗按鈕 */}
+      <header className={`flex items-center gap-4 bg-panel py-3 pl-5 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)] ${desktop ? "app-drag pr-3" : "pr-5"}`}>
         <h1 className="flex items-center gap-2 text-lg"><Ears />EMochi</h1>
         {/* Animate UI Tabs：藍色軟糖底用彈簧滑到目前的分頁；方向鍵可切換 */}
         <Tabs value={tab} onValueChange={(v) => go(v as Tab)} asChild>
@@ -63,6 +66,7 @@ export default function App() {
         <CodexUsage className="ml-auto" />
         <ThemeToggle />
         <SettingsButton />
+        <WindowControls />
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
