@@ -112,7 +112,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
-        <img loading="lazy" src={fileUrl(`outputs/${e.it.files.t112 ?? e.it.files.master}`, e.it.mtime)} className="sticker-img mx-auto mb-1.5 size-28" />
+        <img loading="lazy" decoding="async" alt="" src={fileUrl(`outputs/${e.it.files.t112 ?? e.it.files.master}`, e.it.mtime)} className="sticker-img mx-auto mb-1.5 size-28" />
         <div className="truncate text-xs text-mute">{mode === "__all" ? e.s.name || e.s.id : e.it.label}</div>
       </div>
     );

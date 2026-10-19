@@ -14,6 +14,21 @@
     </script>
   </head>
   <body>
+    <!-- Gallery 貼紙的白色模切邊＋投影（index.css 的 .sticker-img 用）。
+         一個 SVG 濾鏡一次做完：把透明度外擴 2px 塗白當邊，再從外擴後的形狀做模糊投影。
+         外觀等同原本 5 層 CSS drop-shadow（4 個 2px 位移＝邊長 2px 的方形外擴），但每次只算一遍，捲動時快很多 -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <filter id="sticker-outline" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="edge" />
+        <feGaussianBlur in="edge" stdDeviation="3" />
+        <feOffset dy="5" result="blur" />
+        <feFlood flood-color="rgb(52,49,90)" flood-opacity="0.22" />
+        <feComposite in2="blur" operator="in" result="shadow" />
+        <feFlood flood-color="#fff" />
+        <feComposite in2="edge" operator="in" result="white" />
+        <feMerge><feMergeNode in="shadow" /><feMergeNode in="white" /><feMergeNode in="SourceGraphic" /></feMerge>
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

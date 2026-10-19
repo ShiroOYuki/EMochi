@@ -172,10 +172,11 @@ body {
   .chk { @apply size-4 accent-[var(--color-pink)]; }
   .checker { background: repeating-conic-gradient(var(--c-check-a) 0 25%, var(--c-check-b) 0 50%) 0 0 / 16px 16px; }
 
-  /* Gallery 貼紙：去背貼圖外圍加白色模切邊＋投影，像一張真的貼紙 */
+  /* Gallery 貼紙：去背貼圖外圍加白色模切邊＋投影，像一張真的貼紙。
+     濾鏡定義在 index.html 的 #sticker-outline（單一 SVG 濾鏡）；原本疊 5 層 drop-shadow，
+     256 張時捲動只有約 55fps、一半的影格超過 16ms，改成單一濾鏡後外觀相同、捲動回到滿幀 */
   .sticker-img {
-    filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
-      drop-shadow(0 5px 6px rgb(52 49 90 / 0.22));
+    filter: url(#sticker-outline);
     transition: transform 0.28s var(--ease-snap);
   }
   /* 滑過：貼紙微微浮起放大；勾選：翹起來斜一點；按下卡片：整張輕壓 */
