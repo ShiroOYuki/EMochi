@@ -267,10 +267,10 @@ export function Select<T extends string | number>({ value, onChange, options, di
     <SelectPrimitive.Root value={cur === "" ? undefined : cur} disabled={disabled}
       onValueChange={(v) => { const o = real.find((x) => String(x.value) === v); if (o) onChange(o.value); }}>
       <SelectPrimitive.Trigger aria-label={label}
-        className={cn("input group flex items-center justify-between gap-2 text-left data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel", className)}>
+        className={cn("input group flex cursor-pointer items-center justify-between gap-2 text-left hover:border-acc hover:bg-panel data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:bg-panel2", className)}>
         <span className="min-w-0 flex-1 truncate"><SelectPrimitive.Value placeholder={placeholder ?? empty?.label ?? "請選擇"} /></span>
         <SelectPrimitive.Icon asChild>
-          <ChevronDownIcon className="size-4 shrink-0 text-mute transition-transform duration-200 group-data-[state=open]:rotate-180 group-data-[state=open]:text-acc" />
+          <ChevronDownIcon className="size-4 shrink-0 text-mute transition-[transform,color] duration-200 group-hover:text-acc group-disabled:group-hover:text-mute group-data-[state=open]:rotate-180 group-data-[state=open]:text-acc" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
