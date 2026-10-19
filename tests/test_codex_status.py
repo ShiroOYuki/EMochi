@@ -46,3 +46,28 @@ def test_status_endpoint(client, monkeypatch):
     d = client.get("/api/codex-status").json()
     assert {"cli", "login", "rate", "running", "usage", "sessions_dir"} <= d.keys()
     assert len(d["usage"]["daily"]) == 7
+
+
+def test_usage_cache_and_filter(data_root, monkeypatch):
+    """太舊的 log 不解析；沒變的 log 第二次直接用快取；log 有變就重讀"""
+    from app import codex_status as cs
+    old = _log(data_root, "s91", "g1", "20260901_100000", 1234)
+    p = _log(data_root, "s91", "g2", "20261019_090000", 1000)
+    calls = []
+    real = cs._parse
+    monkeypatch.setattr(cs, "_parse", lambda path: calls.append(path.name) or real(path))
+    now = datetime(2026, 10, 19, 12, 0)
+    cs._parse_cache.clear()
+    cs.usage_days(now=now)
+    assert old.name not in calls and p.name in calls
+    calls.clear()
+    u = cs.usage_days(now=now)
+    assert calls == []                                   # 全部走快取
+    assert any(r["log"].endswith(p.name) and r["tokens"] == 1000 for r in u["recent"])
+    import os
+    p.write_text(p.read_text(encoding="utf-8").replace("1,000", "2,000"), encoding="utf-8")
+    st = p.stat()
+    os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    u = cs.usage_days(now=now)
+    assert calls == [p.name]
+    assert any(r["log"].endswith(p.name) and r["tokens"] == 2000 for r in u["recent"])

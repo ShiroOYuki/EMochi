@@ -112,6 +112,26 @@ def _scope_labels(scopes: set[str]) -> dict[str, str]:
     return out
 
 
+_parse_cache: dict[str, tuple[tuple[int, int], dict]] = {}
+
+
+def _parse_cached(path: Path) -> dict | None:
+    """已經結束的 log 內容不會再變：用 (修改時間, 大小) 當快取鍵，沒變就不重讀。
+    執行中的不快取（結果、耗時一直在變）；log 還在寫的話修改時間會變，自然會重讀"""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    key, sig = str(path), (st.st_mtime_ns, st.st_size)
+    hit = _parse_cache.get(key)
+    if hit and hit[0] == sig and key not in codex.ACTIVE:
+        return dict(hit[1])
+    r = _parse(path)
+    if r and key not in codex.ACTIVE:
+        _parse_cache[key] = (sig, r)
+    return dict(r) if r else None
+
+
 def _parse(path: Path) -> dict | None:
     m = NAME_RE.match(path.name)
     if not m:
@@ -149,11 +169,16 @@ def usage_days(days: int = DAYS, now: datetime | None = None) -> dict:
     first = (now - timedelta(days=days - 1)).date()
     runs = []
     if LOGS.exists():
+        oldest = first.strftime("%Y%m%d")
         for p in LOGS.glob("*/*.log"):
             if p.parent.name in SKIP_DIRS:
                 continue
-            r = _parse(p)
-            if r and datetime.strptime(r["date"], "%Y-%m-%d").date() >= first:
+            # 先看檔名上的日期，太舊的連開都不開：耗時只跟近 N 天的呼叫數有關，不會隨歷史 log 越積越慢
+            m = NAME_RE.match(p.name)
+            if not m or m["ts"][:8] < oldest:
+                continue
+            r = _parse_cached(p)
+            if r:
                 runs.append(r)
     runs.sort(key=lambda r: r["time"], reverse=True)
     labels = _scope_labels({r["scope"] for r in runs})
