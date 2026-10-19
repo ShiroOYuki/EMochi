@@ -50,9 +50,12 @@ export default function StylesPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto p-4">
-        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增畫風</button>
-        <div className="mb-1 px-1 text-xs text-mute">畫風庫</div>
+      <aside className="flex w-64 shrink-0 flex-col">
+        <div className="shrink-0 px-4 pt-4">
+          <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增畫風</button>
+          <div className="mb-1 px-1 text-xs text-mute">畫風庫</div>
+        </div>
+        <div className="side-list">
         {list.length === 0 && <div className="px-1 text-xs text-mute">還沒有畫風。上傳範例貼圖讓 Codex 分析，或從現有的畫風專案匯入。</div>}
         {list.map((s) => {
           const cover = libCover(s);
@@ -72,6 +75,7 @@ export default function StylesPage({ active }: { active: boolean }) {
             </div>
           );
         })}
+        </div>
         {menu}
         <DeleteConfirm target={toDelete} noun="畫風" onConfirm={doDelete} onClose={() => setToDelete(null)} />
         <TrashButton kind="styles" active={active} refreshKey={trashKey}

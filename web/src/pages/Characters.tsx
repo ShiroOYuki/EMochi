@@ -55,9 +55,12 @@ export default function CharactersPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto p-4">
-        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增角色</button>
-        <div className="mb-1 px-1 text-xs text-mute">角色</div>
+      <aside className="flex w-64 shrink-0 flex-col">
+        <div className="shrink-0 px-4 pt-4">
+          <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增角色</button>
+          <div className="mb-1 px-1 text-xs text-mute">角色</div>
+        </div>
+        <div className="side-list">
         {list.map((c) => {
           const cover = c.images.find((i) => i.use)?.file ?? c.images[0]?.file;
           return (
@@ -76,6 +79,7 @@ export default function CharactersPage({ active }: { active: boolean }) {
             </div>
           );
         })}
+        </div>
         {menu}
         <DeleteConfirm target={toDelete} noun="角色" onConfirm={doDelete} onClose={() => setToDelete(null)} />
         <TrashButton kind="characters" active={active} refreshKey={trashKey}

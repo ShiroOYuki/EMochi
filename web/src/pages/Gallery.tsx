@@ -52,6 +52,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
     return (id: number) => ids.has(id);
   }, [group, stickerGroups]);
   const [selArr, setSelArr] = useStored<string[]>("gallery.sel", []);
+  // 並排比較：每組一列、橫向捲動（預設）；false＝舊的自動換行（每組的寬度依畫風數決定）
+  const [oneLine, setOneLine] = useStored<boolean>("gallery.oneLine", true);
   const sel = useMemo(() => new Set(selArr), [selArr]);
   const [open, setOpen] = useState<number | null>(null);
 
@@ -118,7 +120,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
     return (
       <div key={k} onClick={() => setOpen(i)}
         data-vt={vtKey(k)}
-        className={`sticker-card relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        className={`sticker-card relative w-[136px] shrink-0 cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
@@ -150,6 +152,12 @@ export default function GalleryPage({ active }: { active: boolean }) {
         ))}
         <Select label="組別" className="!w-40 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
           options={[{ value: 0, label: "全部組別" }, ...stickerGroups.map((g) => ({ value: g.id, label: g.name })), { value: -1, label: "未分組" }]} />
+        {rows && (
+          <button className="btn btn-sm" aria-pressed={oneLine} onClick={() => withVT(() => setOneLine((v) => !v))}
+            title={oneLine ? "每組一列，左右捲動（Shift＋滾輪或拖捲軸）" : "每組的卡片自動換行"}>
+            {oneLine ? "⇆ 單行捲動" : "↩ 自動換行"}
+          </button>
+        )}
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), false)}>取消此頁</button>
         <button className="btn btn-sm" onClick={() => setSelArr(view.map(keyOf).filter((k) => !sel.has(k)).concat(selArr.filter((k) => !view.some((e) => keyOf(e) === k))))}>反選此頁</button>
@@ -162,7 +170,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
         <div className="min-w-0 flex-1 overflow-y-auto p-4">
           {allStyles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
           {rows ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: oneLine ? "minmax(0, 1fr)" : `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
               {rows.map((r) => {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);
@@ -175,7 +183,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, true)}>全選此組</button>
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
-                    <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>
+                    <div className={oneLine ? "scroll-row" : "flex flex-wrap gap-2.5"}>{r.entries.map((e, j) => card(e, start + j))}</div>
                   </div>
                 );
               })}

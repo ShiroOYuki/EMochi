@@ -149,7 +149,7 @@ const KINDS: { kind: TrashKind; noun: string; tab: string }[] = [
 ];
 
 /** 側欄左下角的「垃圾桶」：專案、畫風、角色放在同一個垃圾桶（分頁籤），預設打開目前這一頁的種類。
- *  放在 aside（要是 flex flex-col）的最後面，會貼齊左下角；清單很長時 sticky 留在底部。refreshKey 改變或分頁切回來時重抓數量。
+ *  放在 aside（flex flex-col，清單包在 .side-list 裡自己捲動）的最後面，固定在左下角，清單不會從它底下穿過去。refreshKey 改變或分頁切回來時重抓數量。
  *  onRestored：還原的是這一頁的種類就交給頁面選取；其他種類會切到那個分頁 */
 export function TrashButton({ kind, active, refreshKey, onRestored }: {
   kind: TrashKind; active: boolean; refreshKey: number; onRestored: (id: string) => void;
@@ -164,7 +164,7 @@ export function TrashButton({ kind, active, refreshKey, onRestored }: {
   useEffect(() => { if (active) load(); }, [active, refreshKey, load]);
   const total = items.projects.length + items.styles.length + items.characters.length;
   return (
-    <div className="sticky bottom-0 -mx-4 -mb-4 mt-auto bg-bg px-4 pt-2 pb-4">
+    <div className="shrink-0 border-t border-line/60 px-4 pt-2 pb-4">
       <button onClick={() => { setTab(kind); setOpen(true); load(); }}
         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-mute transition hover:bg-bad/10 hover:text-bad">
         <TrashIcon />垃圾桶{total > 0 && <span className="ml-auto rounded-full bg-panel2 px-2 text-xs tabular-nums">{total}</span>}

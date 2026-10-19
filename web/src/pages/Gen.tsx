@@ -71,9 +71,12 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto p-4">
-        <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增貼圖</button>
-        <div className="mb-1 px-1 text-xs text-mute">貼圖專案</div>
+      <aside className="flex w-64 shrink-0 flex-col">
+        <div className="shrink-0 px-4 pt-4">
+          <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增貼圖</button>
+          <div className="mb-1 px-1 text-xs text-mute">貼圖專案</div>
+        </div>
+        <div className="side-list">
         {list?.projects.length === 0 && <div className="px-1 text-xs text-mute">還沒有專案，在右邊描述第一個畫風就會出現在這裡</div>}
         {list?.projects.map((p) => (
           <div key={p.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(p))}>
@@ -86,6 +89,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
             <SideDeleteIcon onClick={() => askDelete(p)} disabled={BUSY.includes(p.status)} label={`刪除專案 ${p.id}`} shown={current === p.id} />
           </div>
         ))}
+        </div>
         {menu}
         <DeleteConfirm target={toDelete} noun="專案" onConfirm={doDelete} onClose={() => setToDelete(null)} />
         <TrashButton kind="projects" active={active} refreshKey={trashKey}

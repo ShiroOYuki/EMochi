@@ -143,6 +143,8 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           </Group>
         </>}
 
+        {/* 底部固定：訊息＋按鈕不跟著內容捲走。對話框本身是捲動容器（p-6），sticky 的位置要扣掉內距，所以用 -bottom-6 */}
+        <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 space-y-2 border-t border-line/60 bg-panel px-6 pt-3 pb-6">
         {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
         {done && !dirty && <p className="rounded-lg bg-ok/15 px-3 py-2 text-sm text-ok">{done}</p>}
         {info?.busy && changedDirs.length > 0 && <p className="rounded-lg bg-warn/15 px-3 py-2 text-sm text-warn">{info.busy}，等它結束才能改資料夾位置。</p>}
@@ -151,6 +153,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           <button className="btn btn-primary" onClick={save} disabled={!dirty || saving || hasError || (!!info?.busy && changedDirs.length > 0)}>
             {saving ? <><Spinner className="size-3.5 border-on-acc border-t-transparent" />儲存中</> : "儲存"}
           </button>
+        </div>
         </div>
       </div>
       <MoveConfirm plan={plan} saving={saving} onCancel={() => setPlan(null)} onConfirm={commit} />
