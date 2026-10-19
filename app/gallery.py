@@ -8,7 +8,7 @@ import zipfile
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import characters
+from . import characters, specs
 from .paths import EXPORTS, OUTPUTS, load_styles_cfg, read_json, sticker_map
 
 FORMATS = {
@@ -112,10 +112,13 @@ def list_selections() -> list[dict]:
 
 
 def export(keys, fmts, tag="") -> dict:
+    """匯出 zip；每個檔案先過 specs.fit()（尺寸、平台大小上限，超過就壓縮），問題列在 issues。
+    原始檔不動，壓縮只影響 zip 裡的那一份"""
     tag = clean_tag(tag)
     styles = scan()
     buf = io.BytesIO()
     n = 0
+    issues: list[dict] = []
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for key in keys:
             s, it = find(styles, key)
@@ -124,15 +127,19 @@ def export(keys, fmts, tag="") -> dict:
             for k in fmts:
                 if k in it["files"]:
                     src = OUTPUTS / it["files"][k]
-                    z.write(src, f"{s['id']}/{FORMATS[k][1]}/{suffixed(src.name, s['id'], tag)}")
+                    arc = f"{s['id']}/{FORMATS[k][1]}/{suffixed(src.name, s['id'], tag)}"
+                    data, notes = specs.fit(src.read_bytes(), k)
+                    z.writestr(arc, data)
+                    if notes:
+                        issues.append({"file": arc, "notes": notes})
                     n += 1
     EXPORTS.mkdir(exist_ok=True)
     st = stamp()
     name = f"export_{st}{'_' + tag if tag else ''}.zip"
     (EXPORTS / name).write_bytes(buf.getvalue())
     write_export_json(f"export_{st}.json", selection_doc(keys, kind="export", formats=list(fmts), zip=name,
-                                                        tag=tag or None))
-    return {"file": name, "count": n}
+                                                        tag=tag or None, issues=issues or None))
+    return {"file": name, "count": n, "issues": issues}
 
 
 def save_selection(keys, formats=None, combine=None, tag="") -> dict:

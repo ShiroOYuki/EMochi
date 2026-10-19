@@ -103,8 +103,26 @@ def _find_rate_limits(path: Path) -> dict | None:
     return None
 
 
+def _expire(data: dict, now: float) -> dict:
+    """記錄是 Codex 上次跑的時候寫的；之後如果窗口已經過了重置時間，那時的百分比就不準了。
+    （2026-10-19 用真實記錄驗證時發現：5 小時窗口早就重置，Navbar 卻還顯示 20%）
+    過了重置時間的窗口 → 用量歸 0、標 expired，下次跑 Codex 會拿到新的數字"""
+    out = dict(data)
+    for k in ("primary", "secondary"):
+        w = out.get(k)
+        if w and w.get("resets_at") and w["resets_at"] <= now:
+            out[k] = {**w, "used_percent": 0.0, "expired": True}
+    out["now"] = now
+    return out
+
+
 def rate_limits(force: bool = False) -> dict:
     """force=True：跳過快取重新掃（Navbar 的刷新按鈕）"""
+    data = _scan(force)
+    return _expire(data, datetime.now(timezone.utc).timestamp())
+
+
+def _scan(force: bool) -> dict:
     with _lock:
         if not force and time.time() - _rl_cache["at"] < RL_TTL and _rl_cache["data"] is not None:
             return _rl_cache["data"]
@@ -128,6 +146,5 @@ def rate_limits(force: bool = False) -> dict:
         else:
             if files:
                 data["message"] = "最近的 session 記錄裡沒有額度資訊，跑一次 Codex 後會更新"
-        data["now"] = datetime.now(timezone.utc).timestamp()
         _rl_cache.update(at=time.time(), data=data)
         return data

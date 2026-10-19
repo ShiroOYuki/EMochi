@@ -54,7 +54,9 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
     : !u.available ? (u.message || "讀不到 Codex 額度")
     : [
         `Codex 額度（已使用）・${LEVEL_TEXT[level]}`,
-        ...wins.map(([w, f]) => `${windowName(w, f)}：${w.used_percent.toFixed(1)}%${w.resets_at ? `，${fmtTime(w.resets_at)} 重置` : ""}`),
+        ...wins.map(([w, f]) => w.expired
+          ? `${windowName(w, f)}：已在 ${fmtTime(w.resets_at!)} 重置（0%，下次跑 Codex 會更新）`
+          : `${windowName(w, f)}：${w.used_percent.toFixed(1)}%${w.resets_at ? `，${fmtTime(w.resets_at)} 重置` : ""}`),
         u.updated ? `資料時間：${fmtTime(u.updated)}（Codex 跑過才會更新）` : "",
       ].filter(Boolean).join("\n");
 

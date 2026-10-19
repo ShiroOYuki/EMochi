@@ -7,6 +7,7 @@ Codex 偶爾會「圖已經存好、程序卻不結束」（s5 第 1 組就卡�
   - 超過 timeout → 結束並標記失敗
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,20 +40,45 @@ def kill_tree(proc: subprocess.Popen) -> None:
         proc.kill()
 
 
-def generation_finished(out_path: Path, started_at: float, log_text: str) -> bool:
+TURN_DONE = re.compile(r"^tokens used\s*\n\s*[\d,]+\s*$", re.M)
+FINISH_GRACE_SEC = 15   # 判定做完後，再給 Codex 這麼久自己結束；還不結束才收掉
+
+
+def generation_finished(out_path: Path, started_at: float, log_text: str, state: dict,
+                        layout: str | None = None, now: float | None = None) -> bool:
     """程序還沒結束時，判斷 Codex 是否「其實已經做完」，可以主動收掉。
 
     out_path   預期的輸出圖片（可能還不存在、可能是舊圖、可能正被寫入）
     started_at 這次啟動的 time.time()
-    log_text   到目前為止的 Codex 輸出（含 "Saved"、"refinement pass" 等字樣）
+    log_text   到目前為止的 Codex 輸出
+    state      呼叫端每次傳同一個 dict，用來記上一輪看到的檔案狀態
+    回傳 True → 呼叫端會結束整個程序樹，接著做 check_image() 驗證；False → 繼續等（仍有 timeout 保底）
 
-    回傳 True → 呼叫端會結束整個程序樹，接著做 check_image() 驗證。
-    回傳 False → 繼續等（最後仍有 timeout 保底）。
-
-    TODO(你來決定)：目前只回傳 False，等於「完全信任 Codex 自己結束」。
-    注意 Codex 常先存一版、再做一輪修飾覆蓋同一個檔案，太早判定會拿到修飾前的版本。
+    判定條件（全部成立才收）：
+    1. log 已經出現 Codex 收尾的「tokens used ＋ 數字」：這行只在整個回合結束時才印。
+       中途的「Saved: ...」不算數，因為 Codex 常先存一版、再做一輪修飾（例如統一綠幕）覆蓋同一個檔案
+    2. 圖是這次寫的，而且連續兩輪大小、修改時間都沒變（不是寫到一半）
+    3. 圖本身通過 check_image()（比例、背景）
+    4. 從第 1 點成立起，已經多等了 FINISH_GRACE_SEC 秒，Codex 還是沒自己結束
     """
-    return False
+    now = time.time() if now is None else now
+    if not TURN_DONE.search(log_text):
+        return False
+    state.setdefault("done_at", now)
+    try:
+        st = out_path.stat()
+    except OSError:
+        return False
+    if st.st_mtime < started_at - 1:
+        return False
+    sig = (st.st_size, st.st_mtime_ns)
+    stable = state.get("sig") == sig
+    state["sig"] = sig
+    if not stable or now - state["done_at"] < FINISH_GRACE_SEC:
+        return False
+    if "checked" not in state:   # 圖沒變就只驗一次
+        state["checked"] = check_image(out_path, started_at, layout or "1x1")[0]
+    return state["checked"]
 
 
 GRID = {"1x1": (1, 1), "2x2": (2, 2), "3x2": (3, 2), "4x2": (4, 2), "4x2w": (4, 2)}
@@ -164,8 +190,9 @@ def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path:
     out_path = ROOT / out_rel
     out_path.parent.mkdir(parents=True, exist_ok=True)
     started = time.time()
+    state: dict = {}
     code, reason = _run(cmd, prompt, log_path, on_tick=on_tick,
-                        watch=lambda text: generation_finished(out_path, started, text))
+                        watch=lambda text: generation_finished(out_path, started, text, state, layout))
     ok, why = check_image(out_path, started, layout)
     if reason == "timeout" and not ok:
         return False, "逾時（超過 20 分鐘）"

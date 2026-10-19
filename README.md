@@ -2,15 +2,20 @@
 
 EMochi（Emote ＋ Mochi）：用 Codex CLI 的 `$imagegen` 生成角色貼圖，再自動切割、去背、輸出 Twitch / Discord 需要的尺寸。
 
-- 每套 32 張，分 4 組、每組 8 張（定義在 `config/stickers.json`）
-- 每組生成一張 4×2 網格圖，背景純綠 `#00FF00` 方便去背
+- 表情清單 32 種（`config/stickers.json`，可在網頁上新增自訂表情），每次可勾選要生成哪些
+- 每組生成一張網格圖，背景純綠 `#00FF00` 方便去背：
+  - **4×2 寬版 2:1**（預設，2048×1024，每組 8 張，32 張 4 組）
+  - **3×2**（1536×1024，每組 6 張；2:1 出問題時的備案）
+  - 每格都是 512 正方形
 - 輸出：Twitch 112 / 56 / 28、Discord 128、512 高解析母版
+- 匯出時自動檢查平台規格：Twitch 每個檔案 1 MB、Discord 256 KB，超過會自動壓縮並列出
 
 ## 環境需求
 
 - Windows（指令以 cmd 為例）
 - [uv](https://docs.astral.sh/uv/)：`winget install astral-sh.uv`
-- [Codex CLI](https://github.com/openai/codex)（使用 ChatGPT Pro 額度），需在 PATH 中
+- [Codex CLI](https://github.com/openai/codex)（使用 ChatGPT 額度），需在 PATH 中
+- 改前端才需要 Node.js
 
 ```cmd
 cd /d D:\CODE\Experimental\EMochi
@@ -20,69 +25,75 @@ uv sync
 ## 快速開始：網頁工具
 
 ```cmd
-scripts\app.bat          :: 或 uv run python -m app
+scripts\app.bat          :: 或 uv run python -m app（可加 --port N --no-browser）
 ```
 
-瀏覽器會開啟 http://127.0.0.1:8765 ，有兩個分頁：
+瀏覽器會開啟 http://127.0.0.1:8765 ，有四個分頁：
 
-- **Gen**：新增畫風的完整流程
-  1. 用中文描述想要的畫風 → Codex 擴寫成英文畫風描述（可直接修改），並自動判斷構圖與後處理參數
-  2. 確認後生成一張 2×2 **風格預覽圖**（Happy / Cry / Angry / Shock）
-  3. 喜歡就勾選要生成的貼圖（可新增自訂表情），每 8 張一組、最多 3 組同時生成；預覽圖會當作每一組的畫風範本
+- **Gen**：新增一套貼圖
+  1. 選角色（角色庫）與畫風（畫風庫或暫時參考圖），用中文描述想要的畫風 → Codex 擴寫成英文描述（可修改），並自動判斷構圖與後處理參數
+  2. 生成一張 2×2 **風格預覽圖**（Happy / Cry / Angry / Shock）
+  3. 喜歡就勾選要生成的貼圖、選版型（4×2 寬版或 3×2），最多 3 組同時生成；預覽圖會當作每一組的畫風範本
   4. 逐組審核，不滿意的按「重生」；全部確認後自動切割、去背、輸出各尺寸
   5. 完成的畫風自動出現在 Gallery
-- **Gallery**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴）、組合總覽圖、勾選清單 JSON 存讀
+- **畫風**：畫風庫（參考圖＋Codex 分析的畫風描述），也可以從完成的專案匯入
+- **角色**：角色庫（參考圖＋特徵句，Codex 可看圖寫特徵）
+- **Gallery**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴，含規格檢查）、組合總覽圖、勾選清單 JSON 存讀
 
-每個畫風的進度存在 `outputs/<畫風>/project.json`，關掉伺服器再開也不會遺失；prompt 會同步寫到 `prompts/<畫風>/`。
+刪除的專案、畫風、角色會先進垃圾桶（側欄左下角），可以還原；永久刪除過的編號不會再被使用。
+Navbar 右側顯示 Codex 額度（5 小時／每週窗口，讀 `~/.codex/sessions` 的紀錄）。
+
+每個專案的進度存在 `outputs/<專案>/project.json`，關掉伺服器再開也不會遺失；prompt 會同步寫到 `prompts/<專案>/`。
 
 ### 修改前端
 
 ```cmd
 cd web
-npm install
+npm ci
 npm run dev        :: http://localhost:5173（API 轉給 8765，需先開 scripts\app.bat）
 npm run build      :: 輸出到 app\static，提交時一起 commit
 ```
+
+### 測試
+
+```cmd
+uv sync
+uv run pytest
+```
+
+測試會用 `EMOCHI_ROOT` 把資料根目錄指到暫存資料夾，不會動到 `outputs/`、`characters/` 等真正的資料，也不會呼叫 Codex。
+涵蓋：`/files/` 快取與 304、匯出規格檢查、Gallery 掃描／匯出／勾選清單、角色垃圾桶流程、3×2 網格切割去背、`generation_finished()`、額度窗口過期、空資料夾啟動。
 
 ## 資料夾結構
 
 ```
 app/                網頁工具後端（FastAPI）
   server.py         API 路由；codex.py 執行 Codex；jobs.py Gen 流程狀態機
-  pipeline.py       網格 → 成品；gallery.py 匯出、組合；prompts.py 組 prompt
+  pipeline.py       網格 → 成品；gallery.py 匯出、組合；specs.py 平台規格檢查；prompts.py 組 prompt
+  characters.py     角色庫；style_lib.py 畫風庫；trash.py 垃圾桶；usage.py Codex 額度
   static/           前端 build 結果（由 web/ 產生）
-web/                前端原始碼（React + Vite + TypeScript + Tailwind）
+web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI）
+tests/              pytest
 config/
   stickers.json     貼圖的編號、名稱、中文說明、表情 prompt（Gen 新增的自訂表情也存這裡）
-  styles.json       每種畫風的參考圖與後處理參數（Gen 完成時自動登記）
-  prompt_template.json  Gen 組 prompt 用的共用段落：角色特徵、構圖、版面規則、預覽用表情
-refs/               角色參考圖（ref.png 主設定、ref_tvd.png）
+  prompt_template.json  Gen 組 prompt 用的共用段落：構圖、版面規則、預覽用表情
+  styles.example.json   styles.json 的起點（styles.json 是本地資料，不進版控）
+refs/               原角色參考圖（不進版控）
+characters/         角色庫（不進版控）
+style_lib/          畫風庫（不進版控）
 prompts/
   GUIDE.md          prompt 撰寫說明與範本
-  <畫風>/g1~g4.txt  每組的生成 prompt，{output} 會自動換成輸出路徑
 tools/
-  gen.py            呼叫 Codex 生成網格
+  gen.py            呼叫 Codex 生成網格（命令列）
   process_style.py  網格 → 成品（呼叫 postprocess.py）
   postprocess.py    切割、去背、縮放的核心
-  viewer.py         瀏覽、勾選、匯出 zip 的網頁工具
+  viewer.py         舊版瀏覽／匯出工具
 scripts/            雙擊用的 .bat 捷徑
-outputs/<畫風>/     grids/（網格原圖）、final/（成品）、previews/（總覽圖）  ※不進版控
-exports/            viewer 匯出的 zip 與勾選清單                          ※不進版控
+outputs/<專案>/     grids/（網格原圖）、final/（成品）、previews/（總覽圖）  ※不進版控
+exports/            匯出的 zip 與勾選清單                                ※不進版控
 logs/               Codex 執行紀錄                                        ※不進版控
-archive/            早期試驗品                                            ※不進版控
+archive/            試驗品、檢查腳本                                      ※不進版控
 ```
-
-## 目前的畫風
-
-| 代號 | 說明 | 後處理 |
-|---|---|---|
-| s1 | Q 版特寫（第一代） | 正方形特寫裁切 |
-| s2 | 更可愛的 Q 版 | 正方形特寫裁切 |
-| s3 | 像素風 | 正方形特寫裁切 |
-| s4 | 麻糬 / 糰子（整顆入鏡） | 不裁切，留白 4% |
-| s5 | 賽璐璐動畫截圖風 | 正方形特寫裁切 |
-
-## 流程
 
 ## 命令列流程（舊方式，仍可使用）
 
@@ -105,21 +116,7 @@ uv run tools\process_style.py s5
 
 參數預設讀 `config/styles.json` 的 `process`，命令列可覆蓋（`--square`、`--no-square`、`--margin`）。#28 Lurk 會自動貼齊底邊。
 
-### 3. 檢視與匯出
-
-```cmd
-scripts\viewer.bat
-```
-
-開啟 http://127.0.0.1:8765 ，可跨畫風比較、勾選、匯出 zip 到 `exports\`。
-
-## 新增一種畫風
-
-1. 複製一個現有資料夾：`xcopy prompts\s5 prompts\s6\ /e`，修改 prompt 裡的畫風描述
-2. 在 `config/styles.json` 新增 `s6`，設定參考圖與後處理參數
-3. `uv run tools\gen.py s6` → `uv run tools\process_style.py s6`
-
 ## 注意
 
 - 角色身上若有大面積綠色，把 prompt 的 `#00FF00` 換成 `#FF00FF`，`postprocess.py` 會自動偵測背景色。
-- `outputs/` 不進版控，但 s2~s5 的第 1 組會用到 `outputs/s1/grids/s1_group1.png` 等網格當參考圖，換電腦時記得一起複製 `outputs/`。
+- 生圖模型會從精細的角色立繪「順便」學畫法：有畫風參考圖時，建議只勾 1 張角色圖。

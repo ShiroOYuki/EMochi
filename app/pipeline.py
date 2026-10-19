@@ -12,10 +12,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .paths import OUTPUTS, ROOT, sticker_map
+from .paths import APP_ROOT, OUTPUTS, sticker_map
 from .prompts import LAYOUTS
 
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(APP_ROOT / "tools"))
 import postprocess as pp  # noqa: E402
 
 SIZES = {"master": 512, "twitch/112": 112, "twitch/56": 56, "twitch/28": 28, "discord": 128}

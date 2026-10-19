@@ -17,3 +17,14 @@ rembg = ["rembg"]   # postprocess.py --rembg 才需要
 
 [tool.uv]
 package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

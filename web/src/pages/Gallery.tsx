@@ -285,11 +285,15 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
         <button className="btn btn-primary mt-2 w-full" disabled={!sel.length || !fmts.length} onClick={async () => {
           say("exp", "匯出中…");
           try {
-            const r = await api.post<{ file: string; count: number }>("/api/gallery/export", { keys: sel, formats: fmts, tag: cleanTag });
-            say("exp", `完成：${r.count} 個檔案，存在 exports\\${r.file}`); location.href = fileUrl(`exports/${r.file}`); loadList();
+            const r = await api.post<{ file: string; count: number; issues: { file: string; notes: string[] }[] }>("/api/gallery/export", { keys: sel, formats: fmts, tag: cleanTag });
+            // 平台規格檢查（尺寸、Twitch 1 MB／Discord 256 KB）：有壓縮或問題就列出來
+            const notes = r.issues.flatMap((i) => i.notes.map((n) => `・${i.file}：${n}`));
+            say("exp", `完成：${r.count} 個檔案，存在 exports\\${r.file}`
+              + (notes.length ? `\n規格檢查有 ${notes.length} 則提醒：\n${notes.slice(0, 8).join("\n")}${notes.length > 8 ? `\n…其餘 ${notes.length - 8} 則寫在同名的 JSON 裡` : ""}` : "\n規格檢查：全部符合 Twitch／Discord 上傳限制"));
+            location.href = fileUrl(`exports/${r.file}`); loadList();
           } catch (e) { say("exp", `失敗：${(e as Error).message}`); }
         }}>匯出勾選的 {sel.length} 張</button>
-        {msg.exp && <p className="mt-1 break-all text-xs text-mute">{msg.exp}</p>}
+        {msg.exp && <p className="mt-1 whitespace-pre-line break-all text-xs text-mute">{msg.exp}</p>}
       </div>
 
       <hr className="border-line" />
