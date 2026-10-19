@@ -170,8 +170,8 @@ body {
   .card { @apply rounded-[22px] bg-panel p-5; box-shadow: var(--shadow-soft); }
   /* Gen／畫風／角色的側欄清單：上面的「新增」與下面的「垃圾桶」固定，只有中間這段捲動 */
   .side-list { @apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2; }
-  /* Gallery 單行橫向捲動的一列 */
-  .scroll-row { @apply flex gap-2.5 overflow-x-auto overscroll-x-contain pb-2; scrollbar-width: thin; }
+  /* 不顯示捲軸但仍可捲動（Gallery 單行列：改用左右箭頭翻頁） */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
   .label { @apply mb-1 block text-xs text-mute; }
   .chk { @apply size-4 accent-[var(--color-pink)]; }
   .checker { background: repeating-conic-gradient(var(--c-check-a) 0 25%, var(--c-check-b) 0 50%) 0 0 / 16px 16px; }
@@ -219,6 +219,8 @@ body {
 /* 大圓角容器（對話框、選單）：捲軸上下讓開圓角，不會被裁掉一截 */
 .scroll-inset::-webkit-scrollbar-track { margin-block: 18px; }
 .scroll-inset-sm::-webkit-scrollbar-track { margin-block: 8px; }
+/* 旁邊有 m-3 卡片（Gallery 側欄）的捲動區：捲軸上下各讓 12px，和卡片等高 */
+.scroll-inset-panel::-webkit-scrollbar-track { margin-block: 12px; }
 textarea::-webkit-scrollbar-track { margin-block: 6px; }
 textarea::-webkit-resizer { background: transparent; }
 @supports not selector(::-webkit-scrollbar) {

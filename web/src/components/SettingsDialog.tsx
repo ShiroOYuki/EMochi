@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type SettingsPlan, type SettingsValues } from "../api";
 import { desktop } from "../desktop";
+import { setThemePref, useThemePref, type ThemePref } from "../theme";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -46,6 +47,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   }, [open]);
 
   const changedDirs = useMemo(() => info ? info.dirs.filter((x) => (dirs[x.key] ?? x.value).trim() !== x.value) : [], [info, dirs]);
+  const themePref = useThemePref();
   const changedVals = useMemo(() => {
     if (!info || !vals) return {};
     return Object.fromEntries((["max_parallel", "default_layout", "image_timeout_min", "text_timeout_min"] as const)
@@ -117,6 +119,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
                 onChange={(v) => setDir(x.key, v)} onPick={() => pick(x.key, checks[x.key]?.path ?? x.path)}
                 onOpen={() => openFolder(checks[x.key]?.path ?? x.path)} onReset={() => setDir(x.key, x.default)} />
             ))}
+          </Group>
+
+          <Group title="外觀">
+            <Field label="主題" hint="點了立即套用並存檔；Navbar 的淺色／深色按鈕也會改這裡">
+              <Seg<ThemePref> options={[["system", "跟隨系統"], ["light", "淺色"], ["dark", "深色"]]} value={themePref} onChange={setThemePref} />
+            </Field>
           </Group>
 
           <Group title="生成">

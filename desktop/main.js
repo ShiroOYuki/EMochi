@@ -11,6 +11,8 @@ const DEV = !app.isPackaged;
 const REPO = path.resolve(__dirname, "..");
 const DATA_ROOT = DEV ? REPO : path.join(process.env.LOCALAPPDATA || app.getPath("appData"), "EMochi");
 const HEALTH_TIMEOUT_MS = 60_000;
+// 固定用這個 port（被占用才隨機找）：網址的 origin 不變，前端存在 localStorage 的東西（Gallery 勾選、版面等）才不會每次開都不見
+const PREFERRED_PORT = 38765;
 
 let server = null;        // 後端子程序
 let baseUrl = "";
@@ -31,11 +33,11 @@ if (!app.requestSingleInstanceLock()) {
 
 // ---------- 後端 ----------
 
-function freePort() {
+function freePort(port = 0) {
   return new Promise((resolve, reject) => {
     const s = net.createServer();
-    s.once("error", reject);
-    s.listen(0, "127.0.0.1", () => {
+    s.once("error", (e) => (port ? freePort(0).then(resolve, reject) : reject(e)));
+    s.listen(port, "127.0.0.1", () => {
       const { port } = s.address();
       s.close(() => resolve(port));
     });
@@ -118,17 +120,31 @@ function loadBounds() {
   }
 }
 
-function saveBounds() {
-  if (!win) return;
+let saved = null;   // window.json：視窗位置大小、主題偏好
+
+function saveState(patch = {}) {
+  saved = { ...(saved ?? loadBounds()), ...patch };
+  if (win) Object.assign(saved, win.getNormalBounds(), { maximized: win.isMaximized() });
   try {
-    fs.writeFileSync(stateFile(), JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }));
+    fs.writeFileSync(stateFile(), JSON.stringify(saved));
   } catch { /* 存不了就算了 */ }
+}
+const saveBounds = () => saveState();
+
+// 主題以設定檔（/api/ui-prefs）為準；這裡只記一份，讓下次啟動畫面、視窗底色一開始就對
+const BG = { dark: "#1c1b29", light: "#faf8ff" };
+const isDark = () => nativeTheme.shouldUseDarkColors;
+function applyTheme(pref) {
+  if (!["system", "light", "dark"].includes(pref)) return;
+  nativeTheme.themeSource = pref;
+  win?.setBackgroundColor(isDark() ? BG.dark : BG.light);
+  if (saved?.theme !== pref) saveState({ theme: pref });
 }
 
 const isLocal = (url) => url.startsWith(baseUrl);
 
 function splash() {
-  const dark = nativeTheme.shouldUseDarkColors;
+  const dark = isDark();
   const html = `<html><body style="-webkit-app-region:drag;margin:0;display:grid;place-items:center;height:100vh;font:15px 'Microsoft JhengHei UI',sans-serif;
     background:${dark ? "#1c1b29" : "#faf8ff"};color:${dark ? "#cfcbe6" : "#4a4668"}">EMochi 啟動中…</body></html>`;
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
@@ -136,11 +152,13 @@ function splash() {
 
 function createWindow() {
   const b = loadBounds();
+  saved = b;
+  if (b.theme) nativeTheme.themeSource = b.theme;
   win = new BrowserWindow({
     x: b.x, y: b.y, width: b.width, height: b.height, minWidth: 960, minHeight: 640,
     title: "EMochi",
     icon: path.join(__dirname, "assets", "icon.png"),
-    backgroundColor: nativeTheme.shouldUseDarkColors ? "#1c1b29" : "#faf8ff",
+    backgroundColor: isDark() ? BG.dark : BG.light,
     autoHideMenuBar: true,
     // 不用 Windows 的標題列：拖曳區、縮小／最大化／關閉按鈕畫在網頁的 Navbar 上（WindowControls.tsx）。
     // "hidden" 仍保留視窗邊框的縮放、陰影與 Aero Snap
@@ -201,6 +219,7 @@ function createWindow() {
 // ---------- 給前端的功能 ----------
 
 ipcMain.on("app-version", (e) => { e.returnValue = app.getVersion(); });
+ipcMain.on("set-theme", (_e, pref) => applyTheme(pref));
 ipcMain.on("win-is-maximized", (e) => { e.returnValue = !!win?.isMaximized(); });
 ipcMain.on("win", (_e, action) => {
   if (!win) return;
@@ -222,7 +241,7 @@ ipcMain.handle("pick-folder", async (_e, initial) => {
 async function start() {
   createWindow();
   try {
-    const port = await freePort();
+    const port = await freePort(PREFERRED_PORT);
     baseUrl = `http://127.0.0.1:${port}`;
     startServer(port);
     await waitHealthy();

@@ -134,3 +134,15 @@ def test_config_dir_and_busy(client, data_root, clean, ext):
     assert [s for s in paths.load_stickers() if s["id"] == 2][0]["zh"] == "設定頁測試"
     client.put("/api/settings", json={"changes": {"config_dir": str(data_root / "config")}, "move": True})
     (data_root / "config" / "stickers.json").unlink()   # 還原成沒有 stickers.json（test_stickers 要測 example fallback）
+
+
+def test_ui_prefs_theme(client, clean):
+    """主題偏好存在設定檔（不靠瀏覽器 localStorage）"""
+    assert client.get("/api/ui-prefs").json() == {"theme": "system", "stored": False}
+    assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {"theme": "dark", "stored": True}
+    from app import settings
+    assert settings.get("theme") == "dark"
+    assert client.get("/api/settings").json()["values"]["theme"] == "dark"
+    assert client.put("/api/ui-prefs", json={"theme": "neon"}).status_code == 400
+    client.put("/api/ui-prefs", json={"theme": "system"})
+    assert "theme" not in (settings.read_json(settings.FILE, {}) or {})   # 和預設一樣不寫進檔案

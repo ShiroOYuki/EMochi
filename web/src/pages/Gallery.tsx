@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
@@ -10,6 +10,52 @@ const KIND: Record<string, string> = { export: "匯出", combine: "組合", sele
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
 const VT_MAX = 120;   // 一次最多替幾個元素做位置動畫（只算畫面上看得到的）
+
+/** 並排比較的一列：不顯示捲軸，放不下時兩側淡出＋左右箭頭翻頁（觸控板左右滑、Shift＋滾輪也可以） */
+function ScrollRow({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdge((e) => (e.l === l && e.r === r ? e : { l, r }));
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [update]);
+  useEffect(update);   // 卡片數量變了（篩選、重新整理）也要重算
+  const page = (dir: 1 | -1) => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * Math.max(140, el.clientWidth - 160), behavior: reduce ? "auto" : "smooth" });
+  };
+  const fade = 48;
+  const mask = `linear-gradient(to right, ${edge.l ? "transparent" : "#000"} 0, #000 ${edge.l ? fade : 0}px, #000 calc(100% - ${edge.r ? fade : 0}px), ${edge.r ? "transparent" : "#000"} 100%)`;
+  const arrow = "row-arrow absolute top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-line bg-panel text-text shadow-[var(--shadow-soft)] transition hover:border-acc hover:text-acc active:scale-95";
+  return (
+    <div className="relative">
+      <div ref={ref} onScroll={update} className="no-scrollbar flex snap-x snap-proximity gap-2.5 overflow-x-auto overscroll-x-contain"
+        style={{ maskImage: mask, WebkitMaskImage: mask }}>
+        {children}
+      </div>
+      {edge.l && (
+        <button className={`${arrow} -left-2`} onClick={() => page(-1)} aria-label="往左看更多">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" /></svg>
+        </button>
+      )}
+      {edge.r && (
+        <button className={`${arrow} -right-2`} onClick={() => page(1)} aria-label="往右看更多">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5.5 3l4 4-4 4" /></svg>
+        </button>
+      )}
+    </div>
+  );
+}
 
 function useStored<T>(key: string, init: T) {
   const [v, setV] = useState<T>(() => {
@@ -120,7 +166,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
     return (
       <div key={k} onClick={() => setOpen(i)}
         data-vt={vtKey(k)}
-        className={`sticker-card relative w-[136px] shrink-0 cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        className={`sticker-card relative w-[136px] shrink-0 snap-start cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
@@ -154,8 +200,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
           options={[{ value: 0, label: "全部組別" }, ...stickerGroups.map((g) => ({ value: g.id, label: g.name })), { value: -1, label: "未分組" }]} />
         {rows && (
           <button className="btn btn-sm" aria-pressed={oneLine} onClick={() => withVT(() => setOneLine((v) => !v))}
-            title={oneLine ? "每組一列，左右捲動（Shift＋滾輪或拖捲軸）" : "每組的卡片自動換行"}>
-            {oneLine ? "⇆ 單行捲動" : "↩ 自動換行"}
+            title={oneLine ? "每組一列，放不下的用左右箭頭翻頁" : "每組的卡片自動換行"}>
+            {oneLine ? "⇆ 單行" : "↩ 自動換行"}
           </button>
         )}
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
@@ -167,7 +213,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-y-auto p-4">
+        <div className="scroll-inset-panel min-w-0 flex-1 overflow-y-auto p-4">
           {allStyles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
           {rows ? (
             <div className="grid gap-3" style={{ gridTemplateColumns: oneLine ? "minmax(0, 1fr)" : `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
@@ -183,7 +229,9 @@ export default function GalleryPage({ active }: { active: boolean }) {
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, true)}>全選此組</button>
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
-                    <div className={oneLine ? "scroll-row" : "flex flex-wrap gap-2.5"}>{r.entries.map((e, j) => card(e, start + j))}</div>
+                    {oneLine
+                      ? <ScrollRow>{r.entries.map((e, j) => card(e, start + j))}</ScrollRow>
+                      : <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>}
                   </div>
                 );
               })}
@@ -264,7 +312,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
   };
 
   return (
-    <aside className="m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
+    <aside className="scroll-inset m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
       <div>
         <h3 className="mb-2">勾選清單（JSON）</h3>
         <Select label="勾選清單" value={pick} onChange={setPick} disabled={list.length === 0}

@@ -65,7 +65,7 @@ def info() -> dict:
         # 設定頁顯示用（含固定加上的沙盒參數；outputs 在資料根目錄外時的 --add-dir）
         "codex_command": ["codex", *cur["codex_args"], *codex.SANDBOX_ARGS, *codex.add_dir_args()],
         "defaults": {k: v for k, v in settings.DEFAULTS.items() if k not in settings.DIRS},
-        "limits": settings.LIMITS, "layouts": list(settings.LAYOUTS),
+        "limits": settings.LIMITS, "layouts": list(settings.LAYOUTS), "themes": list(settings.THEMES),
         "settings_file": str(settings.FILE), "root": str(ROOT), "busy": busy(),
     }
 

@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("emochi", {
   version: ipcRenderer.sendSync("app-version"),
   pickFolder: (initial) => ipcRenderer.invoke("pick-folder", initial),
+  setTheme: (pref) => ipcRenderer.send("set-theme", pref),
   window: {
     minimize: () => ipcRenderer.send("win", "minimize"),
     toggleMaximize: () => ipcRenderer.send("win", "toggle-maximize"),

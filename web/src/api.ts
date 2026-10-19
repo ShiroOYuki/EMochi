@@ -100,7 +100,7 @@ export type CodexUsage = {
 /** 設定頁（/api/settings） */
 export type DirKey = "logs_dir" | "config_dir" | "exports_dir" | "characters_dir" | "style_lib_dir";
 export type DirInfo = { key: DirKey; label: string; desc: string; value: string; default: string; path: string; exists: boolean; files: number; size: number };
-export type SettingsValues = { max_parallel: number; default_layout: "4x2w" | "3x2"; image_timeout_min: number; text_timeout_min: number; codex_args: string[] };
+export type SettingsValues = { max_parallel: number; default_layout: "4x2w" | "3x2"; image_timeout_min: number; text_timeout_min: number; codex_args: string[]; theme: "system" | "light" | "dark" };
 export type SettingsInfo = {
   dirs: DirInfo[]; values: SettingsValues; defaults: SettingsValues; limits: Record<string, [number, number]>;
   layouts: string[]; settings_file: string; root: string; busy: string | null; codex_command: string[];

@@ -7,13 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       try {
-        var t = localStorage.getItem("theme");
+        // 偏好的快取（以伺服器 settings.local.json 為準，見 src/theme.ts）；跟隨系統時依系統設定
+        var t = localStorage.getItem("themePref") || localStorage.getItem("theme");
         if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         document.documentElement.dataset.theme = t;
       } catch (e) {}
     </script>
-    <script type="module" crossorigin src="/assets/index-DI_HSGTl.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DTR1Mrcl.css">
+    <script type="module" crossorigin src="/assets/index-DpTJSlgn.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-1GYzDGjl.css">
   </head>
   <body>
     <!-- Gallery 貼紙的白色模切邊＋投影（index.css 的 .sticker-img 用）。
