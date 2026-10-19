@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { api, type CodexRunResult, type CodexStatus, type CodexTally, type RateWindow } from "../api";
-import { Modal, Spinner } from "./ui";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { api, type CodexRun, type CodexRunResult, type CodexStatus, type CodexTally, type RateWindow } from "../api";
+import { Modal, SPRING, Spinner } from "./ui";
 
 const POLL_MS = 5_000;   // 對話框開著時：執行中的工作、用量要跟著動
 const fmtTok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
@@ -160,31 +161,7 @@ function Usage({ d }: { d: CodexStatus["usage"] }) {
         <Bars title="依專案／範圍" items={d.by_scope.slice(0, 8)} total={d.total_tokens} />
       </div>
 
-      <div>
-        <h5 className="mb-1.5 text-xs text-mute">最近的呼叫</h5>
-        {d.recent.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="text-left text-mute"><tr>
-                <th className="py-1 pr-3 font-normal">時間</th><th className="pr-3 font-normal">專案／範圍</th><th className="pr-3 font-normal">用途</th>
-                <th className="pr-3 text-right font-normal">tokens</th><th className="pr-3 text-right font-normal">耗時</th><th className="font-normal">結果</th>
-              </tr></thead>
-              <tbody className="divide-y divide-line">
-                {d.recent.map((r) => (
-                  <tr key={r.log} title={r.log}>
-                    <td className="py-1 pr-3 whitespace-nowrap tabular-nums text-mute">{r.time.slice(5, 16)}</td>
-                    <td className="max-w-48 truncate pr-3">{r.scope_label}</td>
-                    <td className="pr-3 whitespace-nowrap">{r.kind}<span className="ml-1 text-mute">{/^g\d+$/.test(r.name) ? `第 ${r.name.slice(1)} 組` : ""}</span></td>
-                    <td className="pr-3 text-right tabular-nums">{r.tokens != null ? fmtFull(r.tokens) : "—"}</td>
-                    <td className="pr-3 text-right tabular-nums text-mute">{fmtSec(r.seconds)}</td>
-                    <td className={RESULT[r.result][1]}>{RESULT[r.result][0]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="text-xs text-mute">近 {d.days} 天沒有呼叫記錄</p>}
-      </div>
+      <RecentRuns runs={d.recent} days={d.days} />
     </section>
   );
 }
@@ -210,6 +187,71 @@ function Bars({ title, items, total }: { title: string; items: CodexTally[]; tot
           <div className="h-1.5 rounded-full bg-panel"><div className="h-full rounded-full bg-acc" style={{ width: `${(x.tokens / max) * 100}%` }} /></div>
         </div>
       )) : <p className="text-xs text-mute">沒有資料</p>}
+    </div>
+  );
+}
+
+/** 最近的呼叫：滑到哪一列，提示框就立刻跟到那一列（不等 0.4 秒、列與列之間用彈簧滑過去，而不是消失再出現） */
+function RecentRuns({ runs, days }: { runs: CodexRun[]; days: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const [tip, setTip] = useState<{ i: number; x: number; y: number; fresh: boolean } | null>(null);
+  const hideT = useRef(0);
+  const place = (e: RPointerEvent<HTMLTableRowElement>, i: number) => {
+    const b = box.current?.getBoundingClientRect();
+    if (!b) return;
+    const row = e.currentTarget.getBoundingClientRect();
+    clearTimeout(hideT.current);
+    // x 跟著游標（限制在表格內），y 貼在這一列上緣
+    const x = Math.min(Math.max(e.clientX - b.left, 120), b.width - 120);
+    setTip((t) => ({ i, x, y: row.top - b.top, fresh: !t }));
+  };
+  const leave = () => { hideT.current = window.setTimeout(() => setTip(null), 80); };
+  useEffect(() => () => clearTimeout(hideT.current), []);
+  const r = tip ? runs[tip.i] : null;
+  const move = reduce || tip?.fresh ? { duration: 0 } : SPRING;
+
+  return (
+    <div>
+      <h5 className="mb-1.5 text-xs text-mute">最近的呼叫 <span className="text-[11px]">（近 {days} 天內最新 {runs.length} 次）</span></h5>
+      {runs.length ? (
+        <div ref={box} className="relative" onPointerLeave={leave}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-left text-mute"><tr>
+                <th className="py-1 pr-3 font-normal">時間</th><th className="pr-3 font-normal">專案／範圍</th><th className="pr-3 font-normal">用途</th>
+                <th className="pr-3 text-right font-normal">tokens</th><th className="pr-3 text-right font-normal">耗時</th><th className="font-normal">結果</th>
+              </tr></thead>
+              <tbody className="divide-y divide-line">
+                {runs.map((x, i) => (
+                  <tr key={x.log} onPointerEnter={(e) => place(e, i)} onPointerMove={(e) => place(e, i)}
+                    className={`transition-colors ${tip?.i === i ? "bg-panel" : ""}`}>
+                    <td className="py-1 pr-3 whitespace-nowrap tabular-nums text-mute">{x.time.slice(5, 16)}</td>
+                    <td className="max-w-48 truncate pr-3">{x.scope_label}</td>
+                    <td className="pr-3 whitespace-nowrap">{x.kind}<span className="ml-1 text-mute">{/^g\d+$/.test(x.name) ? `第 ${x.name.slice(1)} 組` : ""}</span></td>
+                    <td className="pr-3 text-right tabular-nums">{x.tokens != null ? fmtFull(x.tokens) : "—"}</td>
+                    <td className="pr-3 text-right tabular-nums text-mute">{fmtSec(x.seconds)}</td>
+                    <td className={RESULT[x.result][1]}>{RESULT[x.result][0]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* 放在捲動容器外面，第一列上方的提示才不會被裁掉 */}
+          <motion.div aria-hidden className="pointer-events-none absolute top-0 left-0 z-10 w-max max-w-80"
+            initial={false}
+            animate={tip ? { x: tip.x, y: tip.y, opacity: 1 } : { opacity: 0 }}
+            transition={{ x: move, y: move, opacity: { duration: reduce ? 0 : 0.12 } }}>
+            {r && (
+              <div className="-translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-xl bg-text px-2.5 py-1.5 text-xs leading-relaxed text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]">
+                <div>{r.time}・{r.scope_label}</div>
+                <div>{r.kind}{/^g\d+$/.test(r.name) ? ` 第 ${r.name.slice(1)} 組` : ""}・{r.tokens != null ? `${fmtFull(r.tokens)} tokens` : "沒有 token 記錄"}・{fmtSec(r.seconds)}・{RESULT[r.result][0]}</div>
+                <div className="opacity-70">{r.log}</div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      ) : <p className="text-xs text-mute">近 {days} 天沒有呼叫記錄</p>}
     </div>
   );
 }
