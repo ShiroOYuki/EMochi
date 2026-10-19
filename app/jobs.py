@@ -179,7 +179,7 @@ def reexpand(style: str, request: str) -> dict:
 
 
 # 擴寫、分析畫風時給 Codex 看的範例描述（內建，跟著程式走）：以前直接讀使用者的 s5、s4 專案，
-# 別人的電腦（桌面版）沒有這些專案就沒範例；改成 config/style_examples.example.json（s1、s2）
+# 別人的電腦（桌面版）沒有這些專案就沒範例；改成 config/style_examples.example.json（內容是 s5、s4 的描述）
 STYLE_EXAMPLES = BUILTIN_CONFIG / "style_examples.example.json"
 
 

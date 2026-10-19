@@ -40,7 +40,7 @@ def test_import_project_without_block(client, data_root):
 
 
 def test_style_examples(data_root):
-    """範例畫風描述來自內建的 config/style_examples.example.json（s1、s2），不再讀使用者的專案"""
+    """範例畫風描述來自內建的 config/style_examples.example.json（s5、s4 的描述），不再讀使用者的專案"""
     import json
     from app import jobs
     _project(data_root, "s5", block="- soft pastel shading")

@@ -1,16 +1,16 @@
 [
   {
-    "id": "s1",
-    "name": "Q 版特寫（第一代）",
+    "id": "s5",
+    "name": "賽璐璐動畫截圖風",
     "framing": "closeup",
-    "style_block": "- Medium-high detail: hair uses 8–12 broad overlapping locks with a few fine strand accents; accessories retain distinct segmented shapes and 2–3 shading tones, while clothing has minimal visible detail.\n- Oversized rounded head and broad cheeks, with a tiny nose, short lower face, and elastic mouths; expressions strongly reshape eyelids, brows, and cheek contours.\n- Tapered dark burgundy-to-near-black outer contours, roughly 0.5–1% of head width; finer coral-red lines define bangs, brows, noses, and hand creases, with especially thick upper lashes.\n- Hair forms sweeping pointed ribbons with curved internal divisions, pale pink-gray shadow patches, and broad irregular white highlights; combine crisp shadow edges with softly blended transitions for a silky sheen.\n- Large rounded irises have a deep navy upper band, saturated blue middle, luminous cyan lower crescent, a narrow oval pupil, and 2–3 prominent white highlights plus a few small reflected dots; heavy wedge-shaped upper lashes anchor the eyes.\n- Skin stays luminous and pale with soft peach shading, diffuse rosy cheeks, and 3–5 short diagonal blush strokes per cheek; open mouths use a dark red rim, coral interior, and one broad lighter tongue shape.\n- Tears and sweat are inflated glassy cyan shapes with blue outlines, white shine streaks, and bright rims; hearts and reaction symbols use bold colored outlines, thick white edging, and simple glossy highlights.\n- Avoid: dense individual hair strands, intricate iris filigree, realistic skin texture, crosshatching, numerous clothing folds, and uniformly heavy black interior lines.",
-    "note": "s1 當初沒有寫描述，2026-10-20 由 Codex 看 s1 的網格圖補寫（Codex 取名「亮澤糖彩表情」）"
+    "style_block": "- Looks like a frame captured from a modern Japanese TV anime: traditional cel shading with flat base colors, ONE hard-edged shadow tone and crisp hard-edged highlights. No soft airbrush gradients, no painterly texture, no watercolor.\n- Clean, thin-to-medium lineart of consistent weight in dark brown/near-black, typical of anime key animation; colored inner lines (slightly darker than the fill) inside the hair.\n- Anime-style eyes: large irises with a darker top band, 2-3 sharp white highlight shapes and a simple gradient-free iris design; eyebrows and mouth drawn in the simplified anime way, mouths with a flat darker interior and a tongue shape.\n- Hair rendered as clear anime hair clumps with a hard shadow band and one sharp \"angel ring\" highlight.\n- Normal anime proportions for a cute character (not super-deformed chibi), like a reaction close-up shot in an anime episode. Expression effects (tears, sweat drops, blush hatching lines, anger mark, sparkles) drawn in the standard anime manner.",
+    "note": "取自 s5 專案的畫風描述"
   },
   {
-    "id": "s2",
-    "name": "更可愛的 Q 版",
-    "framing": "closeup",
-    "style_block": "- Super-deformed chibi proportions: big round head, round chubby face, small soft chin, puffy cheeks.\n- Oversized glossy eyes with large sparkly highlights; tiny simple mouth and tiny nose.\n- Hair simplified into a few big soft rounded clumps instead of many thin strands; fluffy rounded fox ears.\n- Soft pastel palette, flat cel shading with at most one soft shadow tone, rosy oval blush on the cheeks.\n- Clean, smooth, uniform lineart in a warm dark brown (not black), rounded line ends.\n- Overall feel: soft, round, cute, sticker-like, very readable at small size.",
-    "note": "取自 s2 專案的畫風描述"
+    "id": "s4",
+    "name": "麻糬 / 糰子（整顆入鏡）",
+    "framing": "whole",
+    "style_block": "- The character is simplified into a soft, squishy, perfectly round mochi blob: the head IS the body, a smooth round dumpling shape slightly wider than tall, like a rice cake or dango.\n- Extremely simplified face: small shiny bean-shaped eyes (blue, with one white highlight), tiny mouth that can stretch wide for big expressions, round pink blush dots.\n- Hair reduced to a simple smooth white cap with 2-3 soft bangs and one ahoge; fluffy triangle fox ears on top.\n- Tiny stubby nub hands (no fingers, or very simple ones) only when a gesture is described.\n- Soft pastel colors, smooth matte surface with one gentle soft shading tone on the blob itself (no cast shadow on the background), slight squash-and-stretch to sell the emotion (squished when sad, stretched tall when shocked, bouncy when happy).\n- Soft warm-brown lineart of medium thickness, rounded and clean.",
+    "note": "取自 s4 專案的畫風描述"
   }
 ]
