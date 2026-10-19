@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointer
 import { motion, useReducedMotion } from "motion/react";
 import { api, type CodexRun, type CodexRunResult, type CodexStatus, type CodexTally, type RateWindow } from "../api";
 import { Modal, SPRING, Spinner } from "./ui";
+import { copyText } from "./manage";
 
 const POLL_MS = 5_000;   // 對話框開著時：執行中的工作、用量要跟著動
 const fmtTok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
@@ -191,12 +192,21 @@ function Bars({ title, items, total }: { title: string; items: CodexTally[]; tot
   );
 }
 
-/** 最近的呼叫：滑到哪一列，提示框就立刻跟到那一列（不等 0.4 秒、列與列之間用彈簧滑過去，而不是消失再出現） */
+/** 最近的呼叫：滑到哪一列，提示框就立刻跟到那一列（不等 0.4 秒、列與列之間用彈簧滑過去，而不是消失再出現）；
+ *  提示只顯示 log 路徑，點一下該列就複製路徑 */
 function RecentRuns({ runs, days }: { runs: CodexRun[]; days: number }) {
   const box = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const [tip, setTip] = useState<{ i: number; x: number; y: number; fresh: boolean } | null>(null);
   const hideT = useRef(0);
+  const [copied, setCopied] = useState<number | null>(null);
+  const copiedT = useRef(0);
+  const copy = (i: number) => {
+    copyText(runs[i].log);
+    setCopied(i);
+    clearTimeout(copiedT.current);
+    copiedT.current = window.setTimeout(() => setCopied(null), 1200);
+  };
   const place = (e: RPointerEvent<HTMLTableRowElement>, i: number) => {
     const b = box.current?.getBoundingClientRect();
     if (!b) return;
@@ -207,7 +217,7 @@ function RecentRuns({ runs, days }: { runs: CodexRun[]; days: number }) {
     setTip((t) => ({ i, x, y: row.top - b.top, fresh: !t }));
   };
   const leave = () => { hideT.current = window.setTimeout(() => setTip(null), 80); };
-  useEffect(() => () => clearTimeout(hideT.current), []);
+  useEffect(() => () => { clearTimeout(hideT.current); clearTimeout(copiedT.current); }, []);
   const r = tip ? runs[tip.i] : null;
   const move = reduce || tip?.fresh ? { duration: 0 } : SPRING;
 
@@ -224,8 +234,10 @@ function RecentRuns({ runs, days }: { runs: CodexRun[]; days: number }) {
               </tr></thead>
               <tbody className="divide-y divide-line">
                 {runs.map((x, i) => (
-                  <tr key={x.log} onPointerEnter={(e) => place(e, i)} onPointerMove={(e) => place(e, i)}
-                    className={`transition-colors ${tip?.i === i ? "bg-panel" : ""}`}>
+                  <tr key={x.log} onPointerEnter={(e) => place(e, i)} onPointerMove={(e) => place(e, i)} onClick={() => copy(i)}
+                    tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); copy(i); } }}
+                    aria-label={`複製 log 路徑 ${x.log}`}
+                    className={`cursor-pointer outline-none transition-colors focus-visible:bg-panel ${tip?.i === i ? "bg-panel" : ""}`}>
                     <td className="py-1 pr-3 whitespace-nowrap tabular-nums text-mute">{x.time.slice(5, 16)}</td>
                     <td className="max-w-48 truncate pr-3">{x.scope_label}</td>
                     <td className="pr-3 whitespace-nowrap">{x.kind}<span className="ml-1 text-mute">{/^g\d+$/.test(x.name) ? `第 ${x.name.slice(1)} 組` : ""}</span></td>
@@ -238,15 +250,13 @@ function RecentRuns({ runs, days }: { runs: CodexRun[]; days: number }) {
             </table>
           </div>
           {/* 放在捲動容器外面，第一列上方的提示才不會被裁掉 */}
-          <motion.div aria-hidden className="pointer-events-none absolute top-0 left-0 z-10 w-max max-w-80"
+          <motion.div aria-hidden className="pointer-events-none absolute top-0 left-0 z-10 w-max"
             initial={false}
             animate={tip ? { x: tip.x, y: tip.y, opacity: 1 } : { opacity: 0 }}
             transition={{ x: move, y: move, opacity: { duration: reduce ? 0 : 0.12 } }}>
             {r && (
-              <div className="-translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-xl bg-text px-2.5 py-1.5 text-xs leading-relaxed text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]">
-                <div>{r.time}・{r.scope_label}</div>
-                <div>{r.kind}{/^g\d+$/.test(r.name) ? ` 第 ${r.name.slice(1)} 組` : ""}・{r.tokens != null ? `${fmtFull(r.tokens)} tokens` : "沒有 token 記錄"}・{fmtSec(r.seconds)}・{RESULT[r.result][0]}</div>
-                <div className="opacity-70">{r.log}</div>
+              <div className="-translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-xl bg-text px-2.5 py-1.5 text-xs whitespace-nowrap text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]">
+                {copied === tip!.i ? "✓ 已複製" : r.log}
               </div>
             )}
           </motion.div>
