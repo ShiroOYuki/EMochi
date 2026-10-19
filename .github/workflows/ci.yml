@@ -1,9 +1,9 @@
-# 推到 main、開 PR 時：跑後端測試＋前端型別檢查與 build（不打包、不發版）
+# 推到 main／develop、開 PR 時：跑後端測試＋前端型別檢查與 build（不打包、不發版）
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
