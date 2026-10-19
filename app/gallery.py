@@ -9,7 +9,7 @@ import zipfile
 from PIL import Image, ImageDraw, ImageFont
 
 from . import characters, specs
-from .paths import OUTPUTS, exports_dir, read_json, sticker_map
+from .paths import outputs_dir, exports_dir, read_json, sticker_map
 
 FORMATS = {
     "master": ("Master 512", "master"),
@@ -24,7 +24,7 @@ def scan() -> list[dict]:
     meta = sticker_map()
     chars = {c["id"]: c["name"] for c in characters.list_all()}
     styles = []
-    for master in sorted(OUTPUTS.glob("*/final/master")):
+    for master in sorted(outputs_dir().glob("*/final/master")):
         final = master.parent
         sid = final.parent.name
         items = []
@@ -43,7 +43,7 @@ def scan() -> list[dict]:
                           "files": files,
                           "mtime": int(f.stat().st_mtime)})
         if items:
-            proj = read_json(OUTPUTS / sid / "project.json") or {}
+            proj = read_json(outputs_dir() / sid / "project.json") or {}
             cid = (proj.get("refs") or {}).get("character_id")
             styles.append({"id": sid, "name": proj.get("name", ""), "items": items,
                            "character_id": cid, "character_name": chars.get(cid, "") if cid else ""})
@@ -123,7 +123,7 @@ def export(keys, fmts, tag="") -> dict:
                 continue
             for k in fmts:
                 if k in it["files"]:
-                    src = OUTPUTS / it["files"][k]
+                    src = outputs_dir() / it["files"][k]
                     arc = f"{s['id']}/{FORMATS[k][1]}/{suffixed(src.name, s['id'], tag)}"
                     data, notes = specs.fit(src.read_bytes(), k)
                     z.writestr(arc, data)
@@ -161,7 +161,7 @@ def combine(keys, cols=8, cell=128, gap=8, bg="transparent", labels=False) -> di
     for key in sorted(keys, key=lambda k: (int(k.split(":")[1]), k.split(":")[0])):
         s, it = find(styles, key)
         if it and "master" in it["files"]:
-            im = Image.open(OUTPUTS / it["files"]["master"]).convert("RGBA").resize((cell, cell), Image.LANCZOS)
+            im = Image.open(outputs_dir() / it["files"]["master"]).convert("RGBA").resize((cell, cell), Image.LANCZOS)
             imgs.append((im, f"{s['id']} {it['label']}"))
     if not imgs:
         raise ValueError("沒有可組合的貼圖")

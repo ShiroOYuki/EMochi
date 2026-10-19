@@ -15,11 +15,11 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from .paths import OUTPUTS, characters_dir, read_json, style_lib_dir, url_path, write_json
+from .paths import outputs_dir, characters_dir, read_json, style_lib_dir, url_path, write_json
 
 # 種類 → (取得所在資料夾的函式, 中繼檔名)；角色庫、畫風庫的位置可以在設定頁改，所以每次重新取
 KINDS = {
-    "projects": (lambda: OUTPUTS, "project.json"),
+    "projects": (outputs_dir, "project.json"),
     "styles": (style_lib_dir, "style.json"),
     "characters": (characters_dir, "character.json"),
 }

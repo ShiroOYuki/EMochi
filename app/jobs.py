@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import characters, codex, pipeline, prompts, settings, style_lib, usage
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, ROOT, codex_path, next_style_id, read_json, sticker_map, write_json
+from .paths import ROOT, data_path, next_style_id, outputs_dir, stored_path, read_json, sticker_map, write_json
 
 BUSY = {"expanding", "previewing", "generating", "processing"}
 EDITABLE = {"draft", "preview_ready", "error"}
@@ -54,7 +54,7 @@ def now() -> str:
 
 
 def project_path(style: str) -> Path:
-    return OUTPUTS / style / "project.json"
+    return outputs_dir() / style / "project.json"
 
 
 def load(style: str) -> dict | None:
@@ -79,7 +79,7 @@ def mutate(style: str, fn) -> dict:
 
 def list_projects() -> list[dict]:
     out = []
-    for f in sorted(OUTPUTS.glob("*/project.json")):
+    for f in sorted(outputs_dir().glob("*/project.json")):
         p = read_json(f)
         if p:
             item = {k: p.get(k) for k in ("id", "name", "status", "updated", "request")}
@@ -102,7 +102,7 @@ def delete(style: str) -> None:
 
 def recover_interrupted() -> None:
     """伺服器重啟時，把還停在「執行中」的專案標記為中斷"""
-    for f in OUTPUTS.glob("*/project.json"):
+    for f in outputs_dir().glob("*/project.json"):
         p = read_json(f)
         if not p or p.get("status") not in BUSY:
             continue
@@ -117,8 +117,9 @@ def recover_interrupted() -> None:
 
 
 def rel(path: Path) -> str:
-    """存進 project.json、交給 Codex 的路徑：資料根目錄底下用相對路徑，否則絕對路徑"""
-    return codex_path(path)
+    """存進 project.json 的路徑：outputs 底下記邏輯路徑 outputs/...，其他資料根目錄底下用相對路徑、否則絕對路徑。
+    交給 Codex 前由 codex.run_image 換成實際路徑"""
+    return stored_path(path)
 
 
 def backup(path: Path) -> None:
@@ -156,7 +157,7 @@ def create(request: str, character_id: str | None = None, character_images: list
                  framing=lib["framing"], notes_zh=lib.get("notes_zh", ""), status="draft", style_lib_id=lib["id"])
         p["process"].update(square=lib["process"].get("square"), margin=lib["process"].get("margin", 0))
         # 檔名加上畫風庫 id（st1_ref_01.png），在專案參考圖裡和角色圖分得出來
-        temp = [*((f"{lib['id']}_{Path(r).name}", (ROOT / r).read_bytes(), "style") for r in style_lib.rel_paths(lib["id"])),
+        temp = [*((f"{lib['id']}_{Path(r).name}", (data_path(r)).read_bytes(), "style") for r in style_lib.rel_paths(lib["id"])),
                 *(temp or [])]
     for name, raw, role in temp or []:
         p["refs"]["temp"].append({"file": save_png(raw, temp_dir(style), name), "role": _role(role)})
@@ -244,7 +245,7 @@ def _role(role: str) -> str:
 
 
 def temp_dir(style: str) -> Path:
-    return OUTPUTS / style / "refs"
+    return outputs_dir() / style / "refs"
 
 
 def refs_of(p: dict) -> dict:
@@ -362,7 +363,7 @@ def start_preview(style: str) -> dict:
 def _run_preview(style: str) -> None:
     p = load(style)
     pv = p["preview"]
-    backup(ROOT / pv["image"])
+    backup(data_path(pv["image"]))
     log = codex.log_path_for(style, "preview")
     try:
         ok, msg = codex.run_image(pv["prompt"], pv.get("refs") or [], pv["image"], pv["layout"], log)
@@ -431,7 +432,7 @@ def _run_group(style: str, index: int) -> None:
             gg.update(status="running", started=now(), attempts=gg.get("attempts", 0) + 1)
         p = mutate(style, start)
         g = _group(p, index)
-        backup(ROOT / g["image"])
+        backup(data_path(g["image"]))
         log = codex.log_path_for(style, f"g{index}")
         try:
             ok, msg = codex.run_image(g["prompt"], g.get("refs") or [], g["image"], g["layout"], log)
@@ -466,7 +467,7 @@ def _finalize(style: str) -> None:
         made = []
         for g in p["groups"]:
             if g["status"] == "done":
-                made += pipeline.process_grid(style, ROOT / g["image"], g["layout"], g["ids"], p["process"])
+                made += pipeline.process_grid(style, data_path(g["image"]), g["layout"], g["ids"], p["process"])
         pipeline.build_previews(style)
         mutate(style, lambda p: p.update(status="done", finished_ids=made, error=None, finished=now()))
     except Exception as e:  # noqa: BLE001
@@ -481,7 +482,7 @@ def recheck(style: str, target: str) -> dict:
             pv = p.get("preview")
             if not pv or pv.get("status") != "failed":
                 raise ValueError("預覽圖沒有失敗，不需要重新檢查")
-            ok, msg = codex.check_image(ROOT / pv["image"], None, pv["layout"])
+            ok, msg = codex.check_image(data_path(pv["image"]), None, pv["layout"])
             pv.update(status="done" if ok else "failed", message=msg)
             if ok and p["status"] in EDITABLE:
                 p.update(status="preview_ready", error=None)
@@ -491,7 +492,7 @@ def recheck(style: str, target: str) -> dict:
             g = _group(p, int(target))
             if g["status"] != "failed":
                 raise ValueError("這組沒有失敗，不需要重新檢查")
-            ok, msg = codex.check_image(ROOT / g["image"], None, g["layout"])
+            ok, msg = codex.check_image(data_path(g["image"]), None, g["layout"])
             g.update(status="done" if ok else "failed", message=msg)
     return mutate(style, fn)
 

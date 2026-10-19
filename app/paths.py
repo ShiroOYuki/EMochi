@@ -10,7 +10,6 @@ APP_ROOT = Path(__file__).resolve().parent.parent          # 程式碼所在（t
 ROOT = Path(os.environ["EMOCHI_ROOT"]).resolve() if os.environ.get("EMOCHI_ROOT") else APP_ROOT
 # 程式內建的設定（進版控）：prompt_template.json、*.example.json。使用者自己的設定檔在 config_dir()
 BUILTIN_CONFIG = ROOT / "config"
-OUTPUTS = ROOT / "outputs"      # 不能改位置：Codex 生圖的沙盒只能寫入資料根目錄底下
 STATIC = Path(__file__).resolve().parent / "static"
 
 
@@ -19,6 +18,11 @@ STATIC = Path(__file__).resolve().parent / "static"
 def _dir(key: str) -> Path:
     from .settings import dir_of   # settings 會 import paths，放這裡避免循環
     return dir_of(key)
+
+
+def outputs_dir() -> Path:
+    """畫風專案（網格圖、切好的貼圖、project.json）。放在資料根目錄外時，生圖會加 --add-dir 讓 Codex 能寫入"""
+    return _dir("outputs_dir")
 
 
 def config_dir() -> Path:
@@ -50,8 +54,42 @@ def codex_path(p: Path) -> str:
         return p.as_posix()
 
 
+# ---------- 專案裡記的路徑 ----------
+# project.json 裡 outputs 底下的檔案一律記成「outputs/<專案>/...」（邏輯路徑），不記實際位置：
+# outputs 資料夾搬走也不用改 project.json，前端直接拿來當 /files/ 網址。要讀檔或交給 Codex 時才換成實際路徑
+OUTPUTS_PREFIX = "outputs"
+
+
+def data_path(s: str) -> Path:
+    """project.json 裡記的路徑 → 實際檔案：outputs/... 接到 outputs 資料夾，其他相對資料根目錄（或本來就是絕對路徑）"""
+    s = str(s)
+    head, _, rest = s.replace("\\", "/").partition("/")
+    if head == OUTPUTS_PREFIX:
+        return outputs_dir() / rest
+    return ROOT / s
+
+
+def stored_path(p: Path) -> str:
+    """實際檔案 → 存進 project.json 的路徑（outputs 底下記邏輯路徑，其他同 codex_path）"""
+    p = Path(p).resolve()
+    try:
+        return f"{OUTPUTS_PREFIX}/{p.relative_to(outputs_dir().resolve()).as_posix()}"
+    except ValueError:
+        return codex_path(p)
+
+
+def to_codex(s: str) -> str:
+    """project.json 裡記的路徑 → 交給 Codex 的路徑"""
+    return codex_path(data_path(s))
+
+
+def outside_root(p: Path) -> bool:
+    p = Path(p).resolve()
+    return p != ROOT and ROOT not in p.parents
+
+
 # /files/<前綴>/... 的前綴 → 實際資料夾。網址固定用這些前綴，資料夾搬到哪都不用改前端
-URL_BASES = {"outputs": lambda: OUTPUTS, "exports": exports_dir, "characters": characters_dir, "style_lib": style_lib_dir}
+URL_BASES = {"outputs": outputs_dir, "exports": exports_dir, "characters": characters_dir, "style_lib": style_lib_dir}
 
 
 def url_path(p: Path) -> str | None:
@@ -113,7 +151,8 @@ def slugify(text: str) -> str:
 # ---------- 專案編號 ----------
 
 def next_style_id() -> str:
-    used = {p.name for p in OUTPUTS.iterdir() if p.is_dir()} if OUTPUTS.exists() else set()
+    out = outputs_dir()
+    used = {p.name for p in out.iterdir() if p.is_dir()} if out.exists() else set()
     # logs/ 裡出現過的、垃圾桶裡的、永久刪除過的編號都不重用，免得新專案和舊的 log 混在一起
     logs = logs_dir()
     used |= {p.name for p in logs.iterdir() if p.is_dir()} if logs.exists() else set()

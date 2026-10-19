@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import codex, prompts
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, ROOT, codex_path, read_json, style_lib_dir, write_json
+from .paths import outputs_dir, ROOT, codex_path, data_path, read_json, style_lib_dir, write_json
 
 _lock = threading.Lock()
 STD_RE = re.compile(r"^ref_(\d{2,})\.png$")
@@ -176,7 +176,7 @@ def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
 def _sample(p: dict) -> str | None:
     """專案自己生出來、最能代表畫風的圖：預覽圖，沒有的話（s1～s5 舊流程沒做預覽）用第 1 組網格"""
     for img in [(p.get("preview") or {}).get("image"), *(g.get("image") for g in p.get("groups", []))]:
-        if img and (ROOT / img).exists():
+        if img and data_path(img).exists():
             return img
     return None
 
@@ -185,7 +185,7 @@ def importable() -> list[dict]:
     """可以匯入的畫風專案：有描述或至少有一張生成圖的。
     沒有描述的（s1 這種最早期、直接照參考圖畫法的）只能帶圖匯入，再讓 Codex 分析"""
     out = []
-    for f in sorted(OUTPUTS.glob("*/project.json")):
+    for f in sorted(outputs_dir().glob("*/project.json")):
         p = read_json(f) or {}
         block, img = (p.get("style_block") or "").strip(), _sample(p)
         if block or img:
@@ -198,7 +198,7 @@ def importable() -> list[dict]:
 
 def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
     """把畫風專案的描述存成畫風庫的一筆。範例圖用專案自己生出來的圖（預覽或第一組）＋ extra_refs"""
-    p = read_json(OUTPUTS / style / "project.json")
+    p = read_json(outputs_dir() / style / "project.json")
     if not p:
         raise KeyError(f"畫風專案 {style}")
     name, request, block = p.get("name", ""), p.get("request", ""), (p.get("style_block") or "").strip()
@@ -206,8 +206,8 @@ def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
     sample = _sample(p)
     files = []
     for rel in [sample, *(extra_refs or [])]:
-        if rel and (ROOT / rel).exists():
-            files.append((Path(rel).name, (ROOT / rel).read_bytes()))
+        if rel and data_path(rel).exists():
+            files.append((Path(rel).name, data_path(rel).read_bytes()))
     if not files and not block:
         raise ValueError(f"{style} 沒有描述也沒有圖可以匯入")
     with _lock:
