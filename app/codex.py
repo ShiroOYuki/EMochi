@@ -18,6 +18,8 @@ from pathlib import Path
 from .paths import LOGS, ROOT, load_styles_cfg
 
 POLL_SEC = 3
+# 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
+ACTIVE: dict[str, dict] = {}
 DEFAULT_TIMEOUT = 20 * 60
 KEY_COLORS = {"#00FF00": (0, 255, 0), "#FF00FF": (255, 0, 255)}
 
@@ -156,25 +158,29 @@ def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout
         proc.stdin.write(stdin_text.encode("utf-8"))
         proc.stdin.close()
         started = time.time()
-        reason = "exit"
-        while proc.poll() is None:
-            time.sleep(POLL_SEC)
-            if on_tick:
-                on_tick(proc)
-            if time.time() - started > timeout:
-                reason = "timeout"
-                kill_tree(proc)
-                break
-            if watch:
-                try:
-                    text = log_path.read_text(encoding="utf-8", errors="replace")
-                except OSError:
-                    text = ""
-                if watch(text):
-                    reason = "finished-early"
+        ACTIVE[str(log_path)] = {"pid": proc.pid, "started": started}
+        try:
+            reason = "exit"
+            while proc.poll() is None:
+                time.sleep(POLL_SEC)
+                if on_tick:
+                    on_tick(proc)
+                if time.time() - started > timeout:
+                    reason = "timeout"
                     kill_tree(proc)
                     break
-        code = proc.wait()
+                if watch:
+                    try:
+                        text = log_path.read_text(encoding="utf-8", errors="replace")
+                    except OSError:
+                        text = ""
+                    if watch(text):
+                        reason = "finished-early"
+                        kill_tree(proc)
+                        break
+            code = proc.wait()
+        finally:
+            ACTIVE.pop(str(log_path), None)
     with open(log_path, "a", encoding="utf-8") as log:
         log.write(f"\n[{datetime.now():%Y-%m-%d %H:%M:%S}] {reason} exit={code}\n")
     return code, reason

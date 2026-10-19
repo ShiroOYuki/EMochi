@@ -97,6 +97,22 @@ export type CodexUsage = {
   plan_type: string | null; updated: number | null; now: number; message: string;
 };
 
+/** Codex 狀態對話框（/api/codex-status） */
+export type CodexRunResult = "ok" | "failed" | "timeout" | "running" | "unknown";
+export type CodexRun = { time: string; date: string; scope: string; scope_label: string; name: string; kind: string; tokens: number | null; seconds: number | null; result: CodexRunResult; log: string };
+export type CodexTally = { key: string; label: string; tokens: number; runs: number };
+export type CodexStatus = {
+  cli: { found: boolean; path?: string | null; version?: string | null; error?: string };
+  login: { ok: boolean; text: string; pending: boolean };
+  checked_at?: number; rate: CodexUsage; sessions_dir: string; sessions_found: boolean;
+  running: { scope: string; scope_label: string; kind: string; name: string; seconds: number }[];
+  usage: {
+    days: number; daily: { date: string; tokens: number; runs: number; by_kind: Record<string, number> }[];
+    by_kind: CodexTally[]; by_scope: CodexTally[]; total_tokens: number; runs: number; failed: number;
+    avg_grid_tokens: number | null; recent: CodexRun[];
+  };
+};
+
 /** 垃圾桶（<root>/_removed/）裡的項目；name 是資料夾名 <id>_<刪除時間>；thumb 是可用 fileUrl 顯示的縮圖 */
 export type TrashKind = "projects" | "styles" | "characters";
 export type TrashItem = {
