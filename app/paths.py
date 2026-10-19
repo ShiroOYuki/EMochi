@@ -1,10 +1,13 @@
 """專案路徑與設定檔讀寫"""
 import json
+import os
 import re
 import threading
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+APP_ROOT = Path(__file__).resolve().parent.parent          # 程式碼所在（tools/ 等）
+# 資料根目錄：預設就是 repo；測試時用 EMOCHI_ROOT 指到暫存資料夾，不碰真正的資料
+ROOT = Path(os.environ["EMOCHI_ROOT"]).resolve() if os.environ.get("EMOCHI_ROOT") else APP_ROOT
 CONFIG = ROOT / "config"
 OUTPUTS = ROOT / "outputs"
 EXPORTS = ROOT / "exports"

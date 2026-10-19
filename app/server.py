@@ -1,4 +1,5 @@
 """FastAPI：/api/* 給前端用，其餘路徑回傳 React build（app/static）"""
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -10,14 +11,16 @@ from . import characters, gallery, jobs, prompts, style_lib, trash, usage
 from .images import decode_data_url
 from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, add_sticker, load_stickers, next_style_id, read_json
 
-app = FastAPI(title="EMochi")
 
-
-@app.on_event("startup")
-def _startup():
+@asynccontextmanager
+async def _lifespan(_app):
     characters.ensure_default()
     characters.normalize_names()
     jobs.recover_interrupted()
+    yield
+
+
+app = FastAPI(title="EMochi", lifespan=_lifespan)
 
 
 def _err(e: Exception):

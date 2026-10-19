@@ -83,7 +83,8 @@ export const STATUS_TEXT: Record<ProjectStatus, string> = {
 };
 
 /** Codex 額度（ChatGPT 方案）：primary＝5 小時窗口、secondary＝每週窗口；時間都是 unix 秒 */
-export type RateWindow = { used_percent: number; window_minutes: number | null; resets_at: number | null };
+/** expired：記錄裡的重置時間已經過了（用量以 0% 顯示，下次跑 Codex 才會拿到新數字） */
+export type RateWindow = { used_percent: number; window_minutes: number | null; resets_at: number | null; expired?: boolean };
 export type CodexUsage = {
   available: boolean; primary: RateWindow | null; secondary: RateWindow | null;
   plan_type: string | null; updated: number | null; now: number; message: string;
