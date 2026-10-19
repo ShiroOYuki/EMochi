@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type CustomExport, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
-import { ManagePresetsButton, presetSummary } from "../components/ExportPresets";
+import { ManagePresetsButton, PresetPicker } from "../components/ExportPresets";
 import { legacyToPresets, parseSizes, sizeText, usePresets } from "../exportPresets";
 import { Check, Modal, Select } from "../components/ui";
 import { useStickers } from "../stickers";
@@ -359,16 +359,8 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
           <h3>匯出（ZIP）</h3>
           <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
         </div>
-        <div className="space-y-0.5">
-          {presets.map((p) => (
-            <label key={p.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1 hover:bg-panel2/60" title={p.note || undefined}>
-              <Check className="mt-0.5" checked={chosen.includes(p.id)} onCheckedChange={(v) => setChosen(v ? [...chosen, p.id] : chosen.filter((x) => x !== p.id))} />
-              <span className="min-w-0">
-                <span className="block">{p.name}</span>
-                <span className="block truncate text-[11px] text-mute">{presetSummary(p)}</span>
-              </span>
-            </label>
-          ))}
+        <PresetPicker chosen={validChosen} onChange={setChosen} />
+        <div className="mt-2">
           <label className="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1 hover:bg-panel2/60">
             <Check className="mt-0.5" checked={useCustom} onCheckedChange={setUseCustom} />
             <span><span className="block">自訂</span><span className="block text-[11px] text-mute">只用這一次，不會存成預設集</span></span>

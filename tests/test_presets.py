@@ -30,7 +30,8 @@ def test_builtin_and_crud(client, clean):
     r = client.put("/api/export-presets", json={"presets": [*d["presets"], mine]})
     assert r.status_code == 200, r.text
     p = r.json()["presets"][-1]
-    assert p["id"] and p["folder"] == p["id"] and p["mode"] == "fit" and p["max_kb"] == 200
+    assert p["id"] and p["folder"] == p["id"] and p["mode"] == "fit" and p["max_kb"] == 200 and p["group"] == ""
+    assert {x["group"] for x in d["presets"]} >= {"Twitch", "Discord", "LINE"}   # 內建的都有分組
     assert client.get("/api/export-presets").json()["custom"] is True
     # 驗證：沒名稱、沒尺寸、太大、資料夾重複
     bad = [{"name": "", "sizes": [{"w": 64}]}, {"name": "x", "sizes": []}, {"name": "x", "sizes": [{"w": 99999}]}]
@@ -83,3 +84,13 @@ def test_max_kb_compresses(client, data_root, clean):
     res = client.post("/api/gallery/export", json={"keys": [f"{STYLE}:1"], "custom": {"sizes": [{"w": 400}], "max_kb": 25}}).json()
     assert res["issues"] and "上限 25" in res["issues"][0]["notes"][0]
     _make_finals(data_root)   # 還原，給其他測試用
+
+
+def test_old_file_without_group_gets_builtin_group(client, data_root, clean):
+    """2026-10-20 前存的 export_presets.json 沒有 group：內建的那幾組自動補上分組，自己新增的留空"""
+    import json
+    (data_root / "config" / "export_presets.json").write_text(json.dumps([
+        {"id": "line_sticker", "name": "LINE 貼圖", "sizes": [{"w": 370, "h": 320}]},
+        {"id": "mine", "name": "我的", "sizes": [{"w": 64, "h": 64}]}]), encoding="utf-8")
+    got = {p["id"]: p["group"] for p in client.get("/api/export-presets").json()["presets"]}
+    assert got == {"line_sticker": "LINE", "mine": ""}

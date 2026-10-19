@@ -26,6 +26,19 @@ export function usePresets() {
   return s;
 }
 
+export const OTHER_GROUP = "其他";
+
+/** 依分組排：分組照第一次出現的順序，沒有分組的（「其他」）放最後；組內維持原順序 */
+export function groupPresets<T extends { group: string }>(items: T[]): { group: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const p of items) {
+    const g = p.group.trim() || OTHER_GROUP;
+    map.set(g, [...(map.get(g) ?? []), p]);
+  }
+  const out = [...map.entries()].map(([group, items]) => ({ group, items }));
+  return [...out.filter((x) => x.group !== OTHER_GROUP), ...out.filter((x) => x.group === OTHER_GROUP)];
+}
+
 /** 112×112 → 112；其他 寬×高 */
 export const sizeText = (s: PresetSize) => (s.w === s.h ? `${s.w}` : `${s.w}×${s.h}`);
 

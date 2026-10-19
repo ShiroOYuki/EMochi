@@ -8,6 +8,7 @@
   canvas  輸出剛好「寬×高」的透明畫布，貼圖等比縮小後置中（例如 LINE 聊天室標籤 96×74）
 margin：四周再留的透明邊（px，含在輸出尺寸裡）；even：輸出寬高都取偶數（LINE 規定）
 naming：keep＝沿用原檔名（01_happy_s6.png）；index＝每個畫風依序 01.png、02.png…（LINE 上架要的檔名）
+group：分組（通常是平台名稱，例如 LINE）；匯出時的選單照分組排，空白歸到「其他」
 """
 import io
 import re
@@ -36,10 +37,13 @@ def is_custom() -> bool:
 
 
 def load() -> list[dict]:
+    builtin = read_json(EXAMPLE, [])
     items = read_json(file())
     if items is None:
-        items = read_json(EXAMPLE, [])
-    return [normalize(p) for p in items]
+        items = builtin
+    # 舊版存的檔案沒有 group：跟內建同 id 的補上內建的分組（其他的留空＝「其他」）
+    groups = {b["id"]: b.get("group", "") for b in builtin}
+    return [normalize(p if "group" in p else {**p, "group": groups.get(p.get("id"), "")}) for p in items]
 
 
 def get(pid: str) -> dict | None:
@@ -84,7 +88,8 @@ def normalize(p: dict, *, strict: bool = False) -> dict:
     max_kb = None if max_kb in (None, "", 0) else _int(max_kb, 1, MAX_KB, "檔案大小上限（KB）")
     pid = _slug(p.get("id") or name) or "preset"
     folder = _slug(p.get("folder") or pid) or pid
-    return {"id": pid, "name": name or pid, "folder": folder, "sizes": sizes, "mode": mode, "margin": margin,
+    group = str(p.get("group") or "").strip()[:20]
+    return {"id": pid, "name": name or pid, "group": group, "folder": folder, "sizes": sizes, "mode": mode, "margin": margin,
             "even": bool(p.get("even")), "max_kb": max_kb,
             "naming": p.get("naming") if p.get("naming") in NAMINGS else "keep",
             "note": str(p.get("note") or "").strip()[:200]}
@@ -117,7 +122,7 @@ def reset() -> list[dict]:
 
 def custom(raw: dict) -> dict:
     """匯出時「自訂」的單次設定：不存檔，資料夾固定 custom"""
-    return normalize({**raw, "id": "custom", "name": "自訂", "folder": "custom"}, strict=True)
+    return normalize({**raw, "id": "custom", "name": "自訂", "folder": "custom", "group": ""}, strict=True)
 
 
 # ---------- 輸出 ----------
