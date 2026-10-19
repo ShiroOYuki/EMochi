@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ExportPreset } from "../api";
 import { resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
+import { TrashIcon } from "./manage";
 import { Check, Modal } from "./ui";
 
 const blank = (n: number): ExportPreset => ({
@@ -94,8 +95,10 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
                     <span className="text-mute">×</span>
                     <input className="input !w-20 !px-2 !py-1 text-center" type="number" min={8} max={2048} value={s.h}
                       onChange={(e) => edit({ sizes: p.sizes.map((x, j) => (j === i ? { ...x, h: +e.target.value } : x)) })} aria-label="高" />
-                    <button className="ml-1 text-mute hover:text-bad disabled:opacity-30" disabled={p.sizes.length <= 1} aria-label="移除這個尺寸"
-                      onClick={() => edit({ sizes: p.sizes.filter((_, j) => j !== i) })}>✕</button>
+                    {/* 用垃圾桶圖示，不用 ✕：放在「寬 × 高」旁邊會被看成乘號 */}
+                    <button className="ml-1 grid size-7 place-items-center rounded-full text-mute transition hover:bg-bad/10 hover:text-bad disabled:pointer-events-none disabled:opacity-30"
+                      disabled={p.sizes.length <= 1} aria-label="移除這個尺寸" title={p.sizes.length <= 1 ? "至少要留一個尺寸" : "移除這個尺寸"}
+                      onClick={() => edit({ sizes: p.sizes.filter((_, j) => j !== i) })}><TrashIcon size={14} /></button>
                   </div>
                 ))}
                 {p.sizes.length < 8 && <button className="btn btn-sm" onClick={() => edit({ sizes: [...p.sizes, { w: 128, h: 128 }] })}>＋ 尺寸</button>}
