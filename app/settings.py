@@ -3,7 +3,7 @@
 設定檔本身的位置固定，不能被設定改走。檔案不存在或缺欄位時用 DEFAULTS；改了立即生效（每次用到都重讀）。
 
 資料夾設定（DIRS）一律用完整路徑（使用者要求 2026-10-19）；預設值是資料根目錄底下的同名資料夾。
-outputs/ 不開放：Codex 生圖的沙盒只能寫入 cwd（資料根目錄）底下。
+outputs 放在資料根目錄外時，生圖會加 --add-dir 讓 Codex 的沙盒能寫入（2026-10-19 實測可行）。
 """
 import threading
 from pathlib import Path
@@ -14,6 +14,7 @@ FILE = ROOT / "settings.local.json"
 
 # 可以自訂位置的資料夾：key → (預設, 名稱, 說明)
 DIRS: dict[str, tuple[str, str, str]] = {
+    "outputs_dir": ("outputs", "專案輸出資料夾", "每個畫風專案的網格圖、切好的貼圖與 project.json（含垃圾桶）；檔案最多"),
     "logs_dir": ("logs", "Log 資料夾", "每次呼叫 Codex 的紀錄；Codex 狀態的用量統計從這裡算"),
     "config_dir": ("config", "設定檔資料夾", "你的表情清單 stickers.json 與分組 sticker_groups.json"),
     "exports_dir": ("exports", "匯出資料夾", "Gallery 匯出的 zip、總覽圖與勾選清單"),

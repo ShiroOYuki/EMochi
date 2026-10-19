@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import settings
-from .paths import ROOT, codex_path, logs_dir
+from .paths import ROOT, codex_path, data_path, logs_dir, outputs_dir, outside_root, to_codex
 
 POLL_SEC = 3
 # 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
@@ -191,13 +191,39 @@ def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout
     return code, reason
 
 
+def add_dir_args() -> list[str]:
+    """outputs 放在資料根目錄（Codex 的 cwd）外時，workspace-write 沙盒預設寫不進去，要用 --add-dir 加開"""
+    out = outputs_dir().resolve()
+    return ["--add-dir", str(out)] if outside_root(out) else []
+
+
+def localize(prompt: str, paths: list[str]) -> str:
+    """prompt 裡記的是 project.json 的邏輯路徑（outputs/...），執行前換成實際路徑。
+    換成絕對路徑時順便拿掉「(inside the current folder)」，免得 Codex 以為要存在 cwd 底下"""
+    table = {old: to_codex(old) for old in set(paths)}
+    table = {k: v for k, v in table.items() if k != v}
+    if not table:
+        return prompt
+    # 一次掃完：逐個 replace 的話，換好的絕對路徑（例如 .../my_outputs/s1/...）裡又含有 outputs/s1/...，會被換第二次。
+    # 前面不能接路徑字元，只換「完整的一段路徑」
+    alt = "|".join(re.escape(k) for k in sorted(table, key=len, reverse=True))
+    pat = re.compile(rf"(?<![\w/\\.:-])({alt})(?: \(inside the current folder\))?")
+    return pat.sub(lambda m: table[m.group(1)], prompt)
+
+
+def image_command(refs: list[str]) -> list[str]:
+    cmd = [codex_bin(), *settings.get("codex_args"), *SANDBOX_ARGS, *add_dir_args()]
+    for r in refs:
+        cmd += ["-i", to_codex(r)]
+    return [*cmd, "-"]
+
+
 def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path: Path,
               on_tick=None) -> tuple[bool, str]:
-    cmd = [codex_bin(), *settings.get("codex_args"), *SANDBOX_ARGS]
-    for r in refs:
-        cmd += ["-i", r]
-    cmd.append("-")
-    out_path = ROOT / out_rel
+    """refs、out_rel 是 project.json 裡記的路徑（outputs/... 或相對資料根目錄）"""
+    cmd = image_command(refs)
+    prompt = localize(prompt, [out_rel, *refs])
+    out_path = data_path(out_rel)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     started = time.time()
     state: dict = {}

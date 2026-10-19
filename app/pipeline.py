@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .paths import APP_ROOT, OUTPUTS, sticker_map
+from .paths import APP_ROOT, outputs_dir, sticker_map
 from .prompts import LAYOUTS
 
 sys.path.insert(0, str(APP_ROOT / "tools"))
@@ -77,7 +77,7 @@ def cut_cells(grid_path: Path, layout: str, process: dict) -> list[Image.Image |
 
 
 def write_sticker(style: str, sid: int, img: Image.Image, process: dict, meta: dict) -> None:
-    final = OUTPUTS / style / "final"
+    final = outputs_dir() / style / "final"
     bottom = meta.get("align") == "bottom" or meta.get("name") == "lurk"
     margin = 0 if bottom else process.get("margin", 0)
     for folder, size in SIZES.items():
@@ -101,8 +101,8 @@ def process_grid(style: str, grid_path: Path, layout: str, ids: list[int], proce
 
 
 def build_previews(style: str) -> None:
-    final = OUTPUTS / style / "final"
-    prev = OUTPUTS / style / "previews"
+    final = outputs_dir() / style / "final"
+    prev = outputs_dir() / style / "previews"
     prev.mkdir(parents=True, exist_ok=True)
     masters = sorted((final / "master").glob("*.png"))
     if not masters:

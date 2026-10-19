@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import codex, usage
-from .paths import OUTPUTS, ROOT, codex_path, logs_dir, read_json
+from .paths import outputs_dir, ROOT, codex_path, logs_dir, read_json
 
 CHECK_TTL = 60          # 秒；CLI 版本、登入狀態不常變，沒按「重新連線」就用快取
 DAYS = 7
@@ -106,7 +106,7 @@ def _scope_labels(scopes: set[str]) -> dict[str, str]:
         if sc in SCOPE_NAMES:
             out[sc] = SCOPE_NAMES[sc]
             continue
-        name = (read_json(OUTPUTS / sc / "project.json") or {}).get("name") or ""
+        name = (read_json(outputs_dir() / sc / "project.json") or {}).get("name") or ""
         out[sc] = f"{sc} {name}".strip()
     return out
 

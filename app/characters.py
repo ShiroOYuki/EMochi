@@ -18,7 +18,7 @@ from pathlib import Path
 
 from . import codex
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, characters_dir, codex_path, read_json, write_json
+from .paths import outputs_dir, characters_dir, codex_path, read_json, write_json
 
 _lock = threading.Lock()
 
@@ -204,7 +204,7 @@ def _rewrite_references(renamed: dict[str, dict[str, str]]) -> None:
                 return prefix + m[p[len(prefix):]]
         return p
 
-    for f in OUTPUTS.glob("*/project.json"):
+    for f in outputs_dir().glob("*/project.json"):
         p = read_json(f)
         if not p:
             continue

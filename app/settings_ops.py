@@ -17,7 +17,7 @@ import threading
 from pathlib import Path
 
 from . import codex, settings
-from .paths import APP_ROOT, OUTPUTS, ROOT, codex_path, read_json, write_json
+from .paths import APP_ROOT, ROOT, codex_path, outputs_dir, outside_root, read_json, write_json
 
 USER_CONFIG_FILES = ("stickers.json", "sticker_groups.json")   # config_dir 只搬使用者自己的檔案
 CONFLICT_LIST_MAX = 20
@@ -45,7 +45,7 @@ def busy() -> str | None:
     from . import jobs
     if codex.ACTIVE:
         return f"有 {len(codex.ACTIVE)} 個 Codex 正在執行"
-    for f in OUTPUTS.glob("*/project.json"):
+    for f in outputs_dir().glob("*/project.json"):
         p = read_json(f) or {}
         if p.get("status") in jobs.BUSY:
             return f"專案 {p.get('id')} 正在執行中"
@@ -62,7 +62,8 @@ def info() -> dict:
     return {
         "dirs": dirs,
         "values": {k: cur[k] for k in settings.DEFAULTS if k not in settings.DIRS},
-        "codex_command": ["codex", *cur["codex_args"], *codex.SANDBOX_ARGS],   # 設定頁顯示用（含固定加上的沙盒參數）
+        # 設定頁顯示用（含固定加上的沙盒參數；outputs 在資料根目錄外時的 --add-dir）
+        "codex_command": ["codex", *cur["codex_args"], *codex.SANDBOX_ARGS, *codex.add_dir_args()],
         "defaults": {k: v for k, v in settings.DEFAULTS.items() if k not in settings.DIRS},
         "limits": settings.LIMITS, "layouts": list(settings.LAYOUTS),
         "settings_file": str(settings.FILE), "root": str(ROOT), "busy": busy(),
@@ -87,8 +88,10 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
     d = settings.resolve(value)
     out = {"key": key, "value": value, "path": str(d), "exists": d.exists(), "error": None, "warn": None, **_stat(key, d)}
     cur = {**settings.load(), **(others or {})}
-    forbidden = [(ROOT, "資料根目錄本身"), (OUTPUTS, "outputs（專案輸出）"), (APP_ROOT / "app", "程式資料夾 app"),
-                 (APP_ROOT / "web", "程式資料夾 web")]
+    forbidden = [(ROOT, "資料根目錄本身"), (APP_ROOT / "app", "程式資料夾 app"), (APP_ROOT / "web", "程式資料夾 web")]
+    if key != "outputs_dir":
+        # 資料根目錄下的 outputs/ 這個名字保留給專案輸出：project.json 裡的 outputs/... 一律指 outputs 資料夾
+        forbidden.append((ROOT / "outputs", "資料根目錄下的 outputs（保留給專案輸出）"))
     for bad, name in forbidden:
         if d == bad or (bad != ROOT and _inside(d, bad)):
             out["error"] = f"不能放在{name}" + ("" if d == bad else "裡面或包含它")
@@ -116,8 +119,10 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
     except OSError as e:
         out["error"] = f"沒辦法寫入 {probe}：{e.strerror or e}"
         return out
-    if key in ("characters_dir", "style_lib_dir") and not _inside(d, ROOT):
+    if key in ("characters_dir", "style_lib_dir") and outside_root(d):
         out["warn"] = "放在專案資料夾外：生圖時 Codex 會用絕對路徑讀參考圖"
+    if key == "outputs_dir" and outside_root(d):
+        out["warn"] = "放在專案資料夾外：生圖時會加 --add-dir 讓 Codex 能寫入這裡"
     if not d.exists():
         out["warn"] = ((out["warn"] + "；") if out["warn"] else "") + "資料夾還不存在，儲存時會建立"
     return out
@@ -148,8 +153,19 @@ def plan(changes: dict) -> dict:
 
 def _move_files(key: str, src: Path, dst: Path, conflict: str) -> dict:
     moved = skipped = 0
+    files = _files(key, src)
+    # 新位置還沒有東西：整個資料夾一次改名（同一顆磁碟幾乎瞬間完成；outputs 檔案多時差很多）。跨磁碟會失敗，改逐檔搬
+    if key != "config_dir" and files and (not dst.exists() or (dst.is_dir() and not any(dst.iterdir()))):
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists():
+                dst.rmdir()
+            os.rename(src, dst)
+            return {"moved": len(files), "skipped": 0}
+        except OSError:
+            pass
     dst.mkdir(parents=True, exist_ok=True)
-    for rel in _files(key, src):
+    for rel in files:
         a, b = src / rel, dst / rel
         if b.exists():
             if conflict == "keep":
@@ -172,8 +188,10 @@ def _move_files(key: str, src: Path, dst: Path, conflict: str) -> dict:
     return {"moved": moved, "skipped": skipped}
 
 
-def _rewrite_projects(mapping: list[tuple[str, str]]) -> int:
-    """project.json 裡記的路徑（參考圖、log）：舊資料夾開頭的換成新資料夾"""
+def _rewrite_projects(mapping: list[tuple[str, str]], roots: list[Path]) -> int:
+    """project.json 裡記的路徑（參考圖、log）：舊資料夾開頭的換成新資料夾。
+    roots：要改哪些 outputs 資料夾裡的專案（outputs 本身也在搬時，舊、新位置都看）。
+    outputs 底下的檔案記的是邏輯路徑 outputs/...，不受 outputs 搬家影響，不用改"""
     def fix(v):
         if isinstance(v, str):
             for old, new in mapping:
@@ -186,7 +204,11 @@ def _rewrite_projects(mapping: list[tuple[str, str]]) -> int:
             return {k: fix(x) for k, x in v.items()}
         return v
     n = 0
-    for f in [*OUTPUTS.glob("*/project.json"), *OUTPUTS.glob("_removed/*/project.json")]:
+    seen = set()
+    for f in [f for r in dict.fromkeys(roots) for f in (*r.glob("*/project.json"), *r.glob("_removed/*/project.json"))]:
+        if f.resolve() in seen:
+            continue
+        seen.add(f.resolve())
         p = read_json(f)
         if not p:
             continue
@@ -215,11 +237,13 @@ def apply(changes: dict, move: bool = True, conflict: str | None = None) -> dict
             if move:
                 r = _move_files(d["key"], src, dst, conflict or "keep")
                 report["moved"].append({"key": d["key"], **r})
-                mapping.append((codex_path(src), codex_path(dst)))
+                if d["key"] != "outputs_dir":
+                    mapping.append((codex_path(src), codex_path(dst)))
             else:
                 dst.mkdir(parents=True, exist_ok=True)
         if mapping:
-            report["projects_updated"] = _rewrite_projects(mapping)
+            new_out = settings.resolve(dir_changes["outputs_dir"]) if "outputs_dir" in dir_changes else outputs_dir()
+            report["projects_updated"] = _rewrite_projects(mapping, [outputs_dir(), new_out])
     settings.save(vals)
     return {**info(), "report": report}
 

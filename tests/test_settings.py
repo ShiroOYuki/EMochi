@@ -23,7 +23,7 @@ def ext():
 
 def test_info_and_validate(client, clean):
     d = client.get("/api/settings").json()
-    assert [x["key"] for x in d["dirs"]] == ["logs_dir", "config_dir", "exports_dir", "characters_dir", "style_lib_dir"]
+    assert [x["key"] for x in d["dirs"]] == ["outputs_dir", "logs_dir", "config_dir", "exports_dir", "characters_dir", "style_lib_dir"]
     assert d["values"]["max_parallel"] == 3 and d["values"]["default_layout"] == "4x2w"
     assert client.put("/api/settings", json={"changes": {"max_parallel": 9}}).status_code == 400
     assert client.put("/api/settings", json={"changes": {"default_layout": "9x9"}}).status_code == 400
@@ -48,7 +48,7 @@ def test_check(client, data_root, clean, ext):
     ok = chk("characters_dir", str(ext / "chars"))
     assert ok["error"] is None and "絕對路徑" in ok["warn"] and "建立" in ok["warn"]
     assert chk("logs_dir", str(R / "my_logs"))["error"] is None
-    d = client.get("/api/settings").json()["dirs"][0]
+    d = next(x for x in client.get("/api/settings").json()["dirs"] if x["key"] == "logs_dir")
     assert d["value"] == str((R / "logs").resolve()) == d["default"]   # 預設也顯示完整路徑
     assert client.put("/api/settings", json={"changes": {"logs_dir": "relative"}}).status_code == 400
 
