@@ -2,7 +2,7 @@
 chcp 65001 >nul
 rem Release a new version: bump desktop/package.json (the single source of the app version), commit, tag.
 rem After the tag is pushed, GitHub Actions (release.yml) builds the installer and publishes it to Releases,
-rem and installed copies of EMochi pick up the update automatically. See README.
+rem and installed copies of EMochi pick up the update automatically. See docs/DEVELOPMENT.md.
 rem   scripts\release.bat 0.2.0          bump + commit + tag locally (push yourself: git push origin main v0.2.0)
 rem   scripts\release.bat 0.2.0 --push   also push (starts the release build)
 setlocal
