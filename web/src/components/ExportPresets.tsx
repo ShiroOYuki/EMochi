@@ -202,22 +202,14 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {picked.map((p) => (
-        <span key={p.id} title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
-          className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs">
-          {p.name}
-          <button className="grid size-4 place-items-center rounded-full text-mute hover:bg-panel hover:text-bad" aria-label={`不要匯出 ${p.name}`} onClick={() => toggle(p.id, false)}>
-            <XIcon />
-          </button>
-        </span>
-      ))}
-      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
+      {/* 「＋ 選擇」固定在最前面：放在標籤後面的話，每多勾一組按鈕就被往後擠（甚至換行），彈出選單跟著跑 */}
       <Popover.Root onOpenChange={(o) => { if (!o) setQ(""); }}>
         <Popover.Trigger asChild>
           <button className="btn btn-sm">＋ 選擇</button>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content side="bottom" align="end" sideOffset={6} collisionPadding={8}
+          {/* 往左開：匯出面板在畫面最右邊，往下開會蓋住剛加上的標籤 */}
+          <Popover.Content side="left" align="start" sideOffset={14} collisionPadding={8}
             className="select-pop z-[60] w-80 rounded-2xl border border-line bg-panel p-2 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
             <input className="input mb-2 !py-1" autoFocus placeholder="搜尋名稱、平台、尺寸…" value={q} onChange={(e) => setQ(e.target.value)} />
             <div className="scroll-inset-sm max-h-[min(24rem,60vh)] overflow-y-auto pr-1">
@@ -250,6 +242,16 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
+      {picked.map((p) => (
+        <span key={p.id} title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
+          className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs">
+          {p.name}
+          <button className="grid size-4 place-items-center rounded-full text-mute hover:bg-panel hover:text-bad" aria-label={`不要匯出 ${p.name}`} onClick={() => toggle(p.id, false)}>
+            <XIcon />
+          </button>
+        </span>
+      ))}
+      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
     </div>
   );
 }
