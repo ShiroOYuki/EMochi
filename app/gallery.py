@@ -5,12 +5,14 @@ import json
 import re
 import time
 import zipfile
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import characters, specs
+from . import characters, presets, specs
 from .paths import outputs_dir, exports_dir, read_json, sticker_map
 
+# 後處理（pipeline）已經產生好的檔案（scan() 回傳的 files）；匯出預設集剛好要這些尺寸時直接沿用，畫質和以前一樣
 FORMATS = {
     "master": ("Master 512", "master"),
     "t112": ("Twitch 112", "twitch/112"),
@@ -108,24 +110,75 @@ def list_selections() -> list[dict]:
     return out
 
 
-def export(keys, fmts, tag="") -> dict:
-    """匯出 zip；每個檔案先過 specs.fit()（尺寸、平台大小上限，超過就壓縮），問題列在 issues。
-    原始檔不動，壓縮只影響 zip 裡的那一份"""
+PREMADE = {112: "t112", 56: "t56", 28: "t28", 128: "discord", 512: "master"}   # 正方形邊長 → 後處理的檔案
+LEGACY = {"t112": ("twitch", 112), "t56": ("twitch", 56), "t28": ("twitch", 28), "discord": ("discord", 128), "master": ("master", 512)}
+
+
+def legacy_presets(fmts) -> list[dict]:
+    """舊版的格式代號（t112、discord…，舊的勾選清單、舊 API）→ 對應的內建預設集（只留勾到的尺寸）"""
+    builtin = {p["id"]: p for p in (presets.normalize(x) for x in read_json(presets.EXAMPLE, []))}
+    out: dict[str, dict] = {}
+    for f in fmts or []:
+        if f not in LEGACY:
+            continue
+        pid, px = LEGACY[f]
+        p = out.setdefault(pid, {**builtin[pid], "sizes": []})
+        p["sizes"].append({"w": px, "h": px})
+    return list(out.values())
+
+
+def _image_bytes(it: dict, master_img, preset: dict, size: dict) -> tuple[bytes, list[str]]:
+    """一張貼圖的一個尺寸：剛好是後處理產生過的（正方形、沒有額外邊距）就沿用，否則從 512 母版縮。
+    沿用的檔案尺寸不對（舊版後處理的問題）→ 改從母版重縮，並在說明裡提一下"""
+    w, h = presets.out_size(size, preset["mode"], preset["even"])
+    if w == h and preset["margin"] == 0 and PREMADE.get(w) in it["files"]:
+        data = (outputs_dir() / it["files"][PREMADE[w]]).read_bytes()
+        got = Image.open(io.BytesIO(data)).size
+        if got == (w, h):
+            return data, []
+        note = f"後處理的檔案是 {got[0]}×{got[1]}，不是 {w}×{h}，已改用母版重新縮"
+        return presets.to_png(presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])), [note]
+    return presets.to_png(presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])), []
+
+
+def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
+    """匯出 zip：<畫風>/<預設集資料夾>/<尺寸>/<檔名>；每個檔案依預設集的大小上限檢查，超過就壓縮（specs.compress），
+    問題列在 issues。原始檔不動。
+    preset_ids：要用的預設集；custom：單次自訂（不存檔）；fmts：舊版格式代號（相容舊的勾選清單）"""
     tag = clean_tag(tag)
+    chosen = [p for p in (presets.get(i) for i in preset_ids or []) if p] + legacy_presets(fmts)
+    if custom:
+        chosen.append(presets.custom(custom))
+    if not chosen:
+        raise ValueError("請至少選一個預設集，或填寫自訂尺寸")
     styles = scan()
+    picked = [(s, it) for s, it in (find(styles, k) for k in keys) if it and "master" in it["files"]]
+    # 序號檔名（LINE）：每個畫風依貼圖編號排序後 01、02…
+    order = {}
+    for s, it in picked:
+        order.setdefault(s["id"], []).append(it["id"])
+    index = {(sid, num): i for sid, nums in order.items() for i, num in enumerate(sorted(nums), 1)}
     buf = io.BytesIO()
     n = 0
     issues: list[dict] = []
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        for key in keys:
-            s, it = find(styles, key)
-            if not it:
-                continue
-            for k in fmts:
-                if k in it["files"]:
-                    src = outputs_dir() / it["files"][k]
-                    arc = f"{s['id']}/{FORMATS[k][1]}/{suffixed(src.name, s['id'], tag)}"
-                    data, notes = specs.fit(src.read_bytes(), k)
+        for s, it in picked:
+            cache = {}
+            def master_img(it=it, cache=cache):
+                if "im" not in cache:
+                    cache["im"] = Image.open(outputs_dir() / it["files"]["master"]).convert("RGBA")
+                return cache["im"]
+            src_name = Path(it["files"]["master"]).name
+            for p in chosen:
+                for size in p["sizes"]:
+                    sub = p["folder"] if len(p["sizes"]) == 1 else f"{p['folder']}/{presets.size_label(size)}"
+                    fname = (f"{index[(s['id'], it['id'])]:02d}.png" if p["naming"] == "index"
+                             else suffixed(src_name, s["id"], tag))
+                    arc = f"{s['id']}/{sub}/{fname}"
+                    raw, notes = _image_bytes(it, master_img, p, size)
+                    label = f"{p['name']} {presets.size_label(size)}"
+                    data, more = specs.compress(raw, label, p["max_kb"] * 1024 if p["max_kb"] else None)
+                    notes += more
                     z.writestr(arc, data)
                     if notes:
                         issues.append({"file": arc, "notes": notes})
@@ -134,13 +187,15 @@ def export(keys, fmts, tag="") -> dict:
     st = stamp()
     name = f"export_{st}{'_' + tag if tag else ''}.zip"
     (exports_dir() / name).write_bytes(buf.getvalue())
-    write_export_json(f"export_{st}.json", selection_doc(keys, kind="export", formats=list(fmts), zip=name,
-                                                        tag=tag or None, issues=issues or None))
+    write_export_json(f"export_{st}.json", selection_doc(
+        keys, kind="export", presets=[p["id"] for p in chosen if p["id"] != "custom"],
+        custom=presets.custom(custom) if custom else None, zip=name, tag=tag or None, issues=issues or None))
     return {"file": name, "count": n, "issues": issues}
 
 
-def save_selection(keys, formats=None, combine=None, tag="") -> dict:
-    doc = selection_doc(keys, kind="selection", formats=formats, combine=combine, tag=clean_tag(tag) or None)
+def save_selection(keys, presets=None, custom=None, combine=None, tag="", formats=None) -> dict:
+    doc = selection_doc(keys, kind="selection", presets=presets, custom=custom, formats=formats, combine=combine,
+                        tag=clean_tag(tag) or None)
     name = write_export_json(f"selection_{stamp()}.json", doc)
     return {"file": name, "count": len(doc["keys"])}
 

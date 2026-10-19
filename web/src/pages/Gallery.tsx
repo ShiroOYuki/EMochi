@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
-import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
+import { api, fileUrl, type CustomExport, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
+import { ManagePresetsButton, presetSummary } from "../components/ExportPresets";
+import { legacyToPresets, parseSizes, sizeText, usePresets } from "../exportPresets";
 import { Check, Modal, Select } from "../components/ui";
 import { useStickers } from "../stickers";
 
-const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", t56: "Twitch 56", t28: "Twitch 28", discord: "Discord 128" };
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
@@ -277,7 +278,21 @@ function Preview({ e, on, onToggle, onPrev, onNext }: { e: Entry; on: boolean; o
 // ---------- 右側：勾選清單 / 匯出 / 組合 ----------
 
 function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[]) => void; styles: GalleryStyle[] }) {
-  const [fmts, setFmts] = useStored<string[]>("gallery.fmts", ["t112", "t56", "t28", "discord"]);
+  // 匯出用哪幾組預設集；舊版存的是格式代號（gallery.fmts），第一次載入時換成預設集 id
+  const [chosen, setChosen] = useStored<string[]>("gallery.presets", (() => {
+    try { const old = JSON.parse(localStorage.getItem("gallery.fmts") ?? "null"); if (Array.isArray(old)) return legacyToPresets(old); } catch { /* 忽略 */ }
+    return ["twitch", "discord"];
+  })());
+  // 「自訂」：只用在這次匯出，不存成預設集（欄位內容記在這台電腦，下次不用重打）
+  const [useCustom, setUseCustom] = useStored("gallery.useCustom", false);
+  const [cust, setCust] = useStored("gallery.custom", { sizes: "256", mode: "fit" as CustomExport["mode"], margin: 0, max_kb: "" });
+  const { presets } = usePresets();
+  const custSizes = parseSizes(cust.sizes);
+  const customBody: CustomExport | null = useCustom && custSizes
+    ? { sizes: custSizes, mode: cust.mode, margin: cust.margin, even: false, max_kb: cust.max_kb === "" ? null : Math.max(1, +cust.max_kb) }
+    : null;
+  const validChosen = chosen.filter((id) => presets.some((p) => p.id === id));
+  const canExport = validChosen.length > 0 || !!customBody;
   const [tag, setTag] = useStored("gallery.tag", "");
   const [cmb, setCmb] = useStored("gallery.combine", { cols: 8, cell: 128, gap: 8, bg: "transparent", labels: false });
   const [list, setList] = useState<SelectionInfo[]>([]);
@@ -300,7 +315,13 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
     const valid = new Set(styles.flatMap((s) => s.items.map((it) => `${s.id}:${it.id}`)));
     const okKeys = keys.filter((k) => valid.has(k));
     setSel(merge ? [...new Set([...sel, ...okKeys])] : okKeys);
-    if (Array.isArray(d.formats)) setFmts(d.formats as string[]);
+    if (Array.isArray(d.presets)) setChosen(d.presets as string[]);
+    else if (Array.isArray(d.formats)) setChosen(legacyToPresets(d.formats as string[]));   // 舊版清單
+    if (d.custom && typeof d.custom === "object") {
+      const c = d.custom as CustomExport;
+      setUseCustom(true);
+      setCust({ sizes: c.sizes.map(sizeText).join(", ").replace(/×/g, "x"), mode: c.mode, margin: c.margin ?? 0, max_kb: c.max_kb ? String(c.max_kb) : "" });
+    }
     const t = (d.tag as string) ?? (typeof d.version === "string" ? d.version : null);
     if (typeof t === "string") setTag(t);
     if (d.combine) setCmb({ ...cmb, ...(d.combine as object) });
@@ -318,7 +339,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button className="btn" disabled={!pick} onClick={async () => apply(await api.get(`/api/gallery/selections/${encodeURIComponent(pick)}`), pick)}>載入勾選</button>
           <button className="btn" disabled={!sel.length} onClick={async () => {
-            const r = await api.post<{ file: string }>("/api/gallery/selections", { keys: sel, formats: fmts, combine: cmb, tag: cleanTag });
+            const r = await api.post<{ file: string }>("/api/gallery/selections", { keys: sel, presets: validChosen, custom: customBody, combine: cmb, tag: cleanTag });
             say("sel", `已存成 exports\\${r.file}`); loadList();
           }}>儲存目前勾選</button>
         </div>
@@ -334,23 +355,53 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
 
       <hr className="border-line" />
       <div>
-        <h3 className="mb-2">匯出（ZIP）</h3>
-        {Object.entries(FMT).map(([k, v]) => (
-          <label key={k} className="flex items-center gap-2 py-0.5">
-            <Check checked={fmts.includes(k)} onCheckedChange={(v) => setFmts(v ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
+        <div className="mb-2 flex items-center justify-between">
+          <h3>匯出（ZIP）</h3>
+          <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
+        </div>
+        <div className="space-y-0.5">
+          {presets.map((p) => (
+            <label key={p.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1 hover:bg-panel2/60" title={p.note || undefined}>
+              <Check className="mt-0.5" checked={chosen.includes(p.id)} onCheckedChange={(v) => setChosen(v ? [...chosen, p.id] : chosen.filter((x) => x !== p.id))} />
+              <span className="min-w-0">
+                <span className="block">{p.name}</span>
+                <span className="block truncate text-[11px] text-mute">{presetSummary(p)}</span>
+              </span>
+            </label>
+          ))}
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1 hover:bg-panel2/60">
+            <Check className="mt-0.5" checked={useCustom} onCheckedChange={setUseCustom} />
+            <span><span className="block">自訂</span><span className="block text-[11px] text-mute">只用這一次，不會存成預設集</span></span>
           </label>
-        ))}
+        </div>
+        {useCustom && (
+          <div className="mt-1 space-y-2 rounded-xl bg-panel2 p-3">
+            <label className="label">尺寸（px，逗號分隔；長方形寫 寬x高）
+              <input className={`input mt-1 font-mono ${custSizes ? "" : "!border-bad"}`} placeholder="例如 256, 300x200" value={cust.sizes}
+                onChange={(e) => setCust({ ...cust, sizes: e.target.value })} /></label>
+            {!custSizes && <p className="text-[11px] text-bad">格式不對：每個尺寸 8～2048，例如 256 或 300x200</p>}
+            <div className="flex gap-2">
+              <div className="label flex-1">縮放
+                <Select label="縮放方式" className="mt-1 !py-1" value={cust.mode} onChange={(mode) => setCust({ ...cust, mode })}
+                  options={[{ value: "fit", label: "等比縮進框內" }, { value: "canvas", label: "固定畫布置中" }]} /></div>
+              <label className="label w-20">留白 px
+                <input className="input mt-1 !py-1" type="number" min={0} max={256} value={cust.margin} onChange={(e) => setCust({ ...cust, margin: Math.max(0, +e.target.value) })} /></label>
+            </div>
+            <label className="label">檔案大小上限（KB，選填）
+              <input className="input mt-1 !py-1" type="number" min={1} placeholder="不限" value={cust.max_kb} onChange={(e) => setCust({ ...cust, max_kb: e.target.value })} /></label>
+          </div>
+        )}
         <div className="mt-2 flex items-center gap-2"><span className="shrink-0">版本標記</span>
           <input className="input" placeholder="選填，如 v1" maxLength={20} value={tag} onChange={(e) => setTag(e.target.value)} /></div>
         <p className="mt-1 text-xs text-mute">檔名範例：01_happy_s1{cleanTag ? `_${cleanTag}` : ""}.png</p>
-        <button className="btn btn-primary mt-2 w-full" disabled={!sel.length || !fmts.length} onClick={async () => {
+        <button className="btn btn-primary mt-2 w-full" disabled={!sel.length || !canExport} onClick={async () => {
           say("exp", "匯出中…");
           try {
-            const r = await api.post<{ file: string; count: number; issues: { file: string; notes: string[] }[] }>("/api/gallery/export", { keys: sel, formats: fmts, tag: cleanTag });
-            // 平台規格檢查（尺寸、Twitch 1 MB／Discord 256 KB）：有壓縮或問題就列出來
+            const r = await api.post<{ file: string; count: number; issues: { file: string; notes: string[] }[] }>("/api/gallery/export", { keys: sel, presets: validChosen, custom: customBody, tag: cleanTag });
+            // 每組預設集的大小上限檢查：有壓縮或問題就列出來
             const notes = r.issues.flatMap((i) => i.notes.map((n) => `・${i.file}：${n}`));
             say("exp", `完成：${r.count} 個檔案，存在 exports\\${r.file}`
-              + (notes.length ? `\n規格檢查有 ${notes.length} 則提醒：\n${notes.slice(0, 8).join("\n")}${notes.length > 8 ? `\n…其餘 ${notes.length - 8} 則寫在同名的 JSON 裡` : ""}` : "\n規格檢查：全部符合 Twitch／Discord 上傳限制"));
+              + (notes.length ? `\n規格檢查有 ${notes.length} 則提醒：\n${notes.slice(0, 8).join("\n")}${notes.length > 8 ? `\n…其餘 ${notes.length - 8} 則寫在同名的 JSON 裡` : ""}` : "\n大小檢查：全部符合各預設集的上限"));
             location.href = fileUrl(`exports/${r.file}`); loadList();
           } catch (e) { say("exp", `失敗：${(e as Error).message}`); }
         }}>匯出勾選的 {sel.length} 張</button>

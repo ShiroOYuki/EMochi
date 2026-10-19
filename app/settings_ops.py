@@ -19,7 +19,7 @@ from pathlib import Path
 from . import codex, settings
 from .paths import APP_ROOT, ROOT, codex_path, outputs_dir, outside_root, read_json, write_json
 
-USER_CONFIG_FILES = ("stickers.json", "sticker_groups.json")   # config_dir 只搬使用者自己的檔案
+USER_CONFIG_FILES = ("stickers.json", "sticker_groups.json", "export_presets.json")   # config_dir 只搬使用者自己的檔案
 CONFLICT_LIST_MAX = 20
 _pick_lock = threading.Lock()
 
