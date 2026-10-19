@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Popover } from "radix-ui";
 import type { ExportPreset } from "../api";
 import { groupPresets, OTHER_GROUP, resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { TrashIcon } from "./manage";
 import { Check, Modal } from "./ui";
 
@@ -27,6 +28,65 @@ export function ManagePresetsButton({ className = "btn btn-sm", children = "管�
 }
 
 /** 匯出預設集管理：新增、複製、編輯、刪除、還原內建；改完按「儲存」才寫回 */
+
+/** 分組欄位：可以自己打字，也可以從已有的分組挑（groups 不含正在編輯的這一筆，不然打一個字就會整串都比對到自己）。
+ *  不用原生 <datalist>：它的下拉清單是瀏覽器畫的，樣式、深色主題都改不了；這裡外觀和 Select 一致 */
+function GroupInput({ value, onChange, groups }: { value: string; onChange: (v: string) => void; groups: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const k = value.trim().toLowerCase();
+  // 打的字剛好等於某個分組（例如剛選完）時列出全部，方便改選別組
+  const list = !k || groups.some((g) => g.toLowerCase() === k) ? groups : groups.filter((g) => g.toLowerCase().includes(k));
+  const show = open && list.length > 0;
+  const pick = (g: string) => { onChange(g); setOpen(false); };
+  useEffect(() => { setHi(Math.max(0, list.indexOf(value.trim()))); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Popover.Root open={show} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div className="group relative mt-1">
+          <input ref={inputRef} className="input pr-8" maxLength={20} placeholder={OTHER_GROUP} value={value}
+            role="combobox" aria-expanded={show} aria-autocomplete="list"
+            onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(0); }}
+            onFocus={() => setOpen(true)} onClick={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                if (!show) { setOpen(true); return; }
+                const d = e.key === "ArrowDown" ? 1 : -1;
+                setHi((h) => (h + d + list.length) % list.length);
+              } else if (e.key === "Enter" && show) { e.preventDefault(); pick(list[Math.min(hi, list.length - 1)]); }
+              else if (e.key === "Escape" && show) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+              else if (e.key === "Tab") setOpen(false);
+            }} />
+          <button type="button" tabIndex={-1} aria-label="列出分組" disabled={groups.length === 0}
+            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-mute hover:text-acc disabled:opacity-40 disabled:hover:text-mute"
+            onMouseDown={(e) => e.preventDefault()} onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}>
+            <ChevronDownIcon className={"size-4 transition-transform duration-200 " + (show ? "rotate-180 text-acc" : "")} />
+          </button>
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => { if (inputRef.current?.parentElement?.contains(e.target as Node)) e.preventDefault(); }}
+          className="select-pop z-[60] w-(--radix-popover-trigger-width) origin-(--radix-popover-content-transform-origin) rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+          <div role="listbox" className="scroll-inset-sm max-h-60 overflow-y-auto">
+            {list.map((g, i) => (
+              <div key={g} role="option" aria-selected={g === value.trim()}
+                className={"relative flex cursor-pointer select-none items-center rounded-xl py-1.5 pr-3 pl-8 transition-colors duration-100 " + (i === hi ? "bg-panel2 " : "") + (g === value.trim() ? "text-acc" : "")}
+                onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(g)}>
+                {g === value.trim() && <CheckIcon className="absolute left-2.5 size-3.5" strokeWidth={2.5} />}
+                <span className="truncate">{g}</span>
+              </div>
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 export function PresetManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { presets, custom } = usePresets();
   const [draft, setDraft] = useState<ExportPreset[]>([]);
@@ -87,8 +147,8 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
             <div className="grid grid-cols-3 gap-3">
               <label className="label">名稱<input className="input mt-1" maxLength={40} value={p.name} onChange={(e) => edit({ name: e.target.value })} /></label>
               <label className="label">分組（例如平台名稱；空白＝{OTHER_GROUP}）
-                <input className="input mt-1" maxLength={20} list="preset-groups" placeholder={OTHER_GROUP} value={p.group} onChange={(e) => edit({ group: e.target.value })} />
-                <datalist id="preset-groups">{[...new Set(draft.map((x) => x.group.trim()).filter(Boolean))].map((g) => <option key={g} value={g} />)}</datalist>
+                <GroupInput value={p.group} onChange={(group) => edit({ group })}
+                  groups={[...new Set(draft.filter((_, i) => i !== cur).map((x) => x.group.trim()).filter(Boolean))]} />
               </label>
               <label className="label">zip 裡的資料夾名稱（英數、_、-）
                 <input className="input mt-1 font-mono" maxLength={40} value={p.folder}
