@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, BUSY, fileUrl, libCover, libImageUrl, readFiles, type Character, type LibStyle, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
-import { Elapsed, Modal, ScrollRow, Section, Spinner, StatusBadge } from "../components/ui";
+import { Elapsed, Modal, ScrollRow, Section, Select, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
 import RefPicker, { type TempRef } from "../components/RefPicker";
 import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
@@ -274,9 +274,8 @@ function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars
               onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/expand`, { request: f.request }))}>重新擴寫</button></div></div>
         <div><label className="label">畫風名稱</label><input className="input" value={f.name} disabled={!editable} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
         <div><label className="label">構圖</label>
-          <select className="input" value={f.framing} disabled={!editable} onChange={(e) => setFraming(e.target.value as "closeup" | "whole")}>
-            <option value="closeup">特寫（臉塞滿、邊緣裁切）</option><option value="whole">整顆入鏡（如麻糬）</option>
-          </select></div>
+          <Select<"closeup" | "whole"> label="構圖" value={f.framing} disabled={!editable} onChange={setFraming}
+            options={[{ value: "closeup", label: "特寫（臉塞滿、邊緣裁切）" }, { value: "whole", label: "整顆入鏡（如麻糬）" }]} /></div>
       </div>
       <div className="mt-3"><label className="label">畫風描述（英文，會放進 prompt 的 Art style 段落；可以直接修改）</label>
         <textarea className="input h-44 resize-y font-mono text-xs leading-relaxed" value={f.style_block} disabled={!editable}
@@ -301,7 +300,7 @@ function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]; chars
       <Modal open={showPrompt} onClose={() => setShowPrompt(false)}>
         <div className="mb-2 flex items-center"><h3 >預覽圖的完整 prompt</h3>
           <button className="btn btn-sm ml-auto" onClick={() => navigator.clipboard.writeText(promptText)}>複製</button></div>
-        <pre className="whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs leading-relaxed">{promptText}</pre>
+        <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs leading-relaxed">{promptText}</pre>
       </Modal>
     </Section>
   );

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, fileUrl, libCover, libImageUrl, readFiles, type Importable, type LibStyle, type Upload } from "../api";
-import { DropZone, Section, Spinner } from "../components/ui";
+import { DropZone, Section, Select, Spinner } from "../components/ui";
 import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
@@ -205,9 +205,8 @@ function StyleView({ s, act, onRemove }: { s: LibStyle; act: (fn: () => Promise<
           <div><label className="label">畫風名稱</label><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div><label className="label">補充說明（分析時一起給 Codex）</label><input className="input" value={f.request} onChange={(e) => setF({ ...f, request: e.target.value })} /></div>
           <div><label className="label">構圖</label>
-            <select className="input" value={f.framing} onChange={(e) => setFraming(e.target.value as "closeup" | "whole")}>
-              <option value="closeup">特寫（臉塞滿、邊緣裁切）</option><option value="whole">整顆入鏡（如麻糬）</option>
-            </select></div>
+            <Select<"closeup" | "whole"> label="構圖" value={f.framing} onChange={setFraming}
+              options={[{ value: "closeup", label: "特寫（臉塞滿、邊緣裁切）" }, { value: "whole", label: "整顆入鏡（如麻糬）" }]} /></div>
         </div>
         <div className="mt-3"><label className="label">英文畫風描述（會放進 prompt 的 Art style 段落）</label>
           <textarea className="input h-48 resize-y font-mono text-xs leading-relaxed" value={f.style_block}
