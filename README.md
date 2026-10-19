@@ -43,7 +43,7 @@ scripts\app.bat          :: 或 uv run python -m app（可加 --port N --no-brow
 刪除的專案、畫風、角色會先進垃圾桶（側欄左下角），可以還原；永久刪除過的編號不會再被使用。
 Navbar 右側顯示 Codex 額度（5 小時／每週窗口，讀 `~/.codex/sessions` 的紀錄）。
 
-每個專案的進度存在 `outputs/<專案>/project.json`，關掉伺服器再開也不會遺失；prompt 會同步寫到 `prompts/<專案>/`。
+每個專案的進度（含每組實際送出的 prompt）存在 `outputs/<專案>/project.json`，關掉伺服器再開也不會遺失。
 
 ### 修改前端
 
@@ -62,7 +62,7 @@ uv run pytest
 ```
 
 測試會用 `EMOCHI_ROOT` 把資料根目錄指到暫存資料夾，不會動到 `outputs/`、`characters/` 等真正的資料，也不會呼叫 Codex。
-涵蓋：`/files/` 快取與 304、匯出規格檢查、Gallery 掃描／匯出／勾選清單、角色垃圾桶流程、3×2 網格切割去背、`generation_finished()`、額度窗口過期、空資料夾啟動。
+涵蓋：`/files/` 快取與 304、匯出規格檢查、Gallery 掃描／匯出／勾選清單、角色垃圾桶流程、3×2 網格切割去背、`generation_finished()`、額度窗口過期、空資料夾啟動、表情與分組、Codex 用量統計、設定檔。
 
 ## 資料夾結構
 
@@ -77,46 +77,23 @@ tests/              pytest
 config/
   stickers.example.json  基礎 32 種表情（編號、名稱、中文說明、表情 prompt）；stickers.json 的起點
   stickers.json     你的表情清單（本地資料，不進版控；第一次在網頁上修改時才產生）
-  sticker_groups.json   表情分組（本地資料，不進版控；沒有時依 example 的 group 欄位分成 4 組）
+  sticker_groups.example.json  預設 4 組表情分組
+  sticker_groups.json   你的表情分組（本地資料，不進版控；沒有時用 example）
   prompt_template.json  Gen 組 prompt 用的共用段落：構圖、版面規則、預覽用表情
-  styles.example.json   styles.json 的起點（styles.json 是本地資料，不進版控）
-refs/               原角色參考圖（不進版控）
+settings.local.json 程式設定（本地資料，不進版控；目前有 codex_args＝生圖時 codex exec 的參數）
 characters/         角色庫（不進版控）
 style_lib/          畫風庫（不進版控）
-prompts/
-  GUIDE.md          prompt 撰寫說明與範本
+docs/
+  GUIDE.md          prompt 撰寫說明（早期手寫 prompt 時的參考）
+  HANDOFF.md        開發交接
 tools/
-  gen.py            呼叫 Codex 生成網格（命令列）
-  process_style.py  網格 → 成品（呼叫 postprocess.py）
-  postprocess.py    切割、去背、縮放的核心
-  viewer.py         舊版瀏覽／匯出工具
-scripts/            雙擊用的 .bat 捷徑
+  postprocess.py    切割、去背、縮放的核心（app/pipeline.py 使用）
+scripts/app.bat     雙擊啟動網頁工具
 outputs/<專案>/     grids/（網格原圖）、final/（成品）、previews/（總覽圖）  ※不進版控
 exports/            匯出的 zip 與勾選清單                                ※不進版控
 logs/               Codex 執行紀錄                                        ※不進版控
 archive/            試驗品、檢查腳本                                      ※不進版控
 ```
-
-## 命令列流程（舊方式，仍可使用）
-
-### 1. 生成網格
-
-```cmd
-uv run tools\gen.py s5              :: 先跑第 1 組，成功後第 2~4 組並行
-uv run tools\gen.py s5 -g 3         :: 只重跑第 3 組
-uv run tools\gen.py s1 -g single_28 :: 跑 prompts\s1\single_28.txt
-uv run tools\gen.py s5 --dry-run    :: 只看會執行什麼
-```
-
-第 2~4 組會自動附上同畫風的 `group1` 當參考，讓跨組畫風一致。覆蓋前舊圖會備份到 `outputs\<畫風>\grids\_prev\`。
-
-### 2. 後處理
-
-```cmd
-uv run tools\process_style.py s5
-```
-
-參數預設讀 `config/styles.json` 的 `process`，命令列可覆蓋（`--square`、`--no-square`、`--margin`）。#28 Lurk 會自動貼齊底邊。
 
 ## 注意
 

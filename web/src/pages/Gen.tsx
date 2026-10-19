@@ -88,7 +88,6 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
         ))}
         {menu}
         <DeleteConfirm target={toDelete} noun="專案" onConfirm={doDelete} onClose={() => setToDelete(null)} />
-        <p className="mt-4 px-1 text-[11px] leading-relaxed text-mute">s1～s5 是在這個工具之前做的，沒有專案紀錄，但都已經在 Gallery 裡。</p>
         <TrashButton kind="projects" active={active} refreshKey={trashKey}
           onRestored={(id) => { loadList(); setCurrent(id); }} />
       </aside>

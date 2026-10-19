@@ -5,14 +5,14 @@
 - 分組：config/sticker_groups.json（list of {id, name, ids, default}，本地資料）。
   一個表情可以同時放在好幾個分組（分組是 Gen 頁面「一次勾一組」用的清單，不影響檔名或生成）。
   default=true 的分組，新專案的挑選步驟會預設勾起來。
-  檔案還不存在時，從表情舊的 group 欄位（1～4 ＋ 0＝自訂）推出來，第一次儲存才寫檔。
+  檔案還不存在時用 sticker_groups.example.json（預設 4 組），第一次儲存才寫檔。
 """
 import json
 
 from .paths import CONFIG, _lock, load_stickers, read_json, slugify, write_json
 
 GROUPS_FILE = CONFIG / "sticker_groups.json"
-LEGACY_NAMES = {1: "基礎情緒", 2: "反應表情", 3: "社群互動", 4: "Twitch / 迷因", 0: "自訂"}
+GROUPS_EXAMPLE = CONFIG / "sticker_groups.example.json"   # 預設 4 組（進版控）
 ALIGNS = (None, "bottom")
 EDITABLE = ("label", "zh", "prompt", "prompt_no_ears", "align")
 
@@ -87,20 +87,10 @@ def restore(sid: int) -> dict:
 
 # ---------- 分組 ----------
 
-def _legacy_groups(items: list[dict]) -> list[dict]:
-    by: dict[int, list[int]] = {}
-    for s in active(items):
-        by.setdefault(s.get("group", 0) or 0, []).append(s["id"])
-    out = []
-    for n, g in enumerate(sorted(by, key=lambda g: g or 99), 1):
-        out.append({"id": n, "name": LEGACY_NAMES.get(g, f"第 {g} 組"), "ids": by[g], "default": 1 <= g <= 4})
-    return out
-
-
 def _load_groups(items: list[dict]) -> list[dict]:
     groups = read_json(GROUPS_FILE)
     if groups is None:
-        groups = _legacy_groups(items)
+        groups = read_json(GROUPS_EXAMPLE, []) or []
     alive = {s["id"] for s in active(items)}
     for g in groups:   # 手動改過 stickers.json 的話，濾掉不存在／已刪除的
         g["ids"] = [i for i in dict.fromkeys(g.get("ids", [])) if i in alive]
@@ -149,7 +139,7 @@ def add(label: str, zh: str, prompt: str, align: str | None = None, prompt_no_ea
         name = slugify(label)
         while name in names:
             name += "_2"
-        item = {"id": new_id, "group": 0, "name": name, "label": label.strip(),
+        item = {"id": new_id, "name": name, "label": label.strip(),
                 "zh": zh.strip(), "prompt": prompt.strip(), "custom": True}
         if prompt_no_ears.strip():
             item["prompt_no_ears"] = prompt_no_ears.strip()

@@ -18,7 +18,7 @@ from pathlib import Path
 
 from . import codex
 from .images import move_to_removed, save_png
-from .paths import CONFIG, OUTPUTS, REFS, ROOT, load_styles_cfg, read_json, save_styles_cfg, write_json
+from .paths import OUTPUTS, ROOT, read_json, write_json
 
 CHAR_DIR = ROOT / "characters"
 _lock = threading.Lock()
@@ -57,19 +57,15 @@ def _save(c: dict) -> dict:
 
 PREFIX = "ref"
 STD_RE = re.compile(rf"^{PREFIX}_(\d{{2,}})\.png$")
-LEGACY_RE = re.compile(r"^c\d+_(\d{2,})\.png$")   # 前一版的 c2_01.png
 
 
 def std_name(n: int) -> str:
     return f"{PREFIX}_{n:02d}.png"
 
 
-def _take_name(c: dict, want: int | None = None) -> str:
-    """發下一個標準檔名（並推進流水號）；want = 想沿用的號碼（舊版改名時保留原本的號）"""
+def _take_name(c: dict) -> str:
+    """發下一個標準檔名（並推進流水號）"""
     folder = refs_dir(c["id"])
-    if want is not None and not (folder / std_name(want)).exists():
-        c["next_index"] = max(c.get("next_index", 1), want + 1)
-        return std_name(want)
     used = [int(m.group(1)) for i in c["images"] if (m := STD_RE.match(i["file"]))]
     n = max([c.get("next_index", 1), *(u + 1 for u in used)])
     while (folder / std_name(n)).exists():
@@ -111,21 +107,6 @@ def guess_ears(identity: str) -> bool:
 def has_ears(c: dict) -> bool:
     v = c.get("ears")
     return guess_ears(c.get("identity", "")) if v is None else bool(v)
-
-
-def ensure_default() -> None:
-    """第一次啟動：把 refs/ 的原角色搬成 c1，角色特徵沿用原本 prompt 模板裡的那段"""
-    if list_all():
-        return
-    tpl = read_json(CONFIG / "prompt_template.json", {}) or {}
-    with _lock:
-        cid = _new_id()
-        c = {"id": cid, "name": "白狐（原角色）", "identity": tpl.get("identity", ""), "notes_zh": "", "ears": True,
-             "images": [], "next_index": 1, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        for name in ("ref.png", "ref_tvd.png"):
-            if (REFS / name).exists():
-                _store(c, [(name, (REFS / name).read_bytes())], use=name == "ref.png")
-        _save(c)
 
 
 def delete(cid: str) -> None:
@@ -183,7 +164,7 @@ def remove_image(cid: str, file: str) -> dict:
 
 def normalize_names() -> dict[str, dict[str, str]]:
     """把不是標準檔名的角色圖改名（舊版上傳、手動丟進資料夾的），
-    並同步更新引用到它們的畫風專案與 styles.json。回傳 {角色id: {舊檔名: 新檔名}}"""
+    並同步更新引用到它們的畫風專案。回傳 {角色id: {舊檔名: 新檔名}}"""
     renamed: dict[str, dict[str, str]] = {}
     with _lock:
         for c in list_all():
@@ -198,8 +179,7 @@ def normalize_names() -> dict[str, dict[str, str]]:
                     continue
                 old = i["file"]
                 src = refs_dir(c["id"]) / old
-                legacy = LEGACY_RE.match(old)
-                new = _take_name(c, int(legacy.group(1)) if legacy else None)
+                new = _take_name(c)
                 if src.suffix.lower() == ".png":
                     src.replace(refs_dir(c["id"]) / new)
                 else:   # jpg/webp → 轉 PNG，原檔移到 _removed/
@@ -239,16 +219,6 @@ def _rewrite_references(renamed: dict[str, dict[str, str]]) -> None:
                 item["refs"] = [path_map(x) for x in item["refs"]]
         if json.dumps(p, ensure_ascii=False) != before:
             write_json(f, p)
-    cfg = load_styles_cfg()
-    changed = False
-    for s in cfg.get("styles", {}).values():
-        for key in ("refs", "group1_refs"):
-            if s.get(key):
-                new = [path_map(x) for x in s[key]]
-                changed |= new != s[key]
-                s[key] = new
-    if changed:
-        save_styles_cfg(cfg)
 
 
 def rel_paths(cid: str, files: list[str] | None = None) -> list[str]:

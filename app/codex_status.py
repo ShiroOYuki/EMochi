@@ -2,7 +2,7 @@
 
 token 統計直接讀 logs/：每次呼叫 Codex 都會留一個 logs/<範圍>/<名稱>_YYYYmmdd_HHMMSS.log，
 結尾有「tokens used\\n<數字>」與「[時間] exit|timeout|finished-early exit=<code>」。
-logs/legacy/、logs/_test/ 是舊格式或測試用，不算。
+10/14 以前的舊命名 log 已在 2026-10-19 轉成新格式（開頭註明「由舊版 log 轉換」）。
 """
 import re
 import subprocess
@@ -12,12 +12,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import codex, usage
-from .paths import LOGS, OUTPUTS, ROOT, load_styles_cfg, read_json
+from .paths import LOGS, OUTPUTS, ROOT, read_json
 
 CHECK_TTL = 60          # 秒；CLI 版本、登入狀態不常變，沒按「重新連線」就用快取
 DAYS = 7
 RECENT = 12
-SKIP_DIRS = {"legacy", "_test"}
+SKIP_DIRS: set[str] = set()
 NAME_RE = re.compile(r"^(?P<name>.+)_(?P<ts>\d{8}_\d{6})\.log$")
 END_RE = re.compile(r"^\[(?P<ts>[\d\- :]+)\] (?P<reason>[\w-]+) exit=(?P<code>-?\d+|None)\s*$", re.M)
 
@@ -101,13 +101,12 @@ SCOPE_NAMES = {"characters": "角色庫", "style_lib": "畫風庫", "stickers": 
 
 def _scope_labels(scopes: set[str]) -> dict[str, str]:
     """s15 → 「s15 暖柔奶油萌繪」；其他範圍用中文名"""
-    cfg = load_styles_cfg().get("styles", {})
     out = {}
     for sc in scopes:
         if sc in SCOPE_NAMES:
             out[sc] = SCOPE_NAMES[sc]
             continue
-        name = ((read_json(OUTPUTS / sc / "project.json") or {}).get("name") or cfg.get(sc, {}).get("name") or "")
+        name = (read_json(OUTPUTS / sc / "project.json") or {}).get("name") or ""
         out[sc] = f"{sc} {name}".strip()
     return out
 
@@ -158,6 +157,8 @@ def _parse(path: Path) -> dict | None:
         result = "timeout" if e["reason"] == "timeout" else ("ok" if e["code"] == "0" or e["reason"] == "finished-early" else "failed")
     else:
         result, seconds = "unknown", None   # 伺服器中途被關掉之類
+    if seconds is not None and seconds <= 0:   # 從舊版轉換、不知道開始時間的 log
+        seconds = None
     return {"time": started.strftime("%Y-%m-%d %H:%M:%S"), "date": started.strftime("%Y-%m-%d"),
             "scope": scope, "name": m["name"], "kind": _kind(scope, m["name"]),
             "tokens": tokens, "seconds": round(seconds) if seconds is not None else None, "result": result,

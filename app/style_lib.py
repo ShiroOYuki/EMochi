@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import codex, prompts
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, PROMPTS_DIR, ROOT, load_styles_cfg, read_json, write_json
+from .paths import OUTPUTS, ROOT, read_json, write_json
 
 LIB_DIR = ROOT / "style_lib"
 _lock = threading.Lock()
@@ -174,30 +174,23 @@ def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
 
 # ---------- 從既有畫風專案匯入 ----------
 
-def _legacy_block(style: str) -> str:
-    f = PROMPTS_DIR / style / "g1.txt"
-    if not f.exists():
-        return ""
-    t = f.read_text(encoding="utf-8")
-    a, b = t.find("- "), t.find("Character identity")
-    return t[a:b].strip() if 0 <= a < b else ""
+def _sample(p: dict) -> str | None:
+    """專案自己生出來、最能代表畫風的圖：預覽圖，沒有的話（s1～s5 舊流程沒做預覽）用第 1 組網格"""
+    for img in [(p.get("preview") or {}).get("image"), *(g.get("image") for g in p.get("groups", []))]:
+        if img and (ROOT / img).exists():
+            return img
+    return None
 
 
 def importable() -> list[dict]:
-    """可以匯入的畫風專案：網頁工具建立的（有 project.json 且已有描述）＋ s1～s5 舊畫風"""
-    out, seen = [], set()
+    """可以匯入的畫風專案：有描述或至少有一張生成圖的。
+    沒有描述的（s1 這種最早期、直接照參考圖畫法的）只能帶圖匯入，再讓 Codex 分析"""
+    out = []
     for f in sorted(OUTPUTS.glob("*/project.json")):
         p = read_json(f) or {}
-        if p.get("style_block"):
-            img = (p.get("preview") or {}).get("image")
-            out.append({"id": p["id"], "name": p.get("name", ""), "image": img if img and (ROOT / img).exists() else None})
-            seen.add(p["id"])
-    for sid, cfg in load_styles_cfg().get("styles", {}).items():
-        img = f"outputs/{sid}/grids/{sid}_group1.png"
-        has_img, block = (ROOT / img).exists(), _legacy_block(sid)
-        if sid not in seen and (block or has_img):
-            # s1 這種最早期的畫風沒有文字描述（當時直接照抄參考圖畫法），只能帶圖匯入、再讓 Codex 分析
-            out.append({"id": sid, "name": cfg.get("name", ""), "image": img if has_img else None, "needs_analyze": not block})
+        block, img = (p.get("style_block") or "").strip(), _sample(p)
+        if block or img:
+            out.append({"id": p["id"], "name": p.get("name", ""), "image": img, "needs_analyze": not block})
     imported = {s.get("source_project") for s in list_all()}
     for o in out:
         o["imported"] = o["id"] in imported
@@ -207,18 +200,11 @@ def importable() -> list[dict]:
 def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
     """把畫風專案的描述存成畫風庫的一筆。範例圖用專案自己生出來的圖（預覽或第一組）＋ extra_refs"""
     p = read_json(OUTPUTS / style / "project.json")
-    if p and p.get("style_block"):
-        name, request, block = p.get("name", ""), p.get("request", ""), p["style_block"]
-        framing, process, notes = p.get("framing", "closeup"), p.get("process") or {}, p.get("notes_zh", "")
-        sample = (p.get("preview") or {}).get("image")
-    else:
-        cfg = load_styles_cfg().get("styles", {}).get(style)
-        block = _legacy_block(style)
-        if not cfg or not (block or (OUTPUTS / style / "grids" / f"{style}_group1.png").exists()):
-            raise KeyError(f"畫風專案 {style}")
-        name, request, notes, process = cfg.get("name", ""), "", "", cfg.get("process") or {}
-        framing = "whole" if process.get("square") is None else "closeup"
-        sample = f"outputs/{style}/grids/{style}_group1.png"
+    if not p:
+        raise KeyError(f"畫風專案 {style}")
+    name, request, block = p.get("name", ""), p.get("request", ""), (p.get("style_block") or "").strip()
+    framing, process, notes = p.get("framing", "closeup"), p.get("process") or {}, p.get("notes_zh", "")
+    sample = _sample(p)
     files = []
     for rel in [sample, *(extra_refs or [])]:
         if rel and (ROOT / rel).exists():

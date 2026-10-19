@@ -1,6 +1,6 @@
 # 貼圖生成 Prompt（Codex `$imagegen` 用）
 
-> **註**：實際執行流程請看專案根目錄的 `README.md`（`tools/gen.py`、`tools/process_style.py`）。本文件保留作為 prompt 撰寫參考；下方提到的 `group1.png`、`out/` 等是早期單一資料夾時的寫法。
+> **註**：這份是早期手寫 prompt、用命令列生圖時的說明（那套流程已在 2026-10-19 移除，現在一律用網頁工具，見 `README.md`）。保留作為 prompt 撰寫參考；下方提到的 `group1.png`、`out/` 等是早期單一資料夾時的寫法。
 
 ## 使用流程
 

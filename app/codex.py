@@ -15,7 +15,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from .paths import LOGS, ROOT, load_styles_cfg
+from . import settings
+from .paths import LOGS, ROOT
 
 POLL_SEC = 3
 # 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
@@ -188,8 +189,7 @@ def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout
 
 def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path: Path,
               on_tick=None) -> tuple[bool, str]:
-    cfg = load_styles_cfg()
-    cmd = [codex_bin(), *cfg.get("codex", {}).get("args", ["exec", "--skip-git-repo-check", "-s", "workspace-write"])]
+    cmd = [codex_bin(), *settings.get("codex_args")]
     for r in refs:
         cmd += ["-i", r]
     cmd.append("-")

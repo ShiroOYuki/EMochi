@@ -1,8 +1,5 @@
 {
   "_doc": "Gen 分頁組 prompt 用的共用段落。{...} 為程式填入的變數；改這裡會影響之後所有新畫風。",
-  "identity": "Character identity to keep: white hair, white fox ears with pink inner ear, blue eyes, golden wheat-ear hair ornament on the character's left side of the head (viewer's right), black choker with a small gold bell.",
-  "ref_preview": "Use the attached reference images only for the character's identity (refs/ref.png is the main character design). Redraw the character in the new art style described below — do NOT copy the reference rendering style.",
-  "ref_batch": "Use the attached reference images: refs/ref.png is the character identity; {preview_name} is the approved style sample for this set — match its art style, proportions, lineart, colors, shading, framing and cropping exactly.",
   "framings": {
     "closeup": "Framing:\n- Extreme close-up headshot emotes in Twitch emote style. In every cell the face fills the entire cell.\n- The top of the hair and the tips of the ears are cropped off by the top edge of the cell, and the sides of the hair touch or are cropped by the left and right cell edges.\n- The chin sits near the bottom edge; only a sliver of neck/collar is visible, no shoulders or sleeves.\n- Hands and props, when described, enter the cell from the bottom edge and stay close to the face.\n- Eyes and mouth are large, simplified and very readable.",
     "whole": "Framing:\n- Each emote shows the whole character/subject, large: it fills about 90% of the cell width; ear tips may touch or be slightly cropped by the top edge.\n- The bottom of the subject sits near the bottom edge of the cell.\n- Props, symbols and hands stay close to the subject."

@@ -55,7 +55,7 @@ def sheet_line(n: int, layout: str, kind: str) -> str:
 
 
 def build_prompt(*, style_block: str, framing: str, cells: list[str], output: str,
-                 ref_line: str, identity: str | None = None, kind: str = "chibi-style",
+                 ref_line: str, identity: str = "", kind: str = "chibi-style",
                  ears: bool = True, layout: str | None = None) -> str:
     t = template()
     layout = layout or layout_for(len(cells))
@@ -64,7 +64,7 @@ def build_prompt(*, style_block: str, framing: str, cells: list[str], output: st
         f"$imagegen {ref_line}",
         sheet_line(len(cells), layout, kind),
         "Art style (this is the most important part):\n" + style_block.strip(),
-        t.get("identity", "") if identity is None else identity,
+        identity,
         _framing(t, framing, ears),
         t.get("layout_rules", ""),
         ("Cells, left to right, top row first:\n" if layout != "1x1" else "Expression:\n") + cell_text,
