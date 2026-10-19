@@ -26,6 +26,8 @@ FORMATS = {  # key: (label, relative folder under final/)
 
 def load_meta():
     p = ROOT / "config" / "stickers.json"
+    if not p.exists():   # 本地資料，沒有就用 example
+        p = p.with_name("stickers.example.json")
     try:
         return {m["id"]: m for m in json.loads(p.read_text(encoding="utf-8"))}
     except Exception:

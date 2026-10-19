@@ -2,7 +2,7 @@
 
 EMochi（Emote ＋ Mochi）：用 Codex CLI 的 `$imagegen` 生成角色貼圖，再自動切割、去背、輸出 Twitch / Discord 需要的尺寸。
 
-- 表情清單 32 種（`config/stickers.json`，可在網頁上新增自訂表情），每次可勾選要生成哪些
+- 表情清單：基礎 32 種（`config/stickers.example.json`），在「表情」分頁可新增、編輯、刪除、拖進分組；每次可勾選要生成哪些
 - 每組生成一張網格圖，背景純綠 `#00FF00` 方便去背：
   - **4×2 寬版 2:1**（預設，2048×1024，每組 8 張，32 張 4 組）
   - **3×2**（1536×1024，每組 6 張；2:1 出問題時的備案）
@@ -75,7 +75,9 @@ app/                網頁工具後端（FastAPI）
 web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI）
 tests/              pytest
 config/
-  stickers.json     貼圖的編號、名稱、中文說明、表情 prompt（Gen 新增的自訂表情也存這裡）
+  stickers.example.json  基礎 32 種表情（編號、名稱、中文說明、表情 prompt）；stickers.json 的起點
+  stickers.json     你的表情清單（本地資料，不進版控；第一次在網頁上修改時才產生）
+  sticker_groups.json   表情分組（本地資料，不進版控；沒有時依 example 的 group 欄位分成 4 組）
   prompt_template.json  Gen 組 prompt 用的共用段落：構圖、版面規則、預覽用表情
   styles.example.json   styles.json 的起點（styles.json 是本地資料，不進版控）
 refs/               原角色參考圖（不進版控）

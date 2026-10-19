@@ -1,6 +1,18 @@
 """表情增刪改與分組（config/sticker_groups.json）"""
 
 
+def test_example_fallback(client, data_root):
+    """還沒有 stickers.json 時用 example；第一次修改才寫出 stickers.json，example 不動"""
+    cfg = data_root / "config"
+    assert not (cfg / "stickers.json").exists()
+    assert len(client.get("/api/stickers").json()) == 32
+    client.patch("/api/stickers/1", json={"zh": "改過"})
+    assert (cfg / "stickers.json").exists()
+    import json
+    ex = json.loads((cfg / "stickers.example.json").read_text(encoding="utf-8"))
+    assert ex[0]["zh"] != "改過"
+
+
 def test_legacy_groups(client):
     groups = client.get("/api/sticker-groups").json()
     names = [g["name"] for g in groups]

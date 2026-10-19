@@ -37,7 +37,10 @@ def write_json(path: Path, data) -> None:
 # ---------- 貼圖清單 ----------
 
 def load_stickers() -> list[dict]:
-    return read_json(CONFIG / "stickers.json", [])
+    """config/stickers.json 是本地資料（不進版控）；還沒有的話用 stickers.example.json（基礎 32 種）。
+    第一次在網頁上新增／編輯／刪除表情時才寫出 stickers.json"""
+    items = read_json(CONFIG / "stickers.json")
+    return items if items is not None else read_json(CONFIG / "stickers.example.json", [])
 
 
 def sticker_map() -> dict[int, dict]:

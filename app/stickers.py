@@ -1,8 +1,8 @@
 """表情清單與分組
 
-- 表情：config/stickers.json（list）。刪除是「軟刪除」：標 deleted=true，id 不會重用，
+- 表情：config/stickers.json（list，本地資料；沒有時讀 stickers.example.json，第一次修改才寫出）。刪除是「軟刪除」：標 deleted=true，id 不會重用，
   圖庫裡已生成的成品還查得到名稱；Gen 頁面與新的批次生成看不到它。
-- 分組：config/sticker_groups.json（list of {id, name, ids, default}）。
+- 分組：config/sticker_groups.json（list of {id, name, ids, default}，本地資料）。
   一個表情可以同時放在好幾個分組（分組是 Gen 頁面「一次勾一組」用的清單，不影響檔名或生成）。
   default=true 的分組，新專案的挑選步驟會預設勾起來。
   檔案還不存在時，從表情舊的 group 欄位（1～4 ＋ 0＝自訂）推出來，第一次儲存才寫檔。

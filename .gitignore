@@ -19,6 +19,8 @@ refs/*
 prompts/*
 !prompts/GUIDE.md
 config/styles.json
+config/stickers.json
+config/sticker_groups.json
 
 # OS
 Thumbs.db

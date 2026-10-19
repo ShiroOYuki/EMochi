@@ -61,7 +61,10 @@ def parse_args():
                    help="頭部特寫：只保留去背後主體上方這個比例（例 0.7），下緣切齊畫布底部。0 = 關閉")
     p.add_argument("--square", type=float, default=-1,
                    help="把直式主體裁成正方形；數值為從上方裁掉的比例（0=全裁下方、1=全裁上方，建議 0.7）。-1 = 關閉")
-    p.add_argument("--meta", default=str(ROOT / "config" / "stickers.json"), help="貼圖設定檔")
+    meta = ROOT / "config" / "stickers.json"
+    if not meta.exists():   # stickers.json 是本地資料，沒有就用 example
+        meta = meta.with_name("stickers.example.json")
+    p.add_argument("--meta", default=str(meta), help="貼圖設定檔")
     p.add_argument("--out", default="out", help="輸出資料夾")
     return p.parse_args()
 
