@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, BUSY, fileUrl, libCover, libImageUrl, readFiles, type Character, type LibStyle, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
 import { Elapsed, Modal, ScrollRow, Section, Select, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
+import { useStickers } from "../stickers";
 import RefPicker, { type TempRef } from "../components/RefPicker";
 import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
 
@@ -11,7 +12,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   const [list, setList] = useState<ProjectsResp | null>(null);
   const [current, setCurrent] = useState<string | null>(null);   // null = 新增貼圖
   const [project, setProject] = useState<Project | null>(null);
-  const [stickers, setStickers] = useState<Sticker[]>([]);
+  const { all: stickers } = useStickers();   // 含已刪除的（舊專案的組別還要顯示名稱）
   const [err, setErr] = useState("");
   const [newKey, setNewKey] = useState(0);   // 每按一次「新增貼圖」+1，讓表單聚焦並閃一下
   const [chars, setChars] = useState<Character[]>([]);
@@ -28,7 +29,6 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   const loadList = useCallback(async () => setList(await api.get<ProjectsResp>("/api/projects")), []);
   const loadProject = useCallback(async (id: string) => setProject(await api.get<Project>(`/api/projects/${id}`)), []);
 
-  useEffect(() => { api.get<Sticker[]>("/api/stickers").then(setStickers); }, []);
   // 切回這頁就重抓專案清單（可能剛在別的分頁從垃圾桶還原）
   useEffect(() => { if (active) loadList(); }, [active, loadList]);
   useEffect(() => { setProject(null); setErr(""); if (current) loadProject(current); }, [current, loadProject]);
@@ -99,7 +99,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
           {current === null
             ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} libs={libs} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
             : project
-              ? <ProjectView p={project} stickers={stickers} act={act} setStickers={setStickers} chars={chars}
+              ? <ProjectView p={project} stickers={stickers} act={act} chars={chars}
                   previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery}
                   onDelete={() => askDelete(project)} />
               : <div className="flex items-center gap-2 text-mute"><Spinner />載入中…</div>}
@@ -196,11 +196,11 @@ function NewProject({ nextId, onCreate, focusKey, chars, libs }: { nextId?: stri
 
 type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
-  setStickers: React.Dispatch<React.SetStateAction<Sticker[]>>; previewIds: number[]; maxParallel: number; onOpenGallery: () => void;
+  previewIds: number[]; maxParallel: number; onOpenGallery: () => void;
   chars: Character[]; onDelete: () => void;
 };
 
-function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, onOpenGallery, chars, onDelete }: ViewProps) {
+function ProjectView({ p, stickers, act, previewIds, maxParallel, onOpenGallery, chars, onDelete }: ViewProps) {
   const stage = { expanding: 1, draft: 1, previewing: 2, preview_ready: 3, generating: 4, review: 4, processing: 5, done: 5 }[p.status];
   const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入 Gallery"];
   const byId = useMemo(() => new Map(stickers.map((s) => [s.id, s])), [stickers]);
@@ -222,7 +222,7 @@ function ProjectView({ p, stickers, act, setStickers, previewIds, maxParallel, o
       <StyleStep p={p} act={act} chars={chars} />
       <PreviewStep p={p} act={act} previewIds={previewIds} byId={byId} />
       {(p.status === "preview_ready" || p.groups.length > 0) &&
-        <PickStep p={p} act={act} stickers={stickers} setStickers={setStickers} maxParallel={maxParallel} />}
+        <PickStep p={p} act={act} maxParallel={maxParallel} />}
       {p.groups.length > 0 && <GroupsStep p={p} act={act} byId={byId} onOpenGallery={onOpenGallery} />}
     </>
   );
@@ -351,12 +351,15 @@ const LAYOUT_OPTIONS: { id: "3x2" | "4x2w"; label: string; hint: string }[] = [
   { id: "3x2", label: "3×2（每組 6 張）", hint: "1536×1024，每格 512 正方形；2:1 出問題時的備案" },
 ];
 
-function PickStep({ p, act, stickers, setStickers, maxParallel }: {
-  p: Project; act: ViewProps["act"]; stickers: Sticker[]; setStickers: ViewProps["setStickers"]; maxParallel: number;
-}) {
+function PickStep({ p, act, maxParallel }: { p: Project; act: ViewProps["act"]; maxParallel: number }) {
   const locked = p.status !== "preview_ready";
-  const [ids, setIds] = useState<number[]>(p.sticker_ids.length ? p.sticker_ids : stickers.filter((s) => s.group >= 1 && s.group <= 4).map((s) => s.id));
-  useEffect(() => { if (p.sticker_ids.length) setIds(p.sticker_ids); }, [p.sticker_ids]);
+  // 新專案預設勾「表情」分頁裡標了「Gen 預設勾選」的分組；表情清單還沒載入完時，載入後補上（使用者動過就不再覆蓋）
+  const { defaults, loaded } = useStickers();
+  const touched = useRef(false);
+  const [ids, setIdsRaw] = useState<number[]>(p.sticker_ids.length ? p.sticker_ids : defaults);
+  const setIds = (v: number[]) => { touched.current = true; setIdsRaw(v); };
+  useEffect(() => { if (p.sticker_ids.length) setIdsRaw(p.sticker_ids); }, [p.sticker_ids]);
+  useEffect(() => { if (loaded && !p.sticker_ids.length && !touched.current) setIdsRaw(defaults); }, [loaded, defaults, p.sticker_ids.length]);
   const [layout, setLayout] = useState<"3x2" | "4x2w">("4x2w");
   const size = layout === "4x2w" ? 8 : 6;
   const groups = Math.ceil(ids.length / size);
@@ -366,7 +369,7 @@ function PickStep({ p, act, stickers, setStickers, maxParallel }: {
         <p className="text-sm text-mute">已送出 {p.sticker_ids.length} 張、{p.groups.length} 組。想換一批表情，可以再開一個新畫風，或沿用描述另建專案。</p>
       ) : (
         <>
-          <StickerPicker stickers={stickers} value={ids} onChange={setIds} onAdded={(s) => setStickers((x) => [...x, s])} groupSize={size} />
+          <StickerPicker value={ids} onChange={setIds} groupSize={size} />
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-sm">網格版型</span>
             {LAYOUT_OPTIONS.map((o) => (

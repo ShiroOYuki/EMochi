@@ -374,7 +374,8 @@ def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
     if layout not in prompts.GROUP_LAYOUTS:
         raise ValueError(f"不支援的版型 {layout}")
     meta = sticker_map()
-    ids = [i for i in dict.fromkeys(ids) if i in meta]
+    # 已刪除的表情不能再排進新的批次（已經在跑的組別重生不受影響）
+    ids = [i for i in dict.fromkeys(ids) if i in meta and not meta[i].get("deleted")]
     if not ids:
         raise ValueError("請至少選一張貼圖")
 

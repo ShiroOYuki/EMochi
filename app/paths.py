@@ -49,23 +49,6 @@ def slugify(text: str) -> str:
     return s or "emote"
 
 
-def add_sticker(label: str, zh: str, prompt: str, align: str | None = None) -> dict:
-    with _lock:
-        items = load_stickers()
-        new_id = max((s["id"] for s in items), default=0) + 1
-        names = {s["name"] for s in items}
-        name = slugify(label)
-        while name in names:
-            name += "_2"
-        item = {"id": new_id, "group": 0, "name": name, "label": label.strip(),
-                "zh": zh.strip(), "prompt": prompt.strip(), "custom": True}
-        if align:
-            item["align"] = align
-        items.append(item)
-        write_json(CONFIG / "stickers.json", items)
-        return item
-
-
 # ---------- 畫風設定 ----------
 
 def load_styles_cfg() -> dict:

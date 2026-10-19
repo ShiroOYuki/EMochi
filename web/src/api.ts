@@ -1,6 +1,12 @@
 // 後端 API 型別與呼叫
 
-export type Sticker = { id: number; group: number; name: string; label: string; zh: string; prompt: string; custom?: boolean; align?: string };
+/** 表情；name 是檔名用（建立後不變）；deleted＝軟刪除（只有 ?all=1 才拿得到） */
+export type Sticker = {
+  id: number; group: number; name: string; label: string; zh: string; prompt: string;
+  prompt_no_ears?: string; custom?: boolean; align?: string; deleted?: boolean;
+};
+/** 表情分組（config/sticker_groups.json）：一個表情可以在好幾組；default＝Gen 新專案預設勾選 */
+export type StickerGroup = { id: number; name: string; ids: number[]; default: boolean };
 
 export type GroupStatus = "pending" | "running" | "done" | "failed";
 export type Group = {
@@ -69,6 +75,7 @@ export const api = {
   get: <T,>(url: string) => req<T>("GET", url),
   post: <T,>(url: string, body: unknown = {}) => req<T>("POST", url, body),
   patch: <T,>(url: string, body: unknown) => req<T>("PATCH", url, body),
+  put: <T,>(url: string, body: unknown) => req<T>("PUT", url, body),
   del: <T,>(url: string) => req<T>("DELETE", url),
 };
 

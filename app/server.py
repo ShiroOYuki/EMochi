@@ -9,7 +9,8 @@ from pydantic import BaseModel
 
 from . import characters, gallery, jobs, prompts, style_lib, trash, usage
 from .images import decode_data_url
-from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, add_sticker, load_stickers, next_style_id, read_json
+from . import stickers as sticker_mod
+from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, load_stickers, next_style_id, read_json
 
 
 @asynccontextmanager
@@ -37,22 +38,81 @@ def codex_usage(refresh: bool = False):
 
 
 @app.get("/api/stickers")
-def stickers():
-    return load_stickers()
+def stickers(all: bool = False):
+    """預設只回傳沒刪除的；all=1 連已刪除的一起（表情分頁的「已刪除」清單用）"""
+    items = load_stickers()
+    return items if all else sticker_mod.active(items)
 
 
 class NewSticker(BaseModel):
     label: str
     zh: str = ""
     prompt: str
+    prompt_no_ears: str = ""
     align: str | None = None
+    group_id: int | None = None
 
 
 @app.post("/api/stickers")
 def create_sticker(body: NewSticker):
     if not body.label.strip() or not body.prompt.strip():
         raise HTTPException(400, "名稱和英文描述都要填")
-    return add_sticker(body.label, body.zh, body.prompt, body.align)
+    try:
+        return sticker_mod.add(body.label, body.zh, body.prompt, body.align, body.prompt_no_ears, body.group_id)
+    except (KeyError, ValueError) as e:
+        _err(e)
+
+
+class StickerPatch(BaseModel):
+    label: str | None = None
+    zh: str | None = None
+    prompt: str | None = None
+    prompt_no_ears: str | None = None
+    align: str | None = None
+
+
+@app.patch("/api/stickers/{sid}")
+def patch_sticker(sid: int, body: StickerPatch):
+    try:
+        return sticker_mod.update(sid, body.model_dump(exclude_unset=True))
+    except (KeyError, ValueError) as e:
+        _err(e)
+
+
+@app.delete("/api/stickers/{sid}")
+def delete_sticker(sid: int):
+    try:
+        return sticker_mod.remove(sid)
+    except KeyError as e:
+        _err(e)
+
+
+@app.post("/api/stickers/{sid}/restore")
+def restore_sticker(sid: int):
+    try:
+        return sticker_mod.restore(sid)
+    except KeyError as e:
+        _err(e)
+
+
+@app.get("/api/sticker-groups")
+def sticker_groups():
+    return sticker_mod.load_groups()
+
+
+class StickerGroup(BaseModel):
+    id: int | None = None
+    name: str
+    ids: list[int] = []
+    default: bool = False
+
+
+@app.put("/api/sticker-groups")
+def put_sticker_groups(body: list[StickerGroup]):
+    try:
+        return sticker_mod.save_groups([g.model_dump() for g in body])
+    except ValueError as e:
+        _err(e)
 
 
 # 快取策略：
