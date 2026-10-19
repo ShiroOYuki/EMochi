@@ -11,7 +11,9 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-DATA = Path(tempfile.mkdtemp(prefix="emochi_test_"))
+# resolve()：GitHub Actions 的 Windows 機器上暫存資料夾是 8.3 短檔名（C:\Users\RUNNER~1\...），
+# 程式裡的路徑都會展開成長檔名，這裡不先展開的話，比較路徑時兩邊對不上
+DATA = Path(tempfile.mkdtemp(prefix="emochi_test_")).resolve()
 (DATA / "config").mkdir()
 # 只放 example：順便測到「沒有 stickers.json 時讀 stickers.example.json」
 for name in ("prompt_template.json", "stickers.example.json", "sticker_groups.example.json"):
