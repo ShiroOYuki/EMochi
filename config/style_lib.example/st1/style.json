@@ -1,0 +1,24 @@
+{
+  "id": "st1",
+  "name": "暖柔奶油萌繪",
+  "request": "",
+  "style_block": "- Super-deformed chibi proportions with a broad, rounded face, full cheeks, a tiny nose, and oversized expressive facial features.\n- Clean, smooth dark reddish-brown outlines with rounded ends; bold outer contours and lighter, thinner rose-brown interior details.\n- Warm creamy pastel fills with subtle peach and pink gradients, softly blended shadows, and minimal surface detail; polished digital coloring without visible brush texture.\n- Hair forms large, flowing, rounded clumps with tapered tips, pale rose shadow shapes, and broad soft ivory highlights; keep individual strands sparse.\n- Facial expressions use thick, curved, tapered eyelid shapes and simple brows; keep facial marks bold and widely spaced for small-scale readability.\n- Open mouths have a rounded dark-brown contour, a warm dark-red interior, and one large coral-pink tongue with gentle tonal shading; omit fine teeth details.\n- Blush appears as large translucent salmon-pink ovals without hatching; decorative accents use plump rounded shapes, warm outlines, simple shading, and a few broad glossy highlights.",
+  "framing": "closeup",
+  "process": {
+    "square": 0.5,
+    "margin": 0
+  },
+  "notes_zh": "重點是暖棕圓潤線條、奶油粉彩與柔和漸層，搭配粗彎眼線及大片腮紅。縮至 28×28 時，淡色髮絲與細小高光容易消失，需保留清楚輪廓與大色塊。",
+  "images": [
+    {
+      "file": "ref_01.png",
+      "use": true,
+      "source": "01_happy.png"
+    }
+  ],
+  "source_project": null,
+  "next_index": 2,
+  "created": "2026-10-18 22:49:28",
+  "updated": "2026-10-18 22:49:28",
+  "note_builtin": "EMochi 內建的範例畫風（全新安裝第一次啟動時複製到畫風庫；刪掉或修改都不會再被覆蓋）"
+}

@@ -9,6 +9,9 @@ style.json
   next_index                      下一張圖的流水號（ref_01.png…，只增不減，同角色庫）
 
 流程：上傳範例貼圖 → analyze() 讓 Codex 看圖寫描述 → 手動微調 → Gen 新增畫風時直接套用。
+
+內建範例：config/style_lib.example/<id>/（目前是 st1 暖柔奶油萌繪）。全新安裝第一次啟動、畫風庫資料夾還不存在時
+seed_defaults() 複製過去；之後使用者刪掉、修改都不會被覆蓋，也不會再長回來（資料夾已經存在就不動）。
 """
 import json
 import re
@@ -19,11 +22,28 @@ from pathlib import Path
 
 from . import codex, prompts
 from .images import move_to_removed, save_png
-from .paths import outputs_dir, ROOT, codex_path, data_path, read_json, style_lib_dir, write_json
+from .paths import BUILTIN_CONFIG, outputs_dir, ROOT, codex_path, data_path, read_json, style_lib_dir, write_json
 
 _lock = threading.Lock()
 STD_RE = re.compile(r"^ref_(\d{2,})\.png$")
 PROCESS = {"closeup": {"square": 0.5, "margin": 0}, "whole": {"square": None, "margin": 0.04}}
+
+
+BUILTIN_STYLES = BUILTIN_CONFIG / "style_lib.example"
+
+
+def seed_defaults() -> list[str]:
+    """全新安裝：畫風庫資料夾還不存在 → 建立並放進內建範例畫風。回傳放進去的 id"""
+    root = style_lib_dir()
+    if root.exists() or not BUILTIN_STYLES.is_dir():
+        return []
+    root.mkdir(parents=True, exist_ok=True)
+    added = []
+    for src in sorted(BUILTIN_STYLES.iterdir()):
+        if (src / "style.json").is_file():
+            shutil.copytree(src, root / src.name)
+            added.append(src.name)
+    return added
 
 
 def _json(sid: str) -> Path:
