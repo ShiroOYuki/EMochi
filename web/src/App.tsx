@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
+import { WindowControls } from "./components/WindowControls";
+import { UpdateBadge } from "./components/Updates";
+import { desktop } from "./desktop";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
@@ -13,7 +16,7 @@ import StickersPage from "./pages/Stickers";
 
 type Tab = "gen" | "stickers" | "styles" | "characters" | "gallery";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "gen", label: "Gen 生成" }, { id: "stickers", label: "表情" }, { id: "styles", label: "畫風" }, { id: "characters", label: "角色" }, { id: "gallery", label: "Gallery 圖庫" },
+  { id: "gen", label: "生成" }, { id: "stickers", label: "表情" }, { id: "styles", label: "畫風" }, { id: "characters", label: "角色" }, { id: "gallery", label: "圖庫" },
 ];
 const readTab = (): Tab => TABS.find((t) => location.hash.startsWith(`#/${t.id}`))?.id ?? "gen";
 
@@ -41,7 +44,8 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 bg-panel px-5 py-3 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)]">
+      {/* 桌面版：Navbar 兼當標題列（空白處可拖曳視窗、雙擊最大化），右邊多一組視窗按鈕 */}
+      <header className={`flex items-center gap-4 bg-panel py-3 pl-5 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)] ${desktop ? "app-drag pr-3" : "pr-5"}`}>
         <h1 className="flex items-center gap-2 text-lg"><Ears />EMochi</h1>
         {/* Animate UI Tabs：藍色軟糖底用彈簧滑到目前的分頁；方向鍵可切換 */}
         <Tabs value={tab} onValueChange={(v) => go(v as Tab)} asChild>
@@ -60,9 +64,12 @@ export default function App() {
             </TabsHighlight>
           </nav>
         </Tabs>
-        <CodexUsage className="ml-auto" />
+        <div className="ml-auto" />
+        <UpdateBadge />
+        <CodexUsage />
         <ThemeToggle />
         <SettingsButton />
+        <WindowControls />
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}

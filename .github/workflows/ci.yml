@@ -1,0 +1,35 @@
+# 推到 main、開 PR 時：跑後端測試＋前端型別檢查與 build（不打包、不發版）
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 後端測試
+        run: |
+          uv sync
+          uv run pytest -q
+
+      - name: 前端 build
+        working-directory: web
+        run: |
+          npm ci
+          npm run build

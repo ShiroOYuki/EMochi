@@ -22,12 +22,14 @@ DIRS: dict[str, tuple[str, str, str]] = {
     "style_lib_dir": ("style_lib", "畫風庫", "每個畫風的描述與範例圖（含垃圾桶）"),
 }
 LAYOUTS = ("4x2w", "3x2")
+THEMES = ("system", "light", "dark")
 DEFAULTS: dict = {
     **{k: v[0] for k, v in DIRS.items()},
     "max_parallel": 3,             # 同時生圖組數（1～3）
     "default_layout": "4x2w",      # Gen 挑選步驟預設的網格版型
     "image_timeout_min": 20,       # 單組生圖逾時（分鐘）
     "text_timeout_min": 5,         # 文字任務（擴寫、看圖寫特徵、分析畫風）逾時（分鐘）
+    "theme": "system",             # 介面主題：system（跟隨系統）／light／dark；Navbar 切換或設定頁改，立即存檔
     # codex exec 的參數（生圖用）；設定頁只顯示不給改，改錯會讓 Codex 沒辦法寫入
     "codex_args": ["exec", "--skip-git-repo-check", "-s", "workspace-write"],
 }
@@ -96,6 +98,8 @@ def validate(changes: dict) -> dict:
                 raise ValueError(f"{k} 要在 {lo}～{hi} 之間")
         elif k == "default_layout" and v not in LAYOUTS:
             raise ValueError(f"不支援的版型 {v}")
+        elif k == "theme" and v not in THEMES:
+            raise ValueError(f"不支援的主題 {v}")
         out[k] = v
     return out
 

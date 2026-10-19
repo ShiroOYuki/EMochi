@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
@@ -10,6 +10,52 @@ const KIND: Record<string, string> = { export: "匯出", combine: "組合", sele
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
 const VT_MAX = 120;   // 一次最多替幾個元素做位置動畫（只算畫面上看得到的）
+
+/** 並排比較的一列：不顯示捲軸，放不下時兩側淡出＋左右箭頭翻頁（觸控板左右滑、Shift＋滾輪也可以） */
+function ScrollRow({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdge((e) => (e.l === l && e.r === r ? e : { l, r }));
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [update]);
+  useEffect(update);   // 卡片數量變了（篩選、重新整理）也要重算
+  const page = (dir: 1 | -1) => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * Math.max(140, el.clientWidth - 160), behavior: reduce ? "auto" : "smooth" });
+  };
+  const fade = 48;
+  const mask = `linear-gradient(to right, ${edge.l ? "transparent" : "#000"} 0, #000 ${edge.l ? fade : 0}px, #000 calc(100% - ${edge.r ? fade : 0}px), ${edge.r ? "transparent" : "#000"} 100%)`;
+  const arrow = "row-arrow absolute top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-line bg-panel text-text shadow-[var(--shadow-soft)] transition hover:border-acc hover:text-acc active:scale-95";
+  return (
+    <div className="relative">
+      <div ref={ref} onScroll={update} className="no-scrollbar flex snap-x snap-proximity gap-2.5 overflow-x-auto overscroll-x-contain"
+        style={{ maskImage: mask, WebkitMaskImage: mask }}>
+        {children}
+      </div>
+      {edge.l && (
+        <button className={`${arrow} -left-2`} onClick={() => page(-1)} aria-label="往左看更多">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" /></svg>
+        </button>
+      )}
+      {edge.r && (
+        <button className={`${arrow} -right-2`} onClick={() => page(1)} aria-label="往右看更多">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5.5 3l4 4-4 4" /></svg>
+        </button>
+      )}
+    </div>
+  );
+}
 
 function useStored<T>(key: string, init: T) {
   const [v, setV] = useState<T>(() => {
@@ -52,6 +98,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
     return (id: number) => ids.has(id);
   }, [group, stickerGroups]);
   const [selArr, setSelArr] = useStored<string[]>("gallery.sel", []);
+  // 並排比較：每組一列、橫向捲動（預設）；false＝舊的自動換行（每組的寬度依畫風數決定）
+  const [oneLine, setOneLine] = useStored<boolean>("gallery.oneLine", true);
   const sel = useMemo(() => new Set(selArr), [selArr]);
   const [open, setOpen] = useState<number | null>(null);
 
@@ -118,7 +166,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
     return (
       <div key={k} onClick={() => setOpen(i)}
         data-vt={vtKey(k)}
-        className={`sticker-card relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        className={`sticker-card relative w-[136px] shrink-0 snap-start cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
@@ -130,26 +178,29 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full flex-col">
-      {charOpts.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-          <span className="text-sm text-mute">角色</span>
-          {[{ id: "__all", name: "全部", n: allStyles.length }, ...charOpts].map((o) => (
-            <button key={o.id} onClick={() => withVT(() => setCharF(o.id))} aria-pressed={charF === o.id}
-              className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${charF === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
-              {o.name}<span className="ml-1 opacity-70">{o.n} 套</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode("__all"))}>並排比較（全部版本）</button>
-        {styles.map((s) => (
-          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode(s.id))}>
-            {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
-          </button>
-        ))}
+      {/* 篩選：角色、畫風（並排比較或單一套）、組別都用下拉；並排比較時可切換每組的排列方式 */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
+        {charOpts.length > 1 && (
+          <Select label="角色" className="!w-48 !py-1" value={charF} onChange={(v) => withVT(() => setCharF(v))}
+            options={[{ value: "__all", label: `全部角色（${allStyles.length} 套）` },
+              ...charOpts.map((o) => ({ value: o.id, label: `${o.name}（${o.n} 套）` }))]} />
+        )}
+        <Select label="畫風" className="!w-60 !py-1" value={mode} onChange={(v) => withVT(() => setMode(v))}
+          options={[{ value: "__all", label: `並排比較（全部 ${styles.length} 套）` },
+            ...styles.map((s) => ({ value: s.id, label: `${s.id}${s.name ? ` ${s.name}` : ""}（${s.items.length} 張）` }))]} />
         <Select label="組別" className="!w-40 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
           options={[{ value: 0, label: "全部組別" }, ...stickerGroups.map((g) => ({ value: g.id, label: g.name })), { value: -1, label: "未分組" }]} />
+        {rows && (
+          <div className="flex items-center rounded-full bg-panel2 p-0.5 text-xs" role="radiogroup" aria-label="每組的排列方式">
+            {([[true, "單行", "每組一列，放不下的用左右箭頭翻頁"], [false, "換行", "每組的卡片依寬度自動換行"]] as const).map(([v, label, hint]) => (
+              <button key={label} role="radio" aria-checked={oneLine === v} title={hint} onClick={() => oneLine !== v && withVT(() => setOneLine(v))}
+                className={`rounded-full px-3 py-1 transition ${oneLine === v ? "bg-panel text-text shadow-[var(--shadow-soft)]" : "text-mute hover:text-text"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), false)}>取消此頁</button>
         <button className="btn btn-sm" onClick={() => setSelArr(view.map(keyOf).filter((k) => !sel.has(k)).concat(selArr.filter((k) => !view.some((e) => keyOf(e) === k))))}>反選此頁</button>
@@ -159,10 +210,10 @@ export default function GalleryPage({ active }: { active: boolean }) {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-y-auto p-4">
-          {allStyles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
+        <div className="scroll-inset-panel min-w-0 flex-1 overflow-y-auto p-4">
+          {allStyles.length === 0 && <p className="text-mute">還沒有成品。到「生成」分頁完成一套畫風後就會出現在這裡。</p>}
           {rows ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: oneLine ? "minmax(0, 1fr)" : `repeat(auto-fill, minmax(min(100%, ${Math.max(300, styles.length * 142 + 24)}px), 1fr))` }}>
               {rows.map((r) => {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);
@@ -175,7 +226,9 @@ export default function GalleryPage({ active }: { active: boolean }) {
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, true)}>全選此組</button>
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
-                    <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>
+                    {oneLine
+                      ? <ScrollRow>{r.entries.map((e, j) => card(e, start + j))}</ScrollRow>
+                      : <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>}
                   </div>
                 );
               })}
@@ -256,7 +309,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
   };
 
   return (
-    <aside className="m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
+    <aside className="scroll-inset m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
       <div>
         <h3 className="mb-2">勾選清單（JSON）</h3>
         <Select label="勾選清單" value={pick} onChange={setPick} disabled={list.length === 0}

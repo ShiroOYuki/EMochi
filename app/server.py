@@ -31,6 +31,37 @@ def _err(e: Exception):
 
 # ---------- 共用 ----------
 
+class UiPrefs(BaseModel):
+    theme: str
+
+
+@app.get("/api/ui-prefs")
+def get_ui_prefs():
+    """介面偏好（主題）：存在 settings.local.json，不放瀏覽器的 localStorage——
+    桌面版、不同 port、清快取都不會遺失。前端一載入就讀"""
+    # stored：設定檔裡有沒有存過（沒有＝還是預設）。前端用來把舊版存在瀏覽器裡的選擇搬上來
+    stored = "theme" in (read_json(settings.FILE, {}) or {})
+    return {"theme": settings.get("theme"), "stored": stored}
+
+
+@app.put("/api/ui-prefs")
+def put_ui_prefs(body: UiPrefs):
+    try:
+        settings.save(settings.validate({"theme": body.theme}))
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+    return get_ui_prefs()
+
+
+@app.get("/api/health")
+def health():
+    """桌面版（Electron）用：啟動時等它回應才開視窗；關閉前看有沒有 Codex 在跑"""
+    from . import codex
+    from .paths import FROZEN
+    return {"ok": True, "root": str(ROOT), "frozen": FROZEN, "codex_running": len(codex.ACTIVE),
+            "busy": settings_ops.busy()}
+
+
 @app.get("/api/codex-usage")
 def codex_usage(refresh: bool = False):
     return usage.rate_limits(force=refresh)

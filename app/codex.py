@@ -41,10 +41,20 @@ def kill_tree(proc: subprocess.Popen) -> None:
     if proc.poll() is not None:
         return
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        kill_pid_tree(proc.pid)
     else:
         proc.kill()
+
+
+def kill_pid_tree(pid: int) -> None:
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    else:
+        try:
+            os.kill(pid, 9)
+        except OSError:
+            pass
 
 
 TURN_DONE = re.compile(r"^tokens used\s*\n\s*[\d,]+\s*$", re.M)

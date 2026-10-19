@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type SettingsPlan, type SettingsValues } from "../api";
+import { desktop } from "../desktop";
+import { setThemePref, useThemePref, type ThemePref } from "../theme";
+import { AboutUpdates } from "./Updates";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -45,6 +48,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   }, [open]);
 
   const changedDirs = useMemo(() => info ? info.dirs.filter((x) => (dirs[x.key] ?? x.value).trim() !== x.value) : [], [info, dirs]);
+  const themePref = useThemePref();
   const changedVals = useMemo(() => {
     if (!info || !vals) return {};
     return Object.fromEntries((["max_parallel", "default_layout", "image_timeout_min", "text_timeout_min"] as const)
@@ -69,8 +73,10 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   };
   const pick = async (key: DirKey, current: string) => {
     try {
-      const r = await api.post<{ path: string | null }>("/api/settings/pick-folder", { path: current });
-      if (r.path) setDir(key, r.path);
+      // 桌面版用 Electron 的原生視窗；網頁版請伺服器跳 tkinter 視窗
+      const path = desktop ? await desktop.pickFolder(current)
+        : (await api.post<{ path: string | null }>("/api/settings/pick-folder", { path: current })).path;
+      if (path) setDir(key, path);
     } catch (e) { setErr((e as Error).message); }
   };
   const openFolder = (path: string) => api.post("/api/settings/open-folder", { path }).catch((e) => setErr((e as Error).message));
@@ -116,11 +122,17 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             ))}
           </Group>
 
+          <Group title="外觀">
+            <Field label="主題" hint="點了立即套用並存檔；Navbar 的淺色／深色按鈕也會改這裡">
+              <Seg<ThemePref> options={[["system", "跟隨系統"], ["light", "淺色"], ["dark", "深色"]]} value={themePref} onChange={setThemePref} />
+            </Field>
+          </Group>
+
           <Group title="生成">
             <Field label="同時生圖組數" hint="調低比較不容易撞到 Codex 額度上限；改了之後，排隊中的組別也照新的上限">
               <Seg options={[1, 2, 3].map((n) => [n, `${n} 組`])} value={vals.max_parallel} onChange={(v) => setVals({ ...vals, max_parallel: v })} />
             </Field>
-            <Field label="預設網格版型" hint="Gen「選擇貼圖」步驟一開始選哪一個">
+            <Field label="預設網格版型" hint="生成「選擇貼圖」步驟一開始選哪一個">
               <Seg options={info.layouts.map((l) => [l, LAYOUT_LABEL[l] ?? l])} value={vals.default_layout} onChange={(v) => setVals({ ...vals, default_layout: v as SettingsValues["default_layout"] })} />
             </Field>
             <Field label="生圖逾時" hint="單組超過就停掉、標成逾時">
@@ -131,6 +143,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             </Field>
           </Group>
 
+          {desktop && (
+            <Group title="關於">
+              <AboutUpdates />
+            </Group>
+          )}
+
           <Group title="Codex">
             <Field label="執行參數" hint="生圖時實際執行的指令（不含參考圖與 prompt）；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔">
               <code className="block rounded-lg bg-panel2 px-2.5 py-1.5 font-mono text-xs">{info.codex_command.join(" ")}</code>
@@ -140,6 +158,8 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           </Group>
         </>}
 
+        {/* 底部固定：訊息＋按鈕不跟著內容捲走。對話框本身是捲動容器（p-6），sticky 的位置要扣掉內距，所以用 -bottom-6 */}
+        <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 space-y-2 border-t border-line/60 bg-panel px-6 pt-3 pb-6">
         {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
         {done && !dirty && <p className="rounded-lg bg-ok/15 px-3 py-2 text-sm text-ok">{done}</p>}
         {info?.busy && changedDirs.length > 0 && <p className="rounded-lg bg-warn/15 px-3 py-2 text-sm text-warn">{info.busy}，等它結束才能改資料夾位置。</p>}
@@ -148,6 +168,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           <button className="btn btn-primary" onClick={save} disabled={!dirty || saving || hasError || (!!info?.busy && changedDirs.length > 0)}>
             {saving ? <><Spinner className="size-3.5 border-on-acc border-t-transparent" />儲存中</> : "儲存"}
           </button>
+        </div>
         </div>
       </div>
       <MoveConfirm plan={plan} saving={saving} onCancel={() => setPlan(null)} onConfirm={commit} />

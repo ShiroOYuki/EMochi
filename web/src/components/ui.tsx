@@ -60,13 +60,13 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
+        <DialogOverlay className="no-drag fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
         <DialogContent aria-describedby={undefined} from="top" transition={reduce ? { duration: 0 } : SPRING}
           // 置中用 inset-0 + m-auto + h-fit（不用 translate -50%：寬高是奇數時會落在半像素上，文字發糊）
           // 打開時焦點放在框本身（仍鎖在框內），不要自動跳到第一顆按鈕上冒出焦點框；框裡有 autoFocus 的就交給它
           onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; if (!el.contains(document.activeElement)) el.focus(); }}
           onCloseAutoFocus={(e) => { const o = opener.current; if (o?.isConnected) { e.preventDefault(); o.focus({ preventScroll: true }); } }}
-          className={cn("scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
+          className={cn("no-drag scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
             wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]")}>
           <DialogTitle className="sr-only">{label}</DialogTitle>
           {open ? children : last.current}
@@ -267,10 +267,10 @@ export function Select<T extends string | number>({ value, onChange, options, di
     <SelectPrimitive.Root value={cur === "" ? undefined : cur} disabled={disabled}
       onValueChange={(v) => { const o = real.find((x) => String(x.value) === v); if (o) onChange(o.value); }}>
       <SelectPrimitive.Trigger aria-label={label}
-        className={cn("input group flex items-center justify-between gap-2 text-left data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel", className)}>
+        className={cn("input group flex cursor-pointer items-center justify-between gap-2 text-left hover:border-acc hover:bg-panel data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:bg-panel2", className)}>
         <span className="min-w-0 flex-1 truncate"><SelectPrimitive.Value placeholder={placeholder ?? empty?.label ?? "請選擇"} /></span>
         <SelectPrimitive.Icon asChild>
-          <ChevronDownIcon className="size-4 shrink-0 text-mute transition-transform duration-200 group-data-[state=open]:rotate-180 group-data-[state=open]:text-acc" />
+          <ChevronDownIcon className="size-4 shrink-0 text-mute transition-[transform,color] duration-200 group-hover:text-acc group-disabled:group-hover:text-mute group-data-[state=open]:rotate-180 group-data-[state=open]:text-acc" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>

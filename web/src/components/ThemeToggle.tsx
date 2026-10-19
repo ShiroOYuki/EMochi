@@ -1,18 +1,12 @@
-import { useEffect, useState } from "react";
+import { resolved, setThemePref, useThemePref } from "../theme";
 
-type Theme = "light" | "dark";
-const current = (): Theme => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-
-/** 淺色 / 深色切換；選擇存在 localStorage，第一次依系統設定（index.html 會在載入前先套用，避免閃一下白） */
+/** 淺色 / 深色切換：偏好存在伺服器的設定檔（theme.ts）；設定頁還可以選「跟隨系統」 */
 export default function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>(current);
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem("theme", theme); } catch { /* 私密模式忽略 */ }
-  }, [theme]);
-  const dark = theme === "dark";
+  const pref = useThemePref();
+  const dark = resolved(pref) === "dark";
   return (
-    <button onClick={() => setTheme(dark ? "light" : "dark")} aria-label={dark ? "切換為淺色主題" : "切換為深色主題"}
+    <button onClick={() => setThemePref(dark ? "light" : "dark")} aria-label={dark ? "切換為淺色主題" : "切換為深色主題"}
+      title={pref === "system" ? "目前跟隨系統；在設定頁可以改回跟隨系統" : undefined}
       className={`btn gap-2 ${className}`}>
       {dark ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
