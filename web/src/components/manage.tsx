@@ -5,9 +5,14 @@
  *  - useContextMenu：側欄右鍵選單
  *  - TrashButton：側欄左下角的「垃圾桶」，專案／畫風／角色共用一個清單（還原／永久刪除／清空）
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as RMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type MouseEvent as RMouseEvent, type ReactNode } from "react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuHighlight, DropdownMenuHighlightItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/animate-ui/primitives/radix/dropdown-menu";
 import { api, fileUrl, type TrashItem, type TrashKind } from "../api";
-import { Modal, Spinner, StatusBadge } from "./ui";
+import { SPRING, Modal, Spinner, StatusBadge } from "./ui";
+import { useReducedMotion } from "motion/react";
+import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
 
 export function TrashIcon({ size = 15 }: { size?: number }) {
   return (
@@ -38,7 +43,7 @@ export function DeleteConfirm({ target, noun, onConfirm, onClose }: {
     finally { setBusy(false); }
   };
   return (
-    <Modal open={!!target} onClose={() => !busy && onClose()}>
+    <Modal open={!!target} onClose={() => !busy && onClose()} label={`刪除${noun}`}>
       {target && <div className="space-y-3">
         <h3 className="text-lg">刪除{noun} {target.id}{target.title ? `「${target.title}」` : ""}？</h3>
         <p className="text-sm text-mute">會移到左下角的「垃圾桶」，之後還能還原，或在那裡永久刪除。</p>
@@ -81,62 +86,46 @@ export type MenuItem = { label: string; icon?: ReactNode; danger?: boolean; disa
 /** 用法：const [menu, openMenu] = useContextMenu(); <div onContextMenu={(e) => openMenu(e, items)} />，並把 {menu} 放進畫面 */
 export function useContextMenu(): [ReactNode, (e: RMouseEvent, items: MenuItem[]) => void] {
   const [state, setState] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
-  const open = useCallback((e: RMouseEvent, items: MenuItem[]) => {
+  const [open, setOpen] = useState(false);
+  const show = useCallback((e: RMouseEvent, items: MenuItem[]) => {
     e.preventDefault();
     setState({ x: e.clientX, y: e.clientY, items });
+    setOpen(true);
   }, []);
-  const menu = state && <ContextMenu {...state} onClose={() => setState(null)} />;
-  return [menu, open];
+  // state 在關閉後保留，收起動畫期間選單內容才不會先消失
+  const menu = state && <ContextMenu {...state} open={open} onOpenChange={setOpen} />;
+  return [menu, show];
 }
 
-function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuItem[]; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ left: x, top: y });
-  // 貼著游標開；超出視窗就往左／往上翻
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    setPos({ left: Math.min(x, window.innerWidth - width - 8), top: Math.min(y, window.innerHeight - height - 8) });
-    el.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-  }, [x, y]);
-  useEffect(() => {
-    const close = () => onClose();
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      e.preventDefault();
-      const btns = [...(ref.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];
-      const i = btns.indexOf(document.activeElement as HTMLButtonElement);
-      btns[(i + (e.key === "ArrowDown" ? 1 : -1) + btns.length) % btns.length]?.focus();
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", close);
-    window.addEventListener("blur", close);
-    document.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("blur", close);
-      document.removeEventListener("scroll", close, true);
-    };
-  }, [onClose]);
+/** 用 Animate UI 的 Radix DropdownMenu 做右鍵選單：在游標位置放一個看不見的觸發點。
+ *  得到：淡入縮放、滑過時底色用彈簧滑到該項、方向鍵／Home／End／字首跳選、Esc 關閉、碰到視窗邊緣自動翻轉 */
+function ContextMenu({ x, y, items, open, onOpenChange }: {
+  x: number; y: number; items: MenuItem[]; open: boolean; onOpenChange: (o: boolean) => void;
+}) {
+  const reduce = useReducedMotion();
   return (
-    <div ref={ref} role="menu" style={pos} onContextMenu={(e) => e.preventDefault()}
-      className="fixed z-[60] min-w-44 rounded-2xl border border-line bg-panel p-1.5 text-sm shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)]">
-      {items.map((it, i) => it === "sep"
-        ? <div key={i} className="my-1 h-px bg-line" />
-        : (
-          <button key={i} role="menuitem" disabled={it.disabled} title={it.hint}
-            onClick={() => { onClose(); it.onSelect(); }}
-            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-1.5 text-left outline-none transition disabled:opacity-40 ${it.danger ? "text-bad hover:bg-bad/12 focus-visible:bg-bad/12" : "hover:bg-panel2 focus-visible:bg-panel2"}`}>
-            <span className="flex w-4 justify-center text-mute">{it.icon}</span>{it.label}
-          </button>
-        ))}
-    </div>
+    <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
+      <DropdownMenuTrigger asChild>
+        <span aria-hidden className="pointer-events-none fixed size-0" style={{ left: x, top: y }} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="bottom" sideOffset={2} collisionPadding={8}
+        transition={reduce ? { duration: 0 } : { duration: 0.12, ease: "easeOut" }}
+        onContextMenu={(e) => e.preventDefault()}
+        className="z-[60] min-w-44 origin-(--radix-dropdown-menu-content-transform-origin) rounded-2xl border border-line bg-panel p-1.5 text-sm shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+        <DropdownMenuHighlight className="absolute inset-0 z-0 rounded-xl bg-panel2" transition={reduce ? { duration: 0 } : SPRING}>
+          {items.map((it, i) => it === "sep"
+            ? <DropdownMenuSeparator key={i} className="my-1 h-px bg-line" />
+            : (
+              <DropdownMenuHighlightItem key={i} disabled={it.disabled} activeClassName={it.danger ? "!bg-bad/12" : ""}>
+                <DropdownMenuItem disabled={it.disabled} title={it.hint} onSelect={() => it.onSelect()}
+                  className={`relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-1.5 outline-none data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-40 ${it.danger ? "text-bad" : ""}`}>
+                  <span className="flex w-4 justify-center text-mute">{it.icon}</span>{it.label}
+                </DropdownMenuItem>
+              </DropdownMenuHighlightItem>
+            ))}
+        </DropdownMenuHighlight>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -199,6 +188,7 @@ function TrashModal({ open, onClose, tab, setTab, items, onChanged }: {
   const [arm, setArm] = useState<string | null>(null);     // 等待第二次確認的項目；"*" = 清空這一類
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
+  const reduce = useReducedMotion();
   useEffect(() => { if (!open) { setArm(null); setErr(""); } }, [open]);
   useEffect(() => { setArm(null); setErr(""); }, [tab]);
   useEffect(() => {
@@ -217,17 +207,24 @@ function TrashModal({ open, onClose, tab, setTab, items, onChanged }: {
   const size = list.reduce((n, t) => n + t.size, 0);
   const base = `/api/trash/${tab}`;
   return (
-    <Modal open={open} onClose={() => !busy && onClose()}>
+    <Modal open={open} onClose={() => !busy && onClose()} label="垃圾桶">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="text-lg">垃圾桶</h3>
-        <div className="flex rounded-full bg-panel2 p-1" role="tablist">
-          {KINDS.map((k) => (
-            <button key={k.kind} role="tab" aria-selected={tab === k.kind} onClick={() => setTab(k.kind)}
-              className={`rounded-full px-3.5 py-1 text-sm transition ${tab === k.kind ? "bg-acc text-on-acc" : "text-mute hover:text-text"}`}>
-              {k.noun}{items[k.kind].length > 0 && <span className="ml-1 tabular-nums opacity-80">{items[k.kind].length}</span>}
-            </button>
-          ))}
-        </div>
+        {/* Animate UI Tabs：選中的藍色底會用彈簧滑到新分頁；方向鍵可切換 */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TrashKind)}>
+          <TabsHighlight className="absolute inset-0 z-0 rounded-full bg-acc" transition={reduce ? { duration: 0 } : SPRING}>
+            <TabsList className="flex rounded-full bg-panel2 p-1" aria-label="垃圾桶種類">
+              {KINDS.map((k) => (
+                <TabsHighlightItem key={k.kind} value={k.kind}>
+                  <TabsTrigger value={k.kind}
+                    className="relative z-[1] rounded-full px-3.5 py-1 text-sm text-mute outline-none transition-colors hover:text-text focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=active]:text-on-acc data-[state=active]:hover:text-on-acc">
+                    {k.noun}{items[k.kind].length > 0 && <span className="ml-1 tabular-nums opacity-80">{items[k.kind].length}</span>}
+                  </TabsTrigger>
+                </TabsHighlightItem>
+              ))}
+            </TabsList>
+          </TabsHighlight>
+        </Tabs>
         {list.length > 0 && (
           <button className={`btn btn-sm ml-auto ${arm === "*" ? DANGER : "hover:border-bad hover:text-bad"}`}
             disabled={!!busy} onClick={() => arm === "*" ? run("*", () => api.del(base)) : setArm("*")}>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api, type Sticker } from "../api";
+import { Check } from "./ui";
 
 const GROUP_NAMES: Record<number, string> = { 1: "基礎情緒", 2: "反應表情", 3: "社群互動", 4: "Twitch / 迷因", 0: "自訂" };
 
@@ -52,7 +53,7 @@ export default function StickerPicker({ stickers, value, onChange, onAdded, disa
           <div><label className="label">中文說明</label><input className="input" placeholder="捧著茶杯打瞌睡" value={form.zh} onChange={(e) => setForm({ ...form, zh: e.target.value })} /></div>
           <div className="sm:col-span-2"><label className="label">英文表情描述（會直接放進 prompt）</label>
             <input className="input" placeholder="sleepy, holding a cup of tea with both hands, half-closed eyes" value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} /></div>
-          <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={form.bottom} onChange={(e) => setForm({ ...form, bottom: e.target.checked })} />輸出時貼齊底邊（像 Lurk 從下方探頭）</label>
+          <label className="flex items-center gap-2 text-xs text-mute"><Check checked={form.bottom} onCheckedChange={(v) => setForm({ ...form, bottom: v })} />輸出時貼齊底邊（像 Lurk 從下方探頭）</label>
           <div className="flex items-center justify-end gap-2">{err && <span className="text-xs text-bad">{err}</span>}
             <button className="btn btn-primary btn-sm" onClick={add} disabled={!form.label.trim() || !form.prompt.trim()}>加入清單</button></div>
         </div>
@@ -71,7 +72,7 @@ export default function StickerPicker({ stickers, value, onChange, onAdded, disa
                 {items.map((s) => (
                   <label key={s.id} title={s.prompt}
                     className={`flex cursor-pointer items-start gap-2 rounded-xl border px-2.5 py-2 text-xs transition ${sel.has(s.id) ? "border-pink bg-pink-soft" : "border-line bg-panel hover:border-mute"}`}>
-                    <input type="checkbox" className="chk mt-0.5" checked={sel.has(s.id)} onChange={() => toggle(s.id)} />
+                    <Check className="mt-0.5" checked={sel.has(s.id)} onCheckedChange={() => toggle(s.id)} />
                     <span className="min-w-0"><span className="block truncate">#{s.id} {s.label}</span>
                       <span className="block truncate text-mute">{s.zh}</span></span>
                   </label>

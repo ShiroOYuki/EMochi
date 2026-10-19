@@ -27,3 +27,4 @@ desktop.ini
 
 # 前端
 web/node_modules/
+web/*.tsbuildinfo

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
-import { ErrorBoundary } from "./components/ui";
+import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
+import { useReducedMotion } from "motion/react";
+import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
 import GenPage from "./pages/Gen";
 import GalleryPage from "./pages/Gallery";
 import CharactersPage from "./pages/Characters";
@@ -27,6 +29,7 @@ function Ears() {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>(readTab);
+  const reduce = useReducedMotion();
   useEffect(() => {
     const on = () => setTab(readTab());
     window.addEventListener("hashchange", on);
@@ -38,14 +41,23 @@ export default function App() {
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-4 bg-panel px-5 py-3 shadow-[0_6px_20px_-12px_rgb(52_49_90/0.25)]">
         <h1 className="flex items-center gap-2 text-lg"><Ears />EMochi</h1>
-        <nav className="flex rounded-full bg-panel2 p-1">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => go(t.id)}
-            className={`rounded-full px-5 py-1.5 text-sm transition ${tab === t.id ? "bg-acc text-on-acc shadow-[0_2px_0_var(--color-acc-deep)]" : "text-mute hover:text-text"}`}>
-            {t.label}
-          </button>
-        ))}
-        </nav>
+        {/* Animate UI Tabs：藍色軟糖底用彈簧滑到目前的分頁；方向鍵可切換 */}
+        <Tabs value={tab} onValueChange={(v) => go(v as Tab)} asChild>
+          <nav>
+            <TabsHighlight className="absolute inset-0 z-0 rounded-full bg-acc shadow-[0_2px_0_var(--color-acc-deep)]" transition={reduce ? { duration: 0 } : SPRING}>
+              <TabsList className="flex rounded-full bg-panel2 p-1" aria-label="分頁">
+                {TABS.map((t) => (
+                  <TabsHighlightItem key={t.id} value={t.id}>
+                    <TabsTrigger value={t.id}
+                      className="relative z-[1] rounded-full px-5 py-1.5 text-sm text-mute outline-none transition-colors hover:text-text focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=active]:text-on-acc data-[state=active]:hover:text-on-acc">
+                      {t.label}
+                    </TabsTrigger>
+                  </TabsHighlightItem>
+                ))}
+              </TabsList>
+            </TabsHighlight>
+          </nav>
+        </Tabs>
         <CodexUsage className="ml-auto" />
         <ThemeToggle />
       </header>
@@ -56,6 +68,7 @@ export default function App() {
         <div className={tab === "characters" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><CharactersPage active={tab === "characters"} /></ErrorBoundary></div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GalleryPage active={tab === "gallery"} /></ErrorBoundary></div>
       </main>
+      <TitleTooltips />
     </div>
   );
 }

@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
-import { Modal } from "../components/ui";
+import { Check, Modal } from "../components/ui";
 
 const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", t56: "Twitch 56", t28: "Twitch 28", discord: "Discord 128" };
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
+const VT_MAX = 120;   // 一次最多替幾個元素做位置動畫（只算畫面上看得到的）
 
 function useStored<T>(key: string, init: T) {
   const [v, setV] = useState<T>(() => {
@@ -66,6 +69,29 @@ export default function GalleryPage({ active }: { active: boolean }) {
   };
   const toggle = (k: string) => setSel([k], !sel.has(k));
 
+  // 切換角色／畫風／組別時，用瀏覽器原生的 View Transitions 讓卡片滑到新位置（留下的滑過去、消失的淡出、新的淡入）。
+  // 只替「畫面上看得到的」卡片命名（切換前後各量一次），畫面外的直接換，所以幾百張也不會卡；
+  // 動畫結束就把名字清掉。系統設定減少動態效果時直接切換
+  const reduce = useReducedMotion();
+  const canVT = !reduce && "startViewTransition" in document;
+  const withVT = (fn: () => void) => {
+    if (!canVT) return fn();
+    const els = () => document.querySelectorAll<HTMLElement>("[data-vt]");
+    const nameVisible = () => {
+      let n = 0;
+      els().forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const vis = r.width > 0 && r.bottom > -80 && r.top < innerHeight + 80 && n < VT_MAX;
+        if (vis) n++;
+        el.style.viewTransitionName = vis ? el.dataset.vt! : "";
+      });
+    };
+    nameVisible();
+    const t = document.startViewTransition(() => { flushSync(fn); nameVisible(); });
+    t.finished.finally(() => els().forEach((el) => { el.style.viewTransitionName = ""; }));
+  };
+  const vtKey = (k: string) => `g-${k.replace(/[^\w-]/g, "_")}`;
+
   useEffect(() => {
     if (open === null) return;
     const on = (e: KeyboardEvent) => {
@@ -81,7 +107,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
     const k = keyOf(e), on = sel.has(k);
     return (
       <div key={k} onClick={() => setOpen(i)}
-        className={`relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center transition ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        data-vt={vtKey(k)}
+        className={`sticker-card relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
@@ -97,7 +124,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
           <span className="text-sm text-mute">角色</span>
           {[{ id: "__all", name: "全部", n: allStyles.length }, ...charOpts].map((o) => (
-            <button key={o.id} onClick={() => setCharF(o.id)} aria-pressed={charF === o.id}
+            <button key={o.id} onClick={() => withVT(() => setCharF(o.id))} aria-pressed={charF === o.id}
               className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${charF === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
               {o.name}<span className="ml-1 opacity-70">{o.n} 套</span>
             </button>
@@ -105,13 +132,13 @@ export default function GalleryPage({ active }: { active: boolean }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => setMode("__all")}>並排比較（全部版本）</button>
+        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode("__all"))}>並排比較（全部版本）</button>
         {styles.map((s) => (
-          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => setMode(s.id)}>
+          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode(s.id))}>
             {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
-        <select className="input !w-32 !py-1" value={group} onChange={(e) => setGroup(+e.target.value)}>
+        <select className="input !w-32 !py-1" value={group} onChange={(e) => { const g = +e.target.value; withVT(() => setGroup(g)); }}>
           <option value={0}>全部組別</option>{[1, 2, 3, 4].map((g) => <option key={g} value={g}>第 {g} 組</option>)}<option value={5}>自訂表情</option>
         </select>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
@@ -131,11 +158,13 @@ export default function GalleryPage({ active }: { active: boolean }) {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);
                 return (
-                  <div key={r.id} className="rounded-[22px] bg-panel p-3.5 shadow-[var(--shadow-soft)]">
+                  <div key={r.id} className="rounded-[22px] bg-panel p-3.5 shadow-[var(--shadow-soft)]" data-vt={`gr-${r.id}`}>
+                    {/* 標題列不換行：名稱、按鈕固定一行；中文說明放不下就截斷成「…」，滑過看完整（Tooltip） */}
                     <div className="mb-2 flex items-center gap-2 text-sm">
-                      <span>#{r.id} {it0.label}</span><span className="text-xs text-mute">{it0.zh}</span>
-                      <button className="btn btn-sm ml-auto" onClick={() => setSel(keys, true)}>全選此組</button>
-                      <button className="btn btn-sm" onClick={() => setSel(keys, false)}>取消此組</button>
+                      <span className="shrink-0 whitespace-nowrap">#{r.id} {it0.label}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs text-mute" title={it0.zh}>{it0.zh}</span>
+                      <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, true)}>全選此組</button>
+                      <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
                     <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>
                   </div>
@@ -176,7 +205,7 @@ function Preview({ e, on, onToggle, onPrev, onNext }: { e: Entry; on: boolean; o
       </div>
       <div className="mt-4 flex items-center justify-between">
         <button className="btn" onClick={onPrev}>上一張</button>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="chk" checked={on} onChange={onToggle} />勾選這張（空白鍵）</label>
+        <label className="flex items-center gap-2 text-sm"><Check checked={on} onCheckedChange={onToggle} />勾選這張（空白鍵）</label>
         <button className="btn" onClick={onNext}>下一張</button>
       </div>
     </>
@@ -238,7 +267,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
             try { apply(JSON.parse(await f.text()), f.name); } catch (err) { say("sel", `JSON 格式錯誤：${(err as Error).message}`); }
             e.target.value = "";
           }} /></label>
-        <label className="mt-2 flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />載入時加到現有勾選（不取代）</label>
+        <label className="mt-2 flex items-center gap-2 text-xs text-mute"><Check checked={merge} onCheckedChange={setMerge} />載入時加到現有勾選（不取代）</label>
         <p className="mt-1 text-xs text-mute">{msg.sel || "每次匯出、組合也會自動存一份 JSON"}</p>
       </div>
 
@@ -247,7 +276,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
         <h3 className="mb-2">匯出（ZIP）</h3>
         {Object.entries(FMT).map(([k, v]) => (
           <label key={k} className="flex items-center gap-2 py-0.5">
-            <input type="checkbox" className="chk" checked={fmts.includes(k)} onChange={(e) => setFmts(e.target.checked ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
+            <Check checked={fmts.includes(k)} onCheckedChange={(v) => setFmts(v ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
           </label>
         ))}
         <div className="mt-2 flex items-center gap-2"><span className="shrink-0">版本標記</span>
@@ -273,7 +302,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
           <label className="label">背景<select className="input mt-1" value={cmb.bg} onChange={(e) => setCmb({ ...cmb, bg: e.target.value })}>
             <option value="transparent">透明</option><option value="dark">Discord 深色</option><option value="light">白色</option></select></label>
         </div>
-        <label className="mt-2 flex items-center gap-2"><input type="checkbox" className="chk" checked={cmb.labels} onChange={(e) => setCmb({ ...cmb, labels: e.target.checked })} />顯示名稱</label>
+        <label className="mt-2 flex items-center gap-2"><Check checked={cmb.labels} onCheckedChange={(v) => setCmb({ ...cmb, labels: v })} />顯示名稱</label>
         <button className="btn mt-2 w-full" disabled={!sel.length} onClick={async () => {
           say("cmb", "組合中…");
           try { const r = await api.post<{ file: string }>("/api/gallery/combine", { keys: sel, ...cmb }); say("cmb", `完成，存在 exports\\${r.file}`); setSheet(r.file); loadList(); }

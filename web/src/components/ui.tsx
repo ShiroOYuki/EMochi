@@ -1,6 +1,11 @@
-import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import type { GroupStatus, ProjectStatus } from "../api";
 import { STATUS_TEXT } from "../api";
+import { useReducedMotion } from "motion/react";
+import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from "@/components/animate-ui/primitives/radix/dialog";
+import { cn } from "@/lib/utils";
+import { Checkbox, CheckboxIndicator } from "@/components/animate-ui/primitives/radix/checkbox";
+import { Tooltip, TooltipContent, TooltipPortal, TooltipProvider, TooltipTrigger } from "@/components/animate-ui/primitives/radix/tooltip";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return <span className={`inline-block size-4 animate-spin rounded-full border-2 border-mute border-t-transparent ${className}`} />;
@@ -30,18 +35,154 @@ export function Elapsed({ since }: { since?: string }) {
   return <span className="tabular-nums text-mute">{Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}</span>;
 }
 
-export function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () => void; children: ReactNode; wide?: boolean }) {
-  useEffect(() => {
-    if (!open) return;
-    const on = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [open, onClose]);
-  if (!open) return null;
+/** 全站共用的彈簧：快、幾乎不回彈（使用者要俐落；Animate UI 預設是 stiffness 150 / damping 25，偏慢） */
+export const SPRING = { type: "spring", stiffness: 420, damping: 34, mass: 0.8 } as const;
+
+/** 彈窗：Animate UI 的 Radix Dialog（焦點鎖定、Esc／點外面關閉、開關動畫）。
+ *  介面跟舊版一樣：open / onClose / wide；label 給螢幕閱讀器用（畫面上不顯示） */
+export function Modal({ open, onClose, children, wide, label = "對話框" }: {
+  open: boolean; onClose: () => void; children: ReactNode; wide?: boolean; label?: string;
+}) {
+  const reduce = useReducedMotion();
+  // 關閉時呼叫端通常會把內容清掉（例如 target 變 null）；留住最後一次的內容，收起動畫期間框才不會先變空白
+  const last = useRef<ReactNode>(children);
+  if (open) last.current = children;
+  // 記住打開前焦點在哪（例如垃圾桶按鈕），關閉後還給它；沒有可聚焦的來源就維持瀏覽器預設
+  const opener = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) {
+    const a = document.activeElement;
+    opener.current = a instanceof HTMLElement && a !== document.body ? a : null;
+  }
+  wasOpen.current = open;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1b2e]/55 p-4 backdrop-blur-[2px]" onClick={onClose}>
-      <div className={`max-h-[92vh] overflow-auto rounded-[26px] bg-panel p-6 shadow-2xl ${wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]"}`}
-        onClick={(e) => e.stopPropagation()}>{children}</div>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogPortal>
+        <DialogOverlay className="fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
+        <DialogContent aria-describedby={undefined} from="top" transition={reduce ? { duration: 0 } : SPRING}
+          // 打開時焦點放在框本身（仍鎖在框內），不要自動跳到第一顆按鈕上冒出焦點框；框裡有 autoFocus 的就交給它
+          onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; if (!el.contains(document.activeElement)) el.focus(); }}
+          onCloseAutoFocus={(e) => { const o = opener.current; if (o?.isConnected) { e.preventDefault(); o.focus({ preventScroll: true }); } }}
+          className={cn("fixed top-1/2 left-1/2 z-50 max-h-[92vh] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
+            wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]")}>
+          <DialogTitle className="sr-only">{label}</DialogTitle>
+          {open ? children : last.current}
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
+  );
+}
+
+/** 勾選框：Animate UI 的 Radix Checkbox（勾勾用畫線方式出現），勾選後是耳內粉。
+ *  放在 <label> 裡時，點文字也會切換（button 是可被 label 啟動的元素） */
+export function Check({ checked, onCheckedChange, className, label }: {
+  checked: boolean; onCheckedChange: (v: boolean) => void; className?: string; label?: string;
+}) {
+  return (
+    <Checkbox checked={checked} onCheckedChange={(v) => onCheckedChange(v === true)} aria-label={label}
+      className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-[5px] border-2 border-line bg-panel text-white outline-none transition-colors focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=checked]:border-pink data-[state=checked]:bg-pink", className)}>
+      <CheckboxIndicator className="size-3" />
+    </Checkbox>
+  );
+}
+
+/** 全站的 title 提示改成動畫 Tooltip：滑過（或用 Tab 聚焦）任何有 title 的元素，0.4 秒後浮出。
+ *  不用一個一個改呼叫端：第一次碰到時把 title 搬到 data-tip（避免瀏覽器原生提示同時出現），沒有名稱的元素補上 aria-label。
+ *  放一次在 App 最外層即可 */
+export function TitleTooltips() {
+  const [tip, setTip] = useState<{ text: string; rect: DOMRect } | null>(null);
+  const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    let timer = 0;
+    let cur: HTMLElement | null = null;
+    const textOf = (el: HTMLElement) => {
+      const t = el.getAttribute("title");
+      if (t !== null) {   // React 改了 title 會再寫回來，所以每次都先搬一次
+        el.dataset.tip = t;
+        el.removeAttribute("title");
+        if (!el.getAttribute("aria-label") && !el.textContent?.trim()) el.setAttribute("aria-label", t);
+      }
+      return el.dataset.tip ?? "";
+    };
+    const find = (t: EventTarget | null) => (t instanceof Element ? t.closest<HTMLElement>("[title],[data-tip]") : null);
+    const hide = () => { clearTimeout(timer); cur = null; setOpen(false); };
+    const show = (el: HTMLElement, delay: number) => {
+      const text = textOf(el);
+      clearTimeout(timer);
+      cur = el;
+      if (!text) return;
+      timer = window.setTimeout(() => {
+        if (cur !== el || !el.isConnected) return;
+        setTip({ text, rect: el.getBoundingClientRect() });
+        setOpen(true);
+      }, delay);
+    };
+    const over = (e: Event) => { const el = find(e.target); if (el && el !== cur) show(el, 400); else if (!el && cur) hide(); };
+    const focus = (e: FocusEvent) => { const el = find(e.target); if (el && (e.target as HTMLElement).matches(":focus-visible")) show(el, 0); };
+    document.addEventListener("pointerover", over);
+    document.addEventListener("focusin", focus);
+    document.addEventListener("focusout", hide);
+    document.addEventListener("pointerdown", hide, true);
+    document.addEventListener("scroll", hide, true);
+    window.addEventListener("blur", hide);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("pointerover", over);
+      document.removeEventListener("focusin", focus);
+      document.removeEventListener("focusout", hide);
+      document.removeEventListener("pointerdown", hide, true);
+      document.removeEventListener("scroll", hide, true);
+      window.removeEventListener("blur", hide);
+    };
+  }, []);
+  if (!tip) return null;
+  const { rect } = tip;
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <TooltipTrigger asChild>
+          <span aria-hidden className="pointer-events-none fixed" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} />
+        </TooltipTrigger>
+        <TooltipPortal>
+          <TooltipContent side="top" sideOffset={6} collisionPadding={8} transition={reduce ? { duration: 0 } : SPRING}
+            className="z-[70] max-w-xs whitespace-pre-line break-words rounded-xl bg-text px-2.5 py-1.5 text-xs text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]">
+            {tip.text}
+          </TooltipContent>
+        </TooltipPortal>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/** 單行橫向列：內容固定一行、不換行；放不下時可以橫向捲動（滑鼠滾輪也能捲），並在被截掉的那一側淡出提示還有內容 */
+export function ScrollRow({ children, className }: { children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setEdge({ l: el.scrollLeft > 1, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 });
+    // 直向滾輪轉成橫向捲動（只在真的放不下時攔截，否則照常捲動頁面）
+    const wheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { ro.disconnect(); el.removeEventListener("scroll", update); el.removeEventListener("wheel", wheel); };
+  }, []);
+  const mask = edge.l || edge.r
+    ? `linear-gradient(to right, ${edge.l ? "transparent, #000 24px" : "#000"}, ${edge.r ? "#000 calc(100% - 24px), transparent" : "#000"})`
+    : undefined;
+  return (
+    <div ref={ref} className={cn("flex min-w-0 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0", className)}
+      style={{ maskImage: mask, WebkitMaskImage: mask }}>
+      {children}
     </div>
   );
 }
