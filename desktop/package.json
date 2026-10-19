@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "AI 生成 Twitch / Discord 貼圖",
   "author": "Ciel",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -33,6 +34,14 @@
       {
         "from": "../dist/emochi-server",
         "to": "server"
+      },
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "../ASSETS-LICENSE.md",
+        "to": "ASSETS-LICENSE.md"
       }
     ],
     "win": {

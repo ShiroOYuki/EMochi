@@ -152,3 +152,8 @@ archive/            試驗品、檢查腳本                                    
 
 - 角色身上若有大面積綠色，把 prompt 的 `#00FF00` 換成 `#FF00FF`，`postprocess.py` 會自動偵測背景色。
 - 生圖模型會從精細的角色立繪「順便」學畫法：有畫風參考圖時，建議只勾 1 張角色圖。
+
+## 授權
+
+- 程式碼：[GNU General Public License v3.0 或更新版本](LICENSE)。可以自由使用、修改、散布（含商用），但散布修改版時必須同樣以 GPL 開放原始碼。
+- 內建範例畫風 `st1` 的角色圖等素材**不在 GPL 範圍內**，保留一切權利，詳見 [ASSETS-LICENSE.md](ASSETS-LICENSE.md)。
