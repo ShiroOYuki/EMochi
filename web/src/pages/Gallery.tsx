@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
-import { Modal } from "../components/ui";
+import { Check, Modal } from "../components/ui";
 
 const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", t56: "Twitch 56", t28: "Twitch 28", discord: "Discord 128" };
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
@@ -176,7 +176,7 @@ function Preview({ e, on, onToggle, onPrev, onNext }: { e: Entry; on: boolean; o
       </div>
       <div className="mt-4 flex items-center justify-between">
         <button className="btn" onClick={onPrev}>上一張</button>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="chk" checked={on} onChange={onToggle} />勾選這張（空白鍵）</label>
+        <label className="flex items-center gap-2 text-sm"><Check checked={on} onCheckedChange={onToggle} />勾選這張（空白鍵）</label>
         <button className="btn" onClick={onNext}>下一張</button>
       </div>
     </>
@@ -238,7 +238,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
             try { apply(JSON.parse(await f.text()), f.name); } catch (err) { say("sel", `JSON 格式錯誤：${(err as Error).message}`); }
             e.target.value = "";
           }} /></label>
-        <label className="mt-2 flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />載入時加到現有勾選（不取代）</label>
+        <label className="mt-2 flex items-center gap-2 text-xs text-mute"><Check checked={merge} onCheckedChange={setMerge} />載入時加到現有勾選（不取代）</label>
         <p className="mt-1 text-xs text-mute">{msg.sel || "每次匯出、組合也會自動存一份 JSON"}</p>
       </div>
 
@@ -247,7 +247,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
         <h3 className="mb-2">匯出（ZIP）</h3>
         {Object.entries(FMT).map(([k, v]) => (
           <label key={k} className="flex items-center gap-2 py-0.5">
-            <input type="checkbox" className="chk" checked={fmts.includes(k)} onChange={(e) => setFmts(e.target.checked ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
+            <Check checked={fmts.includes(k)} onCheckedChange={(v) => setFmts(v ? [...fmts, k] : fmts.filter((x) => x !== k))} />{v}
           </label>
         ))}
         <div className="mt-2 flex items-center gap-2"><span className="shrink-0">版本標記</span>
@@ -273,7 +273,7 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
           <label className="label">背景<select className="input mt-1" value={cmb.bg} onChange={(e) => setCmb({ ...cmb, bg: e.target.value })}>
             <option value="transparent">透明</option><option value="dark">Discord 深色</option><option value="light">白色</option></select></label>
         </div>
-        <label className="mt-2 flex items-center gap-2"><input type="checkbox" className="chk" checked={cmb.labels} onChange={(e) => setCmb({ ...cmb, labels: e.target.checked })} />顯示名稱</label>
+        <label className="mt-2 flex items-center gap-2"><Check checked={cmb.labels} onCheckedChange={(v) => setCmb({ ...cmb, labels: v })} />顯示名稱</label>
         <button className="btn mt-2 w-full" disabled={!sel.length} onClick={async () => {
           say("cmb", "組合中…");
           try { const r = await api.post<{ file: string }>("/api/gallery/combine", { keys: sel, ...cmb }); say("cmb", `完成，存在 exports\\${r.file}`); setSheet(r.file); loadList(); }

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* shadcn / Animate UI 元件的 dark: 前綴跟著 <html data-theme="dark">（不用 .dark class） */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* 配色取自角色本身：白色狐狸毛、粉紅耳內、藍眼睛、金色麥穗
    顏色用 CSS 變數定義，淺色 / 深色主題只換變數值（data-theme 掛在 <html> 上） */
 :root {
@@ -47,6 +50,50 @@
   --c-check-a: #2f2c48;
   --c-check-b: #3a3656;
   --c-on-acc: #17152a;    /* 深色主題的藍較亮，改用深色字才清楚 */
+}
+
+/* shadcn / Animate UI 用的語意變數：全部指回上面的角色配色，淺深色自動跟著換 */
+:root {
+  --background: var(--c-bg);
+  --foreground: var(--c-text);
+  --card: var(--c-panel);
+  --card-foreground: var(--c-text);
+  --popover: var(--c-panel);
+  --popover-foreground: var(--c-text);
+  --primary: var(--c-acc);
+  --primary-foreground: var(--c-on-acc);
+  --secondary: var(--c-panel2);
+  --secondary-foreground: var(--c-text);
+  --muted: var(--c-panel2);
+  --muted-foreground: var(--c-mute);
+  --accent: var(--c-pink-soft);
+  --accent-foreground: var(--c-text);
+  --destructive: var(--c-bad);
+  --border: var(--c-line);
+  --input: var(--c-line);
+  --ring: var(--c-acc);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* 不覆蓋 Tailwind 的 rounded-sm～xl：現有畫面都用預設值，改了會整站圓角跑掉；新元件直接寫圓角 */
 }
 
 @theme inline {
