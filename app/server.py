@@ -71,6 +71,22 @@ class StickerPatch(BaseModel):
     align: str | None = None
 
 
+class ExpandSticker(BaseModel):
+    idea: str = ""
+    label: str = ""
+    zh: str = ""
+    prompt: str = ""
+
+
+@app.post("/api/stickers/expand")
+def expand_sticker(body: ExpandSticker):
+    """讓 Codex 把一句話擴寫成表情設定（同步，約 10~30 秒）；只回傳建議，不存檔"""
+    try:
+        return sticker_mod.expand(body.idea, body.model_dump())
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
 @app.patch("/api/stickers/{sid}")
 def patch_sticker(sid: int, body: StickerPatch):
     try:

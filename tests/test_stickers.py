@@ -77,3 +77,30 @@ def test_groups_save(client):
     # 刪掉分組不影響表情
     assert client.put("/api/sticker-groups", json=out[:-1]).status_code == 200
     assert s["id"] in [x["id"] for x in client.get("/api/stickers").json()]
+
+
+def test_expand(client, monkeypatch):
+    """擴寫：不真的呼叫 Codex，檢查 prompt 內容與回傳整理"""
+    import json
+
+    from app import codex
+    seen = {}
+
+    def fake(prompt, schema, log, **kw):
+        seen["prompt"] = prompt
+        seen["schema"] = json.loads(schema.read_text(encoding="utf-8"))
+        return json.dumps({"label": " Sleepy Tea ", "zh": "捧茶打瞌睡、眼皮下垂", "prompt": "dozing off, holding a teacup",
+                           "prompt_no_ears": "", "align": "center"})
+
+    monkeypatch.setattr(codex, "run_text", fake)
+    r = client.post("/api/stickers/expand", json={"idea": "捧著茶杯打瞌睡"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d == {"label": "Sleepy Tea", "zh": "捧茶打瞌睡、眼皮下垂", "prompt": "dozing off, holding a teacup",
+                 "prompt_no_ears": "", "align": None}
+    assert "捧著茶杯打瞌睡" in seen["prompt"] and "beaming happy smile" in seen["prompt"]   # 有附現有範例
+    assert "prompt_no_ears" in seen["prompt"] and seen["schema"]["required"]
+    # 沒寫想法時用中文說明；都沒有就擋
+    assert client.post("/api/stickers/expand", json={"zh": "生氣跺腳"}).status_code == 200
+    assert "生氣跺腳" in seen["prompt"]
+    assert client.post("/api/stickers/expand", json={}).status_code == 400
