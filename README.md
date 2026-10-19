@@ -15,12 +15,32 @@ EMochi（Emote ＋ Mochi）：用 Codex CLI 的 `$imagegen` 生成角色貼圖�
 - Windows（指令以 cmd 為例）
 - [uv](https://docs.astral.sh/uv/)：`winget install astral-sh.uv`
 - [Codex CLI](https://github.com/openai/codex)（使用 ChatGPT 額度），需在 PATH 中
-- 改前端才需要 Node.js
+- 改前端、打包桌面版才需要 Node.js
 
 ```cmd
 cd /d D:\CODE\Experimental\EMochi
 uv sync
 ```
+
+## 桌面版
+
+安裝檔在 `desktop\release\EMochi Setup <版本>.exe`（自己打包，見下方）。安裝後從開始選單開啟即可，不用裝 Python、uv。
+
+- 仍需要 [Codex CLI](https://github.com/openai/codex) 在 PATH 中並已登入（`codex login`）；沒有的話右上角 Codex 狀態會顯示找不到
+- 資料（設定、專案輸出、角色庫、畫風庫、log…）預設在 `%LOCALAPPDATA%\EMochi`，可在設定頁改到任何地方；解除安裝不會刪除
+- 程式的記錄檔在 `%APPDATA%\EMochi\logs\server.log`（後端啟動失敗時看這裡）
+- 關閉時如果還有 Codex 在生成，會先詢問；強制結束 App 時後端也會自己收掉，不會留下背景程序
+- F12 開發者工具、Ctrl+R 重新整理
+
+打包（需要 uv、Node.js）：
+
+```cmd
+scripts\build_desktop.bat          :: 前端 build → 後端 PyInstaller（dist\emochi-server）→ Electron 安裝檔
+scripts\build_desktop.bat --dir    :: 只要免安裝資料夾 desktop\release\win-unpacked
+```
+
+開發：`cd desktop && npm install && npm run dev`（用 uv 跑原始碼的後端，資料和網頁版共用原始碼資料夾）。
+架構：Electron（`desktop/main.js`）找一個空的 port 啟動後端 → 等 `/api/health` → 視窗載入同一套 React 前端；選資料夾改用原生視窗（`desktop/preload.js` 的 `window.emochi`）。
 
 ## 快速開始：網頁工具
 
@@ -90,6 +110,14 @@ docs/
 tools/
   postprocess.py    切割、去背、縮放的核心（app/pipeline.py 使用）
 scripts/app.bat     雙擊啟動網頁工具
+scripts/build_desktop.bat  打包桌面版
+desktop/
+  main.js           Electron 主程序：啟動後端、視窗、關閉時清理
+  preload.js        給前端的原生功能（選資料夾）
+  emochi-server.spec  PyInstaller 打包後端
+  server_entry.py   打包後端的進入點
+  make_icon.py      產生 assets/icon.png、icon.ico
+  release/          打包產物                                            ※不進版控
 outputs/<專案>/     grids/（網格原圖）、final/（成品）、previews/（總覽圖）  ※不進版控
 exports/            匯出的 zip 與勾選清單                                ※不進版控
 logs/               Codex 執行紀錄                                        ※不進版控

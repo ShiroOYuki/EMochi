@@ -31,6 +31,15 @@ def _err(e: Exception):
 
 # ---------- 共用 ----------
 
+@app.get("/api/health")
+def health():
+    """桌面版（Electron）用：啟動時等它回應才開視窗；關閉前看有沒有 Codex 在跑"""
+    from . import codex
+    from .paths import FROZEN
+    return {"ok": True, "root": str(ROOT), "frozen": FROZEN, "codex_running": len(codex.ACTIVE),
+            "busy": settings_ops.busy()}
+
+
 @app.get("/api/codex-usage")
 def codex_usage(refresh: bool = False):
     return usage.rate_limits(force=refresh)

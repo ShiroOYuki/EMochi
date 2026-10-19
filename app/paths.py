@@ -2,15 +2,31 @@
 import json
 import os
 import re
+import sys
 import threading
 from pathlib import Path
 
-APP_ROOT = Path(__file__).resolve().parent.parent          # 程式碼所在（tools/ 等）
-# 資料根目錄：預設就是 repo；測試時用 EMOCHI_ROOT 指到暫存資料夾，不碰真正的資料
-ROOT = Path(os.environ["EMOCHI_ROOT"]).resolve() if os.environ.get("EMOCHI_ROOT") else APP_ROOT
-# 程式內建的設定（進版控）：prompt_template.json、*.example.json。使用者自己的設定檔在 config_dir()
-BUILTIN_CONFIG = ROOT / "config"
-STATIC = Path(__file__).resolve().parent / "static"
+# 打包成桌面版（PyInstaller）時，程式和內建檔案解開在 sys._MEIPASS
+FROZEN = bool(getattr(sys, "frozen", False))
+APP_ROOT = Path(getattr(sys, "_MEIPASS", "")).resolve() if FROZEN else Path(__file__).resolve().parent.parent
+
+
+def _data_root() -> Path:
+    """資料根目錄（settings.local.json、outputs、角色庫…的預設位置）：
+    EMOCHI_ROOT（桌面版由 Electron 傳入、測試指到暫存資料夾）＞ 打包版 %LOCALAPPDATA%\\EMochi ＞ 原始碼資料夾（網頁版）"""
+    if os.environ.get("EMOCHI_ROOT"):
+        return Path(os.environ["EMOCHI_ROOT"]).expanduser().resolve()
+    if FROZEN:
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        return (Path(base) / "EMochi").resolve()
+    return APP_ROOT
+
+
+ROOT = _data_root()
+ROOT.mkdir(parents=True, exist_ok=True)
+# 程式內建的設定（進版控、跟著程式走）：prompt_template.json、*.example.json。使用者自己的設定檔在 config_dir()
+BUILTIN_CONFIG = APP_ROOT / "config"
+STATIC = APP_ROOT / "app" / "static"
 
 
 # ---------- 可在設定頁改位置的資料夾（每次呼叫都讀最新設定，改了立即生效） ----------

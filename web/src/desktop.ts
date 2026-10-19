@@ -1,0 +1,8 @@
+/** 桌面版（Electron）透過 preload 掛在 window.emochi 的功能；網頁版沒有這個物件 */
+export type DesktopBridge = {
+  version: string;
+  /** 原生的選資料夾視窗；取消時回傳 null */
+  pickFolder: (initial?: string) => Promise<string | null>;
+};
+
+export const desktop: DesktopBridge | undefined = (window as unknown as { emochi?: DesktopBridge }).emochi;

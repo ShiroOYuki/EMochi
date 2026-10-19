@@ -24,6 +24,7 @@ pythonpath = [".", "tests"]
 filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
 
 [dependency-groups]
+desktop = ["pyinstaller>=6.11"]   # 桌面版打包後端（desktop/emochi-server.spec）
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",

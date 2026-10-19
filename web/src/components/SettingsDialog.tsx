@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type SettingsPlan, type SettingsValues } from "../api";
+import { desktop } from "../desktop";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -69,8 +70,10 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   };
   const pick = async (key: DirKey, current: string) => {
     try {
-      const r = await api.post<{ path: string | null }>("/api/settings/pick-folder", { path: current });
-      if (r.path) setDir(key, r.path);
+      // 桌面版用 Electron 的原生視窗；網頁版請伺服器跳 tkinter 視窗
+      const path = desktop ? await desktop.pickFolder(current)
+        : (await api.post<{ path: string | null }>("/api/settings/pick-folder", { path: current })).path;
+      if (path) setDir(key, path);
     } catch (e) { setErr((e as Error).message); }
   };
   const openFolder = (path: string) => api.post("/api/settings/open-folder", { path }).catch((e) => setErr((e as Error).message));

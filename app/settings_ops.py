@@ -89,11 +89,13 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
     out = {"key": key, "value": value, "path": str(d), "exists": d.exists(), "error": None, "warn": None, **_stat(key, d)}
     cur = {**settings.load(), **(others or {})}
     forbidden = [(ROOT, "資料根目錄本身"), (APP_ROOT / "app", "程式資料夾 app"), (APP_ROOT / "web", "程式資料夾 web")]
+    if APP_ROOT != ROOT:   # 桌面版：程式安裝的資料夾（更新、解除安裝時會整個換掉）
+        forbidden.append((APP_ROOT, "程式安裝資料夾"))
     if key != "outputs_dir":
         # 資料根目錄下的 outputs/ 這個名字保留給專案輸出：project.json 裡的 outputs/... 一律指 outputs 資料夾
         forbidden.append((ROOT / "outputs", "資料根目錄下的 outputs（保留給專案輸出）"))
     for bad, name in forbidden:
-        if d == bad or (bad != ROOT and _inside(d, bad)):
+        if d == bad or (bad != ROOT and (_inside(d, bad) if bad != APP_ROOT else bad in d.parents)):
             out["error"] = f"不能放在{name}" + ("" if d == bad else "裡面或包含它")
             return out
     if d in ROOT.parents:
@@ -256,8 +258,11 @@ def pick_folder(initial: str | None = None) -> str | None:
     if not _pick_lock.acquire(blocking=False):
         raise ValueError("已經有一個選擇資料夾的視窗開著")
     try:
-        import tkinter
-        from tkinter import filedialog
+        try:
+            import tkinter
+            from tkinter import filedialog
+        except ImportError:
+            raise ValueError("這個環境沒有資料夾選擇視窗，請直接貼上完整路徑") from None
         root = tkinter.Tk()
         root.withdraw()
         root.attributes("-topmost", True)   # 不然常被瀏覽器蓋住

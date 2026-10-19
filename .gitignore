@@ -23,6 +23,12 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
+# 桌面版打包產物
+build/
+dist/
+desktop/node_modules/
+desktop/release/
+
 # 前端
 web/node_modules/
 web/*.tsbuildinfo
