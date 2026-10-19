@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import characters, codex_status, gallery, jobs, prompts, settings, settings_ops, style_lib, trash, usage
+from . import characters, codex_status, gallery, jobs, presets, prompts, settings, settings_ops, style_lib, trash, usage
 from .images import decode_data_url
 from . import stickers as sticker_mod
 from .paths import ROOT, STATIC, exports_dir, from_url, load_stickers, logs_dir, next_style_id, read_json
@@ -647,15 +647,44 @@ def gallery_styles():
 
 class ExportBody(BaseModel):
     keys: list[str]
-    formats: list[str]
+    presets: list[str] = []
+    custom: dict | None = None      # 單次自訂（不存成預設集）
+    formats: list[str] | None = None  # 舊版格式代號（t112、discord…），相容舊的呼叫
     tag: str = ""
 
 
 @app.post("/api/gallery/export")
 def export(body: ExportBody):
-    if not body.keys or not body.formats:
-        raise HTTPException(400, "請勾選貼圖與格式")
-    return gallery.export(body.keys, body.formats, body.tag)
+    if not body.keys:
+        raise HTTPException(400, "請先勾選貼圖")
+    try:
+        return gallery.export(body.keys, body.presets, body.custom, body.tag, fmts=body.formats)
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+# ---------- 匯出預設集 ----------
+
+class PresetsBody(BaseModel):
+    presets: list[dict]
+
+
+@app.get("/api/export-presets")
+def get_presets():
+    return {"presets": presets.load(), "custom": presets.is_custom()}
+
+
+@app.put("/api/export-presets")
+def put_presets(body: PresetsBody):
+    try:
+        return {"presets": presets.save(body.presets), "custom": True}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/export-presets/reset")
+def reset_presets():
+    return {"presets": presets.reset(), "custom": False}
 
 
 class CombineBody(BaseModel):
@@ -677,6 +706,8 @@ def combine(body: CombineBody):
 
 class SelectionBody(BaseModel):
     keys: list[str]
+    presets: list[str] | None = None
+    custom: dict | None = None
     formats: list[str] | None = None
     combine: dict | None = None
     tag: str = ""
@@ -691,7 +722,7 @@ def selections():
 def save_selection(body: SelectionBody):
     if not body.keys:
         raise HTTPException(400, "請先勾選貼圖")
-    return gallery.save_selection(body.keys, body.formats, body.combine, body.tag)
+    return gallery.save_selection(body.keys, body.presets, body.custom, body.combine, body.tag, body.formats)
 
 
 @app.get("/api/gallery/selections/{name}")

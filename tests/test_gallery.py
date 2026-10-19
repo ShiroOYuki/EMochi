@@ -33,13 +33,15 @@ def test_export_zip_and_spec_issues(client, data_root):
     res = r.json()
     assert res["count"] == 3
     assert res["file"].endswith("_v1.zip")
-    # 56 那張尺寸錯 → 列在 issues
+    # 舊版格式代號（formats）照樣能用；56 那張後處理檔案尺寸錯 → 改用母版重縮，並列在 issues
     assert [i["file"] for i in res["issues"]] == [f"{STYLE}/twitch/56/01_happy_{STYLE}_v1.png"]
     with zipfile.ZipFile(io.BytesIO((data_root / "exports" / res["file"]).read_bytes())) as z:
         names = sorted(z.namelist())
+        fixed = Image.open(io.BytesIO(z.read(f"{STYLE}/twitch/56/01_happy_{STYLE}_v1.png"))).size
+    assert fixed == (56, 56)
     assert names == sorted([f"{STYLE}/twitch/112/01_happy_{STYLE}_v1.png",
                             f"{STYLE}/twitch/56/01_happy_{STYLE}_v1.png",
-                            f"{STYLE}/discord/happy_{STYLE}_v1.png"])
+                            f"{STYLE}/discord/01_happy_{STYLE}_v1.png"])
     doc = json.loads((data_root / "exports" / res["file"].replace("_v1.zip", ".json")).read_text("utf-8"))
     assert doc["zip"] == res["file"] and doc["issues"]
 

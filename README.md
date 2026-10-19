@@ -72,7 +72,10 @@ scripts\app.bat          :: 或 uv run python -m app（可加 --port N --no-brow
   5. 完成的畫風自動出現在 Gallery
 - **畫風**：畫風庫（參考圖＋Codex 分析的畫風描述），也可以從完成的專案匯入
 - **角色**：角色庫（參考圖＋特徵句，Codex 可看圖寫特徵）
-- **Gallery**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴，含規格檢查）、組合總覽圖、勾選清單 JSON 存讀
+- **圖庫**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴）、組合總覽圖、勾選清單 JSON 存讀
+  - 匯出時勾選**匯出預設集**（每組＝平台要的尺寸、縮放方式、留白、檔案大小上限、檔名方式），也可以填「自訂」尺寸只用這一次；
+    超過大小上限會自動壓縮。內建 13 組：Twitch 表情／訂閱徽章、Discord 表情／貼圖、LINE 貼圖／主要圖片／聊天室標籤／表情貼、
+    YouTube 會員表情、Kick、Telegram 貼圖、Slack、母版 512。在匯出面板或設定頁按「管理預設集…」新增、修改
 
 刪除的專案、畫風、角色會先進垃圾桶（側欄左下角），可以還原；永久刪除過的編號不會再被使用。
 Navbar 右側顯示 Codex 額度（5 小時／每週窗口，讀 `~/.codex/sessions` 的紀錄），點一下看詳細狀態（連線、登入、近 7 天用量）。
@@ -111,6 +114,7 @@ web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 
 tests/              pytest
 config/
   stickers.example.json  基礎 32 種表情（編號、名稱、中文說明、表情 prompt）；stickers.json 的起點
+  export_presets.example.json  內建匯出預設集（各平台規格，2026-10-20 查）；export_presets.json 的起點
   stickers.json     你的表情清單（本地資料，不進版控；第一次在網頁上修改時才產生）
   sticker_groups.example.json  預設 4 組表情分組
   sticker_groups.json   你的表情分組（本地資料，不進版控；沒有時用 example）

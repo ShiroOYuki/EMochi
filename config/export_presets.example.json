@@ -1,0 +1,15 @@
+[
+  {"id": "twitch", "name": "Twitch 表情", "folder": "twitch", "sizes": [{"w": 112, "h": 112}, {"w": 56, "h": 56}, {"w": 28, "h": 28}], "mode": "fit", "margin": 0, "even": false, "max_kb": 1024, "naming": "keep", "note": "PNG 透明背景，三種尺寸各 1 MB 以內（Elgato 整理的 Twitch 規格）"},
+  {"id": "twitch_badge", "name": "Twitch 訂閱徽章", "folder": "twitch_badge", "sizes": [{"w": 72, "h": 72}, {"w": 36, "h": 36}, {"w": 18, "h": 18}], "mode": "fit", "margin": 0, "even": false, "max_kb": 25, "naming": "keep", "note": "PNG 透明背景，每張 25 KB 以內"},
+  {"id": "discord", "name": "Discord 表情", "folder": "discord", "sizes": [{"w": 128, "h": 128}], "mode": "fit", "margin": 0, "even": false, "max_kb": 256, "naming": "keep", "note": "建議 128×128，256 KB 以內"},
+  {"id": "discord_sticker", "name": "Discord 貼圖", "folder": "discord_sticker", "sizes": [{"w": 320, "h": 320}], "mode": "canvas", "margin": 0, "even": false, "max_kb": 512, "naming": "keep", "note": "PNG，必須剛好 320×320，512 KB 以內（伺服器要加成才能上傳）"},
+  {"id": "line_sticker", "name": "LINE 貼圖", "folder": "line_sticker", "sizes": [{"w": 370, "h": 320}], "mode": "fit", "margin": 10, "even": true, "max_kb": 1024, "naming": "index", "note": "PNG，最大 370×320、尺寸要偶數、四周約 10px 留白、每張 1 MB 以內；一組 8／16／24／32／40 張，檔名 01.png 起"},
+  {"id": "line_main", "name": "LINE 主要圖片", "folder": "line_main", "sizes": [{"w": 240, "h": 240}], "mode": "canvas", "margin": 10, "even": true, "max_kb": 1024, "naming": "keep", "note": "240×240，一組只要一張：匯出時只勾一張代表圖，改名成 main.png"},
+  {"id": "line_tab", "name": "LINE 聊天室標籤", "folder": "line_tab", "sizes": [{"w": 96, "h": 74}], "mode": "canvas", "margin": 2, "even": true, "max_kb": 1024, "naming": "keep", "note": "96×74，一組只要一張：匯出時只勾一張代表圖，改名成 tab.png"},
+  {"id": "line_emoji", "name": "LINE 表情貼", "folder": "line_emoji", "sizes": [{"w": 180, "h": 180}], "mode": "canvas", "margin": 0, "even": true, "max_kb": 1024, "naming": "index", "note": "PNG 透明背景 180×180、建議不留白、每張 1 MB 以內；一組 8～40 個"},
+  {"id": "youtube", "name": "YouTube 會員表情", "folder": "youtube", "sizes": [{"w": 480, "h": 480}], "mode": "fit", "margin": 0, "even": false, "max_kb": 1024, "naming": "keep", "note": "PNG／JPEG，48～480 px（上傳後自動縮小），1 MB 以內"},
+  {"id": "kick", "name": "Kick 表情", "folder": "kick", "sizes": [{"w": 500, "h": 500}], "mode": "fit", "margin": 0, "even": false, "max_kb": 1024, "naming": "keep", "note": "PNG／GIF，最大 500×500，1 MB 以內"},
+  {"id": "telegram", "name": "Telegram 貼圖", "folder": "telegram", "sizes": [{"w": 512, "h": 512}], "mode": "fit", "margin": 0, "even": false, "max_kb": 512, "naming": "keep", "note": "PNG／WEBP 透明背景，最大 512×512 且至少一邊 512，512 KB 以內"},
+  {"id": "slack", "name": "Slack 表情", "folder": "slack", "sizes": [{"w": 128, "h": 128}], "mode": "fit", "margin": 0, "even": false, "max_kb": 128, "naming": "keep", "note": "建議 128×128，128 KB 以內"},
+  {"id": "master", "name": "母版 512（備份）", "folder": "master", "sizes": [{"w": 512, "h": 512}], "mode": "fit", "margin": 0, "even": false, "max_kb": null, "naming": "keep", "note": "後處理的原始輸出，不壓縮"}
+]

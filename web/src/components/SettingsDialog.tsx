@@ -3,6 +3,7 @@ import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type
 import { desktop } from "../desktop";
 import { setThemePref, useThemePref, type ThemePref } from "../theme";
 import { AboutUpdates } from "./Updates";
+import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -140,6 +141,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             </Field>
             <Field label="文字任務逾時" hint="擴寫、看圖寫特徵、分析畫風">
               <Num value={vals.text_timeout_min} lim={info.limits.text_timeout_min} onChange={(v) => setVals({ ...vals, text_timeout_min: v })} />
+            </Field>
+          </Group>
+
+          <Group title="匯出">
+            <Field label="匯出預設集" hint="圖庫匯出 ZIP 時可勾選的平台尺寸（Twitch、Discord、LINE…），可新增自己的尺寸與檔案大小上限">
+              <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
             </Field>
           </Group>
 

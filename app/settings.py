@@ -16,7 +16,7 @@ FILE = ROOT / "settings.local.json"
 DIRS: dict[str, tuple[str, str, str]] = {
     "outputs_dir": ("outputs", "專案輸出資料夾", "每個畫風專案的網格圖、切好的貼圖與 project.json（含垃圾桶）；檔案最多"),
     "logs_dir": ("logs", "Log 資料夾", "每次呼叫 Codex 的紀錄；Codex 狀態的用量統計從這裡算"),
-    "config_dir": ("config", "設定檔資料夾", "你的表情清單 stickers.json 與分組 sticker_groups.json"),
+    "config_dir": ("config", "設定檔資料夾", "你的表情清單、分組與匯出預設集（stickers.json、sticker_groups.json、export_presets.json）"),
     "exports_dir": ("exports", "匯出資料夾", "Gallery 匯出的 zip、總覽圖與勾選清單"),
     "characters_dir": ("characters", "角色庫", "每個角色的參考圖與特徵（含垃圾桶）"),
     "style_lib_dir": ("style_lib", "畫風庫", "每個畫風的描述與範例圖（含垃圾桶）"),

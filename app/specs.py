@@ -6,6 +6,7 @@
 - Discord 表情：256 KB 以內，可用 PNG / JPEG / GIF / WEBP
   （Discord 官方說明：https://support.discord.com/hc/articles/360036479811）
 平台改規定時只要改 SPECS。
+匯出改用預設集（presets.py）後，大小上限由每組預設集自己帶，壓縮共用 compress()。
 """
 import io
 from dataclasses import dataclass
@@ -50,15 +51,28 @@ def fit(data: bytes, fmt: str) -> tuple[bytes, list[str]]:
     im = Image.open(io.BytesIO(data))
     if spec.size and im.size != spec.size:
         notes.append(f"尺寸 {im.size[0]}×{im.size[1]}，{spec.label} 應為 {spec.size[0]}×{spec.size[1]}")
-    if spec.max_bytes is None or len(data) <= spec.max_bytes:
-        return data, notes
-    limit_kb = spec.max_bytes // 1024
+    out, more = compress(data, spec.label, spec.max_bytes)
+    return out, notes + more
+
+
+def _kb(n: int) -> str:
+    return f"{n / 1024:.1f} KB" if n < 10 * 1024 else f"{n // 1024} KB"
+
+
+def compress(data: bytes, label: str, max_bytes: int | None) -> tuple[bytes, list[str]]:
+    """超過 max_bytes 時依序嘗試，第一個符合的就用（None＝不限）：
+    1. 無損重新壓縮（optimize）
+    2. 降成 256 色調色盤（保留透明度；小圖看不太出差別，但算有損）"""
+    if max_bytes is None or len(data) <= max_bytes:
+        return data, []
+    limit = _kb(max_bytes)
+    im = Image.open(io.BytesIO(data))
     im.load()
     out = _png(im, optimize=True)
-    if len(out) <= spec.max_bytes:
-        return out, notes + [f"{len(data) // 1024} KB 超過 {spec.label} 上限 {limit_kb} KB，已無損壓縮到 {len(out) // 1024} KB"]
+    if len(out) <= max_bytes:
+        return out, [f"{_kb(len(data))} 超過 {label} 上限 {limit}，已無損壓縮到 {_kb(len(out))}"]
     q = im.convert("RGBA").quantize(colors=256, method=Image.Quantize.FASTOCTREE)
     out2 = _png(q, optimize=True)
-    if len(out2) <= spec.max_bytes:
-        return out2, notes + [f"{len(data) // 1024} KB 超過 {spec.label} 上限 {limit_kb} KB，已降為 256 色壓縮到 {len(out2) // 1024} KB（有損）"]
-    return data, notes + [f"{len(data) // 1024} KB 超過 {spec.label} 上限 {limit_kb} KB，壓縮後仍有 {len(out2) // 1024} KB，請手動處理"]
+    if len(out2) <= max_bytes:
+        return out2, [f"{_kb(len(data))} 超過 {label} 上限 {limit}，已降為 256 色壓縮到 {_kb(len(out2))}（有損）"]
+    return data, [f"{_kb(len(data))} 超過 {label} 上限 {limit}，壓縮後仍有 {_kb(len(out2))}，請手動處理"]
