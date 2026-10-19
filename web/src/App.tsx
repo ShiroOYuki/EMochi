@@ -3,6 +3,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
+import { UpdateBadge } from "./components/Updates";
 import { desktop } from "./desktop";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
@@ -63,7 +64,9 @@ export default function App() {
             </TabsHighlight>
           </nav>
         </Tabs>
-        <CodexUsage className="ml-auto" />
+        <div className="ml-auto" />
+        <UpdateBadge />
+        <CodexUsage />
         <ThemeToggle />
         <SettingsButton />
         <WindowControls />

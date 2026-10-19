@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type SettingsPlan, type SettingsValues } from "../api";
 import { desktop } from "../desktop";
 import { setThemePref, useThemePref, type ThemePref } from "../theme";
+import { AboutUpdates } from "./Updates";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -141,6 +142,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
               <Num value={vals.text_timeout_min} lim={info.limits.text_timeout_min} onChange={(v) => setVals({ ...vals, text_timeout_min: v })} />
             </Field>
           </Group>
+
+          {desktop && (
+            <Group title="關於">
+              <AboutUpdates />
+            </Group>
+          )}
 
           <Group title="Codex">
             <Field label="執行參數" hint="生圖時實際執行的指令（不含參考圖與 prompt）；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔">

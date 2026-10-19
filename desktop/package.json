@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "electron-builder --publish always"
   },
   "devDependencies": {
     "electron": "44.9.0",
@@ -18,16 +19,43 @@
   "build": {
     "appId": "com.ciel.emochi",
     "productName": "EMochi",
-    "directories": { "output": "release", "buildResources": "assets" },
-    "files": ["main.js", "preload.js", "assets/icon.png"],
-    "extraResources": [{ "from": "../dist/emochi-server", "to": "server" }],
-    "win": { "target": "nsis", "icon": "assets/icon.ico" },
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "updater.js",
+      "assets/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/emochi-server",
+        "to": "server"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "EMochi",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ShiroOYuki",
+        "repo": "EMochi",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
   }
 }

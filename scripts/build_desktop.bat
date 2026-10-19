@@ -1,7 +1,8 @@
 @echo off
-rem 打包桌面版：前端 build → 後端 PyInstaller → Electron 安裝檔（desktop\release\EMochi Setup <版本>.exe）
-rem 只想要免安裝資料夾（desktop\release\win-unpacked）：build_desktop.bat --dir
 chcp 65001 >nul
+rem Build the desktop app locally: web build -> backend (PyInstaller) -> Electron installer (desktop\release).
+rem   scripts\build_desktop.bat --dir   unpacked folder only (desktop\release\win-unpacked)
+rem Releases for users are built by GitHub Actions instead (scripts\release.bat + release.yml).
 cd /d "%~dp0.."
 
 echo [1/3] 前端

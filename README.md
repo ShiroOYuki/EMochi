@@ -39,6 +39,18 @@ scripts\build_desktop.bat          :: 前端 build → 後端 PyInstaller（dist
 scripts\build_desktop.bat --dir    :: 只要免安裝資料夾 desktop\release\win-unpacked
 ```
 
+### 自動更新與發版
+
+安裝版啟動 10 秒後、之後每 6 小時檢查一次 [Releases](https://github.com/ShiroOYuki/EMochi/releases)，有新版就在背景下載（只下載變動的部分），下載好 Navbar 會出現「重新啟動更新」；不按的話，下次關閉 EMochi 時自動安裝。設定頁「關於」可以看目前版本、手動檢查。開發模式不檢查。
+
+發新版（在 main 分支、沒有未 commit 的變更）：
+
+```cmd
+scripts\release.bat 0.2.0 --push    :: 改 desktop/package.json 版號 → commit → 打 tag v0.2.0 → 推上去
+```
+
+推上 `v*` tag 後，GitHub Actions（`.github/workflows/release.yml`）會跑測試、打包，並把安裝檔、`latest.yml`、`.blockmap` 發到 Releases，已安裝的 EMochi 就會收到更新。平常推 main、開 PR 只跑 `ci.yml`（後端測試＋前端 build）。repo 必須是公開的，App 才下載得到 Releases。
+
 開發：`cd desktop && npm install && npm run dev`（用 uv 跑原始碼的後端，資料和網頁版共用原始碼資料夾）。
 架構：Electron（`desktop/main.js`）找一個空的 port 啟動後端 → 等 `/api/health` → 視窗載入同一套 React 前端；選資料夾改用原生視窗（`desktop/preload.js` 的 `window.emochi`）。
 
@@ -110,9 +122,12 @@ docs/
 tools/
   postprocess.py    切割、去背、縮放的核心（app/pipeline.py 使用）
 scripts/app.bat     雙擊啟動網頁工具
-scripts/build_desktop.bat  打包桌面版
+scripts/build_desktop.bat  打包桌面版（本機）
+scripts/release.bat 發新版（改版號、打 tag）
+.github/workflows/  ci.yml（測試）、release.yml（v* tag 打包發版）
 desktop/
   main.js           Electron 主程序：啟動後端、視窗、關閉時清理
+  updater.js        自動更新（electron-updater）
   preload.js        給前端的原生功能（選資料夾）
   emochi-server.spec  PyInstaller 打包後端
   server_entry.py   打包後端的進入點

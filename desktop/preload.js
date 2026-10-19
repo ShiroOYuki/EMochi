@@ -5,6 +5,17 @@ contextBridge.exposeInMainWorld("emochi", {
   version: ipcRenderer.sendSync("app-version"),
   pickFolder: (initial) => ipcRenderer.invoke("pick-folder", initial),
   setTheme: (pref) => ipcRenderer.send("set-theme", pref),
+  updates: {
+    get: () => ipcRenderer.invoke("update-get"),
+    check: () => ipcRenderer.invoke("update-check"),
+    /** force：有 Codex 在跑也照樣更新 */
+    install: (force) => ipcRenderer.invoke("update-install", !!force),
+    onStatus: (cb) => {
+      const h = (_e, s) => cb(s);
+      ipcRenderer.on("update-status", h);
+      return () => ipcRenderer.removeListener("update-status", h);
+    },
+  },
   window: {
     minimize: () => ipcRenderer.send("win", "minimize"),
     toggleMaximize: () => ipcRenderer.send("win", "toggle-maximize"),

@@ -6,6 +6,7 @@ const { spawn, execFile } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
+const updater = require("./updater");
 
 const DEV = !app.isPackaged;
 const REPO = path.resolve(__dirname, "..");
@@ -240,6 +241,10 @@ ipcMain.handle("pick-folder", async (_e, initial) => {
 
 async function start() {
   createWindow();
+  updater.setup({
+    codexRunning: async () => (await health()).codex_running,
+    beforeInstall: async () => { quitting = true; saveBounds(); await stopServer(); },
+  });
   try {
     const port = await freePort(PREFERRED_PORT);
     baseUrl = `http://127.0.0.1:${port}`;
