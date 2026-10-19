@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
 import { Check, Modal, Select } from "../components/ui";
+import { useStickers } from "../stickers";
 
 const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", t56: "Twitch 56", t28: "Twitch 28", discord: "Discord 128" };
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
@@ -40,7 +41,16 @@ export default function GalleryPage({ active }: { active: boolean }) {
   useEffect(() => {
     if (mode !== "__all" && allStyles.length && !styles.some((s) => s.id === mode)) setMode("__all");
   }, [styles, allStyles.length, mode, setMode]);
+  // 組別篩選：用「表情」分頁的分組（0＝全部、-1＝不在任何分組；其他＝分組 id）
+  const { groups: stickerGroups } = useStickers();
   const [group, setGroup] = useState(0);
+  useEffect(() => { if (group > 0 && !stickerGroups.some((g) => g.id === group)) setGroup(0); }, [stickerGroups, group]);
+  const inGroup = useMemo(() => {
+    if (group === 0) return null;
+    if (group === -1) { const all = new Set(stickerGroups.flatMap((g) => g.ids)); return (id: number) => !all.has(id); }
+    const ids = new Set(stickerGroups.find((g) => g.id === group)?.ids ?? []);
+    return (id: number) => ids.has(id);
+  }, [group, stickerGroups]);
   const [selArr, setSelArr] = useStored<string[]>("gallery.sel", []);
   const sel = useMemo(() => new Set(selArr), [selArr]);
   const [open, setOpen] = useState<number | null>(null);
@@ -48,7 +58,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
   const reload = useCallback(async () => setStyles(await api.get<GalleryStyle[]>("/api/gallery")), []);
   useEffect(() => { if (active) reload(); }, [active, reload]);
 
-  const ok = (it: GalleryItem) => !group || (group === 5 ? it.id > 32 : it.group === group);
+  const ok = (it: GalleryItem) => !inGroup || inGroup(it.id);
   // 單一畫風：該畫風全部；並排比較：依貼圖編號分組
   const { view, rows } = useMemo(() => {
     if (mode !== "__all") {
@@ -60,7 +70,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
     const rs = ids.map((id) => ({ id, entries: styles.flatMap((s) => { const it = s.items.find((x) => x.id === id); return it ? [{ s, it }] : []; }) }));
     return { view: rs.flatMap((r) => r.entries), rows: rs };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styles, mode, group]);
+  }, [styles, mode, inGroup]);
 
   const setSel = (keys: string[], on: boolean) => {
     const next = new Set(selArr);
@@ -138,8 +148,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
             {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
-        <Select label="組別" className="!w-32 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
-          options={[{ value: 0, label: "全部組別" }, ...[1, 2, 3, 4].map((g) => ({ value: g, label: `第 ${g} 組` })), { value: 5, label: "自訂表情" }]} />
+        <Select label="組別" className="!w-40 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
+          options={[{ value: 0, label: "全部組別" }, ...stickerGroups.map((g) => ({ value: g.id, label: g.name })), { value: -1, label: "未分組" }]} />
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), false)}>取消此頁</button>
         <button className="btn btn-sm" onClick={() => setSelArr(view.map(keyOf).filter((k) => !sel.has(k)).concat(selArr.filter((k) => !view.some((e) => keyOf(e) === k))))}>反選此頁</button>

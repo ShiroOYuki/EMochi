@@ -13,7 +13,8 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 DATA = Path(tempfile.mkdtemp(prefix="emochi_test_"))
 (DATA / "config").mkdir()
-for name in ("prompt_template.json", "stickers.json", "styles.example.json"):
+# 只放 example：順便測到「沒有 stickers.json 時讀 stickers.example.json」
+for name in ("prompt_template.json", "stickers.example.json", "styles.example.json"):
     shutil.copy(REPO / "config" / name, DATA / "config" / name)
 os.environ["EMOCHI_ROOT"] = str(DATA)
 

@@ -37,7 +37,10 @@ def write_json(path: Path, data) -> None:
 # ---------- 貼圖清單 ----------
 
 def load_stickers() -> list[dict]:
-    return read_json(CONFIG / "stickers.json", [])
+    """config/stickers.json 是本地資料（不進版控）；還沒有的話用 stickers.example.json（基礎 32 種）。
+    第一次在網頁上新增／編輯／刪除表情時才寫出 stickers.json"""
+    items = read_json(CONFIG / "stickers.json")
+    return items if items is not None else read_json(CONFIG / "stickers.example.json", [])
 
 
 def sticker_map() -> dict[int, dict]:
@@ -47,23 +50,6 @@ def sticker_map() -> dict[int, dict]:
 def slugify(text: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
     return s or "emote"
-
-
-def add_sticker(label: str, zh: str, prompt: str, align: str | None = None) -> dict:
-    with _lock:
-        items = load_stickers()
-        new_id = max((s["id"] for s in items), default=0) + 1
-        names = {s["name"] for s in items}
-        name = slugify(label)
-        while name in names:
-            name += "_2"
-        item = {"id": new_id, "group": 0, "name": name, "label": label.strip(),
-                "zh": zh.strip(), "prompt": prompt.strip(), "custom": True}
-        if align:
-            item["align"] = align
-        items.append(item)
-        write_json(CONFIG / "stickers.json", items)
-        return item
 
 
 # ---------- 畫風設定 ----------
