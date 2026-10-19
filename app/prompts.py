@@ -1,6 +1,6 @@
 """組 prompt：共用模板（config/prompt_template.json）＋畫風描述＋表情清單"""
 import json
-from .paths import CONFIG, read_json
+from .paths import BUILTIN_CONFIG, read_json
 
 # 每張網格的版型：依該組貼圖數量選擇
 LAYOUTS = {
@@ -17,7 +17,7 @@ GROUP_SIZE = GROUP_LAYOUTS["3x2"]
 
 
 def template() -> dict:
-    return read_json(CONFIG / "prompt_template.json", {})
+    return read_json(BUILTIN_CONFIG / "prompt_template.json", {})
 
 
 def layout_for(n: int) -> str:

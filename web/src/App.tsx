@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
+import { SettingsButton } from "./components/SettingsDialog";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
@@ -61,6 +62,7 @@ export default function App() {
         </Tabs>
         <CodexUsage className="ml-auto" />
         <ThemeToggle />
+        <SettingsButton />
       </header>
       <main className="min-h-0 flex-1">
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}

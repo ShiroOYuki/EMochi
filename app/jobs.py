@@ -10,21 +10,39 @@ import json
 import shutil
 import threading
 import time
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from . import characters, codex, pipeline, prompts, style_lib, usage
+from . import characters, codex, pipeline, prompts, settings, style_lib, usage
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, ROOT, next_style_id, read_json, sticker_map, write_json
+from .paths import OUTPUTS, ROOT, codex_path, next_style_id, read_json, sticker_map, write_json
 
-MAX_PARALLEL = 3
 BUSY = {"expanding", "previewing", "generating", "processing"}
 EDITABLE = {"draft", "preview_ready", "error"}
 
 _locks: dict[str, threading.Lock] = {}
-_pool = ThreadPoolExecutor(max_workers=MAX_PARALLEL + 2)
-_gen_slots = threading.Semaphore(MAX_PARALLEL)
+_pool = ThreadPoolExecutor(max_workers=8)   # 生圖組數另外由 _gen_slot() 限制；多出來的給擴寫、後處理
+
+# 同時生圖組數：設定頁的 max_parallel，改了立即生效（等待中的組每 2 秒重看一次上限）
+_slots = threading.Condition()
+_running_gen = 0
+
+
+@contextmanager
+def _gen_slot():
+    global _running_gen
+    with _slots:
+        while _running_gen >= max(1, int(settings.get("max_parallel"))):
+            _slots.wait(timeout=2)
+        _running_gen += 1
+    try:
+        yield
+    finally:
+        with _slots:
+            _running_gen -= 1
+            _slots.notify_all()
 
 
 def _lock(style: str) -> threading.Lock:
@@ -99,7 +117,8 @@ def recover_interrupted() -> None:
 
 
 def rel(path: Path) -> str:
-    return path.relative_to(ROOT).as_posix()
+    """存進 project.json、交給 Codex 的路徑：資料根目錄底下用相對路徑，否則絕對路徑"""
+    return codex_path(path)
 
 
 def backup(path: Path) -> None:
@@ -175,7 +194,7 @@ def style_examples(n: int = 2) -> list[str]:
 def _expand(style: str) -> None:
     try:
         p = load(style)
-        schema = codex.LOGS / style / "expand_schema.json"
+        schema = codex.logs_dir() / style / "expand_schema.json"
         schema.parent.mkdir(parents=True, exist_ok=True)
         prompts.write_schema(schema)
         style_refs = ref_paths(p)["style"]
@@ -406,7 +425,7 @@ def _group(p: dict, index: int) -> dict:
 
 
 def _run_group(style: str, index: int) -> None:
-    with _gen_slots:   # 最多同時跑 MAX_PARALLEL 組
+    with _gen_slot():   # 最多同時跑 max_parallel 組（設定頁）
         def start(p):
             gg = _group(p, index)
             gg.update(status="running", started=now(), attempts=gg.get("attempts", 0) + 1)

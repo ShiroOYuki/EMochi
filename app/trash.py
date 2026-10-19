@@ -15,12 +15,13 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from .paths import OUTPUTS, ROOT, read_json, write_json
+from .paths import OUTPUTS, characters_dir, read_json, style_lib_dir, url_path, write_json
 
-KINDS: dict[str, tuple[Path, str]] = {
-    "projects": (OUTPUTS, "project.json"),
-    "styles": (ROOT / "style_lib", "style.json"),
-    "characters": (ROOT / "characters", "character.json"),
+# 種類 → (取得所在資料夾的函式, 中繼檔名)；角色庫、畫風庫的位置可以在設定頁改，所以每次重新取
+KINDS = {
+    "projects": (lambda: OUTPUTS, "project.json"),
+    "styles": (style_lib_dir, "style.json"),
+    "characters": (characters_dir, "character.json"),
 }
 _lock = threading.Lock()
 
@@ -28,7 +29,8 @@ _lock = threading.Lock()
 def _kind(kind: str) -> tuple[Path, str]:
     if kind not in KINDS:
         raise KeyError(f"垃圾桶種類 {kind}")
-    return KINDS[kind]
+    get_dir, meta = KINDS[kind]
+    return get_dir(), meta
 
 
 def bin_dir(kind: str) -> Path:
@@ -71,13 +73,13 @@ def _thumb(kind: str, d: Path, m: dict) -> str | None:
             parts = Path(r).parts
             f = d.joinpath(*parts[2:]) if len(parts) > 2 else None
             if f and f.is_file():
-                return f.relative_to(ROOT).as_posix()
+                return url_path(f)
         return None
     imgs = m.get("images") or []
     for i in sorted(imgs, key=lambda i: not i.get("use")):
         f = d / "refs" / i["file"]
         if f.is_file():
-            return f.relative_to(ROOT).as_posix()
+            return url_path(f)
     return None
 
 

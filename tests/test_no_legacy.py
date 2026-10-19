@@ -11,6 +11,8 @@ def test_settings_defaults_and_file(data_root):
     saved = json.loads((data_root / "settings.local.json").read_text(encoding="utf-8"))
     assert saved == {"codex_args": ["exec", "-s", "workspace-write"]}
     assert settings.get("codex_args") == ["exec", "-s", "workspace-write"]
+    settings.update({"codex_args": settings.DEFAULTS["codex_args"]})   # 和預設一樣就不存
+    assert json.loads((data_root / "settings.local.json").read_text(encoding="utf-8")) == {}
     (data_root / "settings.local.json").unlink()
 
 
@@ -42,3 +44,20 @@ def test_style_examples(data_root):
     _project(data_root, "s5", block="- soft pastel shading")
     ex = jobs.style_examples()
     assert ex[0] == "- soft pastel shading"
+
+
+def test_codex_prefers_mxc(data_root, monkeypatch):
+    """生圖、文字任務都加上 --enable prefer_mxc（優先用 MXC，不強制）"""
+    from app import codex
+    seen = []
+    monkeypatch.setattr(codex, "codex_bin", lambda: "codex")
+    monkeypatch.setattr(codex, "_run", lambda cmd, *a, **k: (seen.append(cmd), (1, "exit"))[1])
+    codex.run_image("p", ["a.png"], "outputs/x.png", "2x2", data_root / "logs" / "t" / "x.log")
+    try:
+        codex.run_text("p", data_root / "s.json", data_root / "logs" / "t" / "y.log")
+    except RuntimeError:
+        pass
+    for cmd in seen:
+        i = cmd.index("--enable")
+        assert cmd[i + 1] == "prefer_mxc" and "windows.sandbox=mxc" not in " ".join(cmd)
+    assert len(seen) == 2

@@ -19,20 +19,19 @@ from pathlib import Path
 
 from . import codex, prompts
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, ROOT, read_json, write_json
+from .paths import OUTPUTS, ROOT, codex_path, read_json, style_lib_dir, write_json
 
-LIB_DIR = ROOT / "style_lib"
 _lock = threading.Lock()
 STD_RE = re.compile(r"^ref_(\d{2,})\.png$")
 PROCESS = {"closeup": {"square": 0.5, "margin": 0}, "whole": {"square": None, "margin": 0.04}}
 
 
 def _json(sid: str) -> Path:
-    return LIB_DIR / sid / "style.json"
+    return style_lib_dir() / sid / "style.json"
 
 
 def refs_dir(sid: str) -> Path:
-    return LIB_DIR / sid / "refs"
+    return style_lib_dir() / sid / "refs"
 
 
 def now() -> str:
@@ -47,7 +46,7 @@ def get(sid: str) -> dict | None:
 
 
 def list_all() -> list[dict]:
-    out = [s for f in sorted(LIB_DIR.glob("*/style.json")) if (s := get(f.parent.name))] if LIB_DIR.exists() else []
+    out = [s for f in sorted(style_lib_dir().glob("*/style.json")) if (s := get(f.parent.name))] if style_lib_dir().exists() else []
     return sorted(out, key=lambda s: s.get("created", ""))
 
 
@@ -61,7 +60,7 @@ def _new_id() -> str:
     from .trash import reserved_ids
     used = reserved_ids("styles")
     n = 1
-    while (LIB_DIR / f"st{n}").exists() or f"st{n}" in used:
+    while (style_lib_dir() / f"st{n}").exists() or f"st{n}" in used:
         n += 1
     return f"st{n}"
 
@@ -143,7 +142,7 @@ def delete(sid: str) -> None:
 
 def rel_paths(sid: str, used_only: bool = True) -> list[str]:
     s = get(sid) or {"images": []}
-    return [(refs_dir(sid) / i["file"]).relative_to(ROOT).as_posix() for i in s["images"] if i["use"] or not used_only]
+    return [codex_path(refs_dir(sid) / i["file"]) for i in s["images"] if i["use"] or not used_only]
 
 
 # ---------- 讓 Codex 看範例貼圖寫畫風描述 ----------
@@ -158,7 +157,7 @@ def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
     imgs = rel_paths(sid)
     if not imgs:
         raise ValueError("請至少勾選一張範例貼圖")
-    schema = codex.LOGS / "style_lib" / f"{sid}_schema.json"
+    schema = codex.logs_dir() / "style_lib" / f"{sid}_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     prompts.write_schema(schema)
     answer = codex.run_text(prompts.expand_request_prompt(s.get("request", ""), examples, imgs),
