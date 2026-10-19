@@ -15,7 +15,7 @@ import StickersPage from "./pages/Stickers";
 
 type Tab = "gen" | "stickers" | "styles" | "characters" | "gallery";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "gen", label: "Gen 生成" }, { id: "stickers", label: "表情" }, { id: "styles", label: "畫風" }, { id: "characters", label: "角色" }, { id: "gallery", label: "Gallery 圖庫" },
+  { id: "gen", label: "生成" }, { id: "stickers", label: "表情" }, { id: "styles", label: "畫風" }, { id: "characters", label: "角色" }, { id: "gallery", label: "圖庫" },
 ];
 const readTab = (): Tab => TABS.find((t) => location.hash.startsWith(`#/${t.id}`))?.id ?? "gen";
 

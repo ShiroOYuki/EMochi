@@ -131,7 +131,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             <Field label="同時生圖組數" hint="調低比較不容易撞到 Codex 額度上限；改了之後，排隊中的組別也照新的上限">
               <Seg options={[1, 2, 3].map((n) => [n, `${n} 組`])} value={vals.max_parallel} onChange={(v) => setVals({ ...vals, max_parallel: v })} />
             </Field>
-            <Field label="預設網格版型" hint="Gen「選擇貼圖」步驟一開始選哪一個">
+            <Field label="預設網格版型" hint="生成「選擇貼圖」步驟一開始選哪一個">
               <Seg options={info.layouts.map((l) => [l, LAYOUT_LABEL[l] ?? l])} value={vals.default_layout} onChange={(v) => setVals({ ...vals, default_layout: v as SettingsValues["default_layout"] })} />
             </Field>
             <Field label="生圖逾時" hint="單組超過就停掉、標成逾時">

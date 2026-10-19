@@ -244,7 +244,7 @@ function GroupCard({ g, first, last, overIndex, children, onRename, onDefault, o
           : <input className="input w-56 py-1" autoFocus value={name} onChange={(e) => setName(e.target.value)} onBlur={commit}
               onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setName(null); }} />}
         <span className="text-xs text-mute">{items.length} 張</span>
-        <label className="ml-3 flex items-center gap-1.5 text-xs text-mute" title="Gen 新專案的「選擇貼圖」步驟預設勾選這組">
+        <label className="ml-3 flex items-center gap-1.5 text-xs text-mute" title="生成新專案時，「選擇貼圖」步驟預設勾選這組">
           <Check checked={g.default} onCheckedChange={onDefault} />Gen 預設勾選
         </label>
         <div className="ml-auto flex items-center gap-1">
@@ -278,7 +278,7 @@ function ConfirmDelete({ sticker, groups, onClose, onDone }: { sticker: Sticker 
     <Modal open={!!sticker} onClose={() => !busy && onClose()} label="刪除表情">
       {sticker && <div className="space-y-3">
         <h3 className="text-lg">刪除表情 #{sticker.id}「{sticker.label}」？</h3>
-        <p className="text-sm text-mute">Gen 之後就選不到它{inGroups.length ? `，也會從「${inGroups.join("」「")}」拿掉` : ""}。已經生成的成品留在 Gallery；編號不會被新表情重用，之後可以從左下角「已刪除的表情」還原。</p>
+        <p className="text-sm text-mute">生成時就選不到它{inGroups.length ? `，也會從「${inGroups.join("」「")}」拿掉` : ""}。已經生成的成品留在圖庫；編號不會被新表情重用，之後可以從左下角「已刪除的表情」還原。</p>
         {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose} disabled={busy}>取消</button>

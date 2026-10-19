@@ -225,7 +225,7 @@ function StyleView({ s, act, onRemove }: { s: LibStyle; act: (fn: () => Promise<
 
       <div className="flex items-center gap-3">
         <DeleteButton onClick={onRemove} title="移到垃圾桶" />
-        <span className="ml-auto text-xs text-mute">{s.style_block ? "到 Gen 分頁「新增畫風」就能選這個畫風" : "分析完才能在 Gen 使用"}</span>
+        <span className="ml-auto text-xs text-mute">{s.style_block ? "到「生成」分頁新增貼圖時就能選這個畫風" : "分析完才能在「生成」使用"}</span>
         <button className="btn btn-primary" disabled={!dirty} onClick={() => act(() => api.patch<LibStyle>(base, body()))}>儲存修改</button>
       </div>
     </>

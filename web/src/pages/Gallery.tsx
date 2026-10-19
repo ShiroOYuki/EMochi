@@ -178,32 +178,29 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-full flex-col">
-      {charOpts.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-          <span className="text-sm text-mute">角色</span>
-          {[{ id: "__all", name: "全部", n: allStyles.length }, ...charOpts].map((o) => (
-            <button key={o.id} onClick={() => withVT(() => setCharF(o.id))} aria-pressed={charF === o.id}
-              className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${charF === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
-              {o.name}<span className="ml-1 opacity-70">{o.n} 套</span>
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode("__all"))}>並排比較（全部版本）</button>
-        {styles.map((s) => (
-          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode(s.id))}>
-            {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
-          </button>
-        ))}
+      {/* 篩選：角色、畫風（並排比較或單一套）、組別都用下拉；並排比較時可切換每組的排列方式 */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
+        {charOpts.length > 1 && (
+          <Select label="角色" className="!w-48 !py-1" value={charF} onChange={(v) => withVT(() => setCharF(v))}
+            options={[{ value: "__all", label: `全部角色（${allStyles.length} 套）` },
+              ...charOpts.map((o) => ({ value: o.id, label: `${o.name}（${o.n} 套）` }))]} />
+        )}
+        <Select label="畫風" className="!w-60 !py-1" value={mode} onChange={(v) => withVT(() => setMode(v))}
+          options={[{ value: "__all", label: `並排比較（全部 ${styles.length} 套）` },
+            ...styles.map((s) => ({ value: s.id, label: `${s.id}${s.name ? ` ${s.name}` : ""}（${s.items.length} 張）` }))]} />
         <Select label="組別" className="!w-40 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
           options={[{ value: 0, label: "全部組別" }, ...stickerGroups.map((g) => ({ value: g.id, label: g.name })), { value: -1, label: "未分組" }]} />
         {rows && (
-          <button className="btn btn-sm" aria-pressed={oneLine} onClick={() => withVT(() => setOneLine((v) => !v))}
-            title={oneLine ? "每組一列，放不下的用左右箭頭翻頁" : "每組的卡片自動換行"}>
-            {oneLine ? "⇆ 單行" : "↩ 自動換行"}
-          </button>
+          <div className="flex items-center rounded-full bg-panel2 p-0.5 text-xs" role="radiogroup" aria-label="每組的排列方式">
+            {([[true, "單行", "每組一列，放不下的用左右箭頭翻頁"], [false, "換行", "每組的卡片依寬度自動換行"]] as const).map(([v, label, hint]) => (
+              <button key={label} role="radio" aria-checked={oneLine === v} title={hint} onClick={() => oneLine !== v && withVT(() => setOneLine(v))}
+                className={`rounded-full px-3 py-1 transition ${oneLine === v ? "bg-panel text-text shadow-[var(--shadow-soft)]" : "text-mute hover:text-text"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         )}
+        <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), false)}>取消此頁</button>
         <button className="btn btn-sm" onClick={() => setSelArr(view.map(keyOf).filter((k) => !sel.has(k)).concat(selArr.filter((k) => !view.some((e) => keyOf(e) === k))))}>反選此頁</button>
@@ -214,9 +211,9 @@ export default function GalleryPage({ active }: { active: boolean }) {
 
       <div className="flex min-h-0 flex-1">
         <div className="scroll-inset-panel min-w-0 flex-1 overflow-y-auto p-4">
-          {allStyles.length === 0 && <p className="text-mute">還沒有成品。到 Gen 分頁完成一套畫風後就會出現在這裡。</p>}
+          {allStyles.length === 0 && <p className="text-mute">還沒有成品。到「生成」分頁完成一套畫風後就會出現在這裡。</p>}
           {rows ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: oneLine ? "minmax(0, 1fr)" : `repeat(auto-fill, minmax(${Math.max(300, styles.length * 142 + 24)}px, 1fr))` }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: oneLine ? "minmax(0, 1fr)" : `repeat(auto-fill, minmax(min(100%, ${Math.max(300, styles.length * 142 + 24)}px), 1fr))` }}>
               {rows.map((r) => {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);

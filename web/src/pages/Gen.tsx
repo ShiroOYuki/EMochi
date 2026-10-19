@@ -52,7 +52,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
   const askDelete = (p: Pick<ProjectSummary, "id" | "name" | "status">) => setToDelete({
     id: p.id, title: p.name,
-    warn: p.status === "done" ? "這個專案已完成，它的貼圖也會一起從 Gallery 消失（還原後會回來）。" : undefined,
+    warn: p.status === "done" ? "這個專案已完成，它的貼圖也會一起從圖庫消失（還原後會回來）。" : undefined,
   });
   const doDelete = async (id: string) => {
     await api.del(`/api/projects/${id}`);
@@ -63,7 +63,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   const [menu, openMenu] = useContextMenu();
   const menuFor = (p: ProjectSummary): MenuItem[] => [
     { label: "開啟", icon: MenuIcons.open, onSelect: () => setCurrent(p.id) },
-    ...(p.status === "done" ? [{ label: "在 Gallery 查看", icon: MenuIcons.gallery, onSelect: onOpenGallery }] : []),
+    ...(p.status === "done" ? [{ label: "在圖庫查看", icon: MenuIcons.gallery, onSelect: onOpenGallery }] : []),
     { label: `複製編號 ${p.id}`, icon: MenuIcons.copy, onSelect: () => copyText(p.id) },
     "sep",
     { label: "刪除", icon: MenuIcons.trash, danger: true, disabled: BUSY.includes(p.status), hint: BUSY.includes(p.status) ? "執行中不能刪除" : undefined, onSelect: () => askDelete(p) },
@@ -205,7 +205,7 @@ type ViewProps = {
 
 function ProjectView({ p, stickers, act, previewIds, maxParallel, defaultLayout, onOpenGallery, chars, onDelete }: ViewProps) {
   const stage = { expanding: 1, draft: 1, previewing: 2, preview_ready: 3, generating: 4, review: 4, processing: 5, done: 5 }[p.status];
-  const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入 Gallery"];
+  const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入圖庫"];
   const byId = useMemo(() => new Map(stickers.map((s) => [s.id, s])), [stickers]);
 
   return (
@@ -412,14 +412,14 @@ function GroupsStep({ p, act, byId, onOpenGallery }: { p: Project; act: ViewProp
         {p.status === "review" && failed > 0 && <span className="text-xs text-warn">失敗的組不會被處理，可以先按「重生」</span>}
         {p.status === "done" ? (
           <>
-            <span className="text-ok">已完成 {p.finished_ids?.length ?? 0} 張，已放入 Gallery</span>
+            <span className="text-ok">已完成 {p.finished_ids?.length ?? 0} 張，已放入圖庫</span>
             <button className="btn" onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/reopen`))}>重新開啟（再重生某組）</button>
-            <button className="btn btn-primary" onClick={onOpenGallery}>前往 Gallery</button>
+            <button className="btn btn-primary" onClick={onOpenGallery}>前往圖庫</button>
           </>
         ) : (
           <button className="btn btn-primary" disabled={p.status !== "review" || done === 0}
             onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/finalize`))}>
-            確認，處理並放入 Gallery
+            確認，處理並放入圖庫
           </button>
         )}
       </div>
