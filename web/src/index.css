@@ -139,10 +139,21 @@ body {
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-acc) 45%, transparent); outline-offset: 2px; }
 ::selection { background: color-mix(in srgb, var(--color-pink) 35%, transparent); }
 
+/* 俐落的緩動：快速出發、平順停下、不回彈（跟 ui.tsx 的 SPRING 同一種手感，給純 CSS 的動畫用） */
+:root { --ease-snap: cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Gallery 切換篩選的 View Transitions：有命名的卡片滑到新位置；整頁其他部分直接換，不做整片淡入淡出 */
+::view-transition-group(*) { animation-duration: 280ms; animation-timing-function: var(--ease-snap); }
+::view-transition-old(*), ::view-transition-new(*) { animation-duration: 180ms; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+
 @layer components {
+  /* 按鈕：按下時微縮（主要按鈕另外往下沉），放開時快速彈回 */
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 rounded-full border border-line bg-panel px-4 py-1.5 text-sm text-text transition
-      hover:border-acc hover:text-acc disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-text;
+      hover:border-acc hover:text-acc active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-text disabled:active:scale-100;
+    transition-timing-function: var(--ease-snap);
+    transition-duration: 160ms;
   }
   /* 主要按鈕：底部一條深色邊，按下時往下沉，像軟糖 */
   .btn-primary {
@@ -165,8 +176,16 @@ body {
   .sticker-img {
     filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
       drop-shadow(0 5px 6px rgb(52 49 90 / 0.22));
-    transition: transform 0.18s ease;
+    transition: transform 0.28s var(--ease-snap);
   }
-  .sticker-on .sticker-img { transform: translateY(-4px) rotate(-3deg); }
-  @media (prefers-reduced-motion: reduce) { .sticker-img { transition: none; } .sticker-on .sticker-img { transform: none; } }
+  /* 滑過：貼紙微微浮起放大；勾選：翹起來斜一點；按下卡片：整張輕壓 */
+  .sticker-card { transition-property: color, background-color, border-color, scale; transition-timing-function: var(--ease-snap); transition-duration: 160ms; }
+  .sticker-card:active { scale: 0.97; }
+  .sticker-card:hover .sticker-img { transform: translateY(-2px) scale(1.04); }
+  .sticker-on .sticker-img, .sticker-on.sticker-card:hover .sticker-img { transform: translateY(-4px) rotate(-3deg) scale(1.02); }
+  @media (prefers-reduced-motion: reduce) {
+    .sticker-img, .sticker-card { transition: none; }
+    .sticker-card:active { scale: 1; }
+    .sticker-card:hover .sticker-img, .sticker-on .sticker-img, .sticker-on.sticker-card:hover .sticker-img { transform: none; }
+  }
 }

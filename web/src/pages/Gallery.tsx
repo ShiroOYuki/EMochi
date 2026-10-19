@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
 import { Check, Modal } from "../components/ui";
 
@@ -6,6 +8,7 @@ const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", 
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
+const VT_MAX = 120;   // 一次最多替幾個元素做位置動畫（只算畫面上看得到的）
 
 function useStored<T>(key: string, init: T) {
   const [v, setV] = useState<T>(() => {
@@ -66,6 +69,29 @@ export default function GalleryPage({ active }: { active: boolean }) {
   };
   const toggle = (k: string) => setSel([k], !sel.has(k));
 
+  // 切換角色／畫風／組別時，用瀏覽器原生的 View Transitions 讓卡片滑到新位置（留下的滑過去、消失的淡出、新的淡入）。
+  // 只替「畫面上看得到的」卡片命名（切換前後各量一次），畫面外的直接換，所以幾百張也不會卡；
+  // 動畫結束就把名字清掉。系統設定減少動態效果時直接切換
+  const reduce = useReducedMotion();
+  const canVT = !reduce && "startViewTransition" in document;
+  const withVT = (fn: () => void) => {
+    if (!canVT) return fn();
+    const els = () => document.querySelectorAll<HTMLElement>("[data-vt]");
+    const nameVisible = () => {
+      let n = 0;
+      els().forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const vis = r.width > 0 && r.bottom > -80 && r.top < innerHeight + 80 && n < VT_MAX;
+        if (vis) n++;
+        el.style.viewTransitionName = vis ? el.dataset.vt! : "";
+      });
+    };
+    nameVisible();
+    const t = document.startViewTransition(() => { flushSync(fn); nameVisible(); });
+    t.finished.finally(() => els().forEach((el) => { el.style.viewTransitionName = ""; }));
+  };
+  const vtKey = (k: string) => `g-${k.replace(/[^\w-]/g, "_")}`;
+
   useEffect(() => {
     if (open === null) return;
     const on = (e: KeyboardEvent) => {
@@ -81,7 +107,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
     const k = keyOf(e), on = sel.has(k);
     return (
       <div key={k} onClick={() => setOpen(i)}
-        className={`relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center transition ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
+        data-vt={vtKey(k)}
+        className={`sticker-card relative w-[136px] cursor-pointer rounded-[20px] border-2 p-2.5 pt-3 text-center ${on ? "sticker-on border-pink bg-pink-soft" : "border-transparent bg-panel2 hover:border-line"}`}>
         <button aria-label={on ? "取消勾選" : "勾選"} onClick={(ev) => { ev.stopPropagation(); toggle(k); }}
           className={`absolute left-2 top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 text-xs transition ${on ? "border-pink bg-pink text-white" : "border-line bg-panel text-transparent hover:border-pink"}`}>✓</button>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-panel px-2 text-[11px] text-mute">{mode === "__all" ? e.s.id : `#${e.it.id}`}</span>
@@ -97,7 +124,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
           <span className="text-sm text-mute">角色</span>
           {[{ id: "__all", name: "全部", n: allStyles.length }, ...charOpts].map((o) => (
-            <button key={o.id} onClick={() => setCharF(o.id)} aria-pressed={charF === o.id}
+            <button key={o.id} onClick={() => withVT(() => setCharF(o.id))} aria-pressed={charF === o.id}
               className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${charF === o.id ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}>
               {o.name}<span className="ml-1 opacity-70">{o.n} 套</span>
             </button>
@@ -105,13 +132,13 @@ export default function GalleryPage({ active }: { active: boolean }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => setMode("__all")}>並排比較（全部版本）</button>
+        <button className={`btn btn-sm ${mode === "__all" ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode("__all"))}>並排比較（全部版本）</button>
         {styles.map((s) => (
-          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => setMode(s.id)}>
+          <button key={s.id} title={s.name} className={`btn btn-sm ${mode === s.id ? "btn-primary" : ""}`} onClick={() => withVT(() => setMode(s.id))}>
             {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
-        <select className="input !w-32 !py-1" value={group} onChange={(e) => setGroup(+e.target.value)}>
+        <select className="input !w-32 !py-1" value={group} onChange={(e) => { const g = +e.target.value; withVT(() => setGroup(g)); }}>
           <option value={0}>全部組別</option>{[1, 2, 3, 4].map((g) => <option key={g} value={g}>第 {g} 組</option>)}<option value={5}>自訂表情</option>
         </select>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
@@ -131,11 +158,13 @@ export default function GalleryPage({ active }: { active: boolean }) {
                 const it0 = r.entries[0].it, start = view.indexOf(r.entries[0]);
                 const keys = r.entries.map(keyOf);
                 return (
-                  <div key={r.id} className="rounded-[22px] bg-panel p-3.5 shadow-[var(--shadow-soft)]">
+                  <div key={r.id} className="rounded-[22px] bg-panel p-3.5 shadow-[var(--shadow-soft)]" data-vt={`gr-${r.id}`}>
+                    {/* 標題列不換行：名稱、按鈕固定一行；中文說明放不下就截斷成「…」，滑過看完整（Tooltip） */}
                     <div className="mb-2 flex items-center gap-2 text-sm">
-                      <span>#{r.id} {it0.label}</span><span className="text-xs text-mute">{it0.zh}</span>
-                      <button className="btn btn-sm ml-auto" onClick={() => setSel(keys, true)}>全選此組</button>
-                      <button className="btn btn-sm" onClick={() => setSel(keys, false)}>取消此組</button>
+                      <span className="shrink-0 whitespace-nowrap">#{r.id} {it0.label}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs text-mute" title={it0.zh}>{it0.zh}</span>
+                      <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, true)}>全選此組</button>
+                      <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
                     <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>
                   </div>

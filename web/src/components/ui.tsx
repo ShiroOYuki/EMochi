@@ -47,6 +47,14 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
   // 關閉時呼叫端通常會把內容清掉（例如 target 變 null）；留住最後一次的內容，收起動畫期間框才不會先變空白
   const last = useRef<ReactNode>(children);
   if (open) last.current = children;
+  // 記住打開前焦點在哪（例如垃圾桶按鈕），關閉後還給它；沒有可聚焦的來源就維持瀏覽器預設
+  const opener = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) {
+    const a = document.activeElement;
+    opener.current = a instanceof HTMLElement && a !== document.body ? a : null;
+  }
+  wasOpen.current = open;
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogPortal>
@@ -54,6 +62,7 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
         <DialogContent aria-describedby={undefined} from="top" transition={reduce ? { duration: 0 } : SPRING}
           // 打開時焦點放在框本身（仍鎖在框內），不要自動跳到第一顆按鈕上冒出焦點框；框裡有 autoFocus 的就交給它
           onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; if (!el.contains(document.activeElement)) el.focus(); }}
+          onCloseAutoFocus={(e) => { const o = opener.current; if (o?.isConnected) { e.preventDefault(); o.focus({ preventScroll: true }); } }}
           className={cn("fixed top-1/2 left-1/2 z-50 max-h-[92vh] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
             wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]")}>
           <DialogTitle className="sr-only">{label}</DialogTitle>
@@ -143,6 +152,38 @@ export function TitleTooltips() {
         </TooltipPortal>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+/** 單行橫向列：內容固定一行、不換行；放不下時可以橫向捲動（滑鼠滾輪也能捲），並在被截掉的那一側淡出提示還有內容 */
+export function ScrollRow({ children, className }: { children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setEdge({ l: el.scrollLeft > 1, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 });
+    // 直向滾輪轉成橫向捲動（只在真的放不下時攔截，否則照常捲動頁面）
+    const wheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { ro.disconnect(); el.removeEventListener("scroll", update); el.removeEventListener("wheel", wheel); };
+  }, []);
+  const mask = edge.l || edge.r
+    ? `linear-gradient(to right, ${edge.l ? "transparent, #000 24px" : "#000"}, ${edge.r ? "#000 calc(100% - 24px), transparent" : "#000"})`
+    : undefined;
+  return (
+    <div ref={ref} className={cn("flex min-w-0 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0", className)}
+      style={{ maskImage: mask, WebkitMaskImage: mask }}>
+      {children}
+    </div>
   );
 }
 

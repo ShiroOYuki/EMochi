@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, BUSY, fileUrl, libCover, libImageUrl, readFiles, type Character, type LibStyle, type Group, type Project, type ProjectSummary, type RefRole, type Sticker, type Upload } from "../api";
-import { Elapsed, Modal, Section, Spinner, StatusBadge } from "../components/ui";
+import { Elapsed, Modal, ScrollRow, Section, Spinner, StatusBadge } from "../components/ui";
 import StickerPicker from "../components/StickerPicker";
 import RefPicker, { type TempRef } from "../components/RefPicker";
 import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
@@ -427,19 +427,22 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
   const canRegen = (p.status === "review" || p.status === "generating") && (g.status === "done" || g.status === "failed");
   return (
     <div className="rounded-2xl border border-line bg-panel2 p-3">
+      {/* 標題列與表情標籤都固定一行：放不下時橫向捲動（邊緣淡出），四組卡片的高度才會一致 */}
       <div className="mb-2 flex items-center gap-2">
-        <span >第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}，{g.ids.length} 張</span>
-        <StatusBadge status={g.status} />{g.status === "running" && <Elapsed since={g.started} />}
-        {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
-        {g.status !== "running" && <TokenBadge tokens={g.tokens} />}
-        <div className="ml-auto flex gap-1.5">
+        <ScrollRow className="min-w-0 flex-1 items-center gap-2">
+          <span>第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}，{g.ids.length} 張</span>
+          <StatusBadge status={g.status} />{g.status === "running" && <Elapsed since={g.started} />}
+          {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
+          {g.status !== "running" && <TokenBadge tokens={g.tokens} />}
+        </ScrollRow>
+        <div className="flex shrink-0 gap-1.5 whitespace-nowrap">
           {g.log && <LogLink path={g.log} style={p.id} />}
           <button className="btn btn-sm" disabled={!canRegen} onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/groups/${g.index}/regenerate`))}>重生</button>
         </div>
       </div>
-      <div className="mb-2 flex flex-wrap gap-1">
-        {g.ids.map((i) => <span key={i} className="rounded bg-panel px-1.5 py-0.5 text-[11px] text-mute">#{i} {byId.get(i)?.label}</span>)}
-      </div>
+      <ScrollRow className="mb-2 gap-1">
+        {g.ids.map((i) => <span key={i} title={byId.get(i)?.zh} className="rounded bg-panel px-1.5 py-0.5 text-[11px] text-mute">#{i} {byId.get(i)?.label}</span>)}
+      </ScrollRow>
       {g.status === "done" ? (
         <>
           <img src={fileUrl(g.image, g.finished)} onClick={() => setZoom(true)} className="w-full cursor-pointer rounded-md" />
