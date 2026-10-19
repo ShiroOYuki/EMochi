@@ -103,7 +103,7 @@ export type DirInfo = { key: DirKey; label: string; desc: string; value: string;
 export type SettingsValues = { max_parallel: number; default_layout: "4x2w" | "3x2"; image_timeout_min: number; text_timeout_min: number; codex_args: string[] };
 export type SettingsInfo = {
   dirs: DirInfo[]; values: SettingsValues; defaults: SettingsValues; limits: Record<string, [number, number]>;
-  layouts: string[]; settings_file: string; root: string; busy: string | null;
+  layouts: string[]; settings_file: string; root: string; busy: string | null; codex_command: string[];
   report?: { moved: { key: DirKey; moved: number; skipped: number }[]; projects_updated: number };
 };
 export type PathCheck = { key: DirKey; value: string; path: string; exists: boolean; files: number; size: number; error: string | null; warn: string | null };

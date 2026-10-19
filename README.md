@@ -97,6 +97,7 @@ archive/            試驗品、檢查腳本                                    
 ```
 
 ## 注意
+- Windows 上呼叫 Codex 時固定加 `--enable prefer_mxc`：能用 MXC 沙盒就用，不能用（Windows 10、較舊的 Windows 11）時 Codex 自動退回舊模式。只影響 EMochi 的呼叫，不改 `~/.codex/config.toml`。
 
 - 角色身上若有大面積綠色，把 prompt 的 `#00FF00` 換成 `#FF00FF`，`postprocess.py` 會自動偵測背景色。
 - 生圖模型會從精細的角色立繪「順便」學畫法：有畫風參考圖時，建議只勾 1 張角色圖。

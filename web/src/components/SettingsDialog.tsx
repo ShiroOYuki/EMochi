@@ -133,8 +133,9 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           </Group>
 
           <Group title="Codex">
-            <Field label="執行參數" hint="生圖時 codex 後面接的參數；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔">
-              <code className="block rounded-lg bg-panel2 px-2.5 py-1.5 font-mono text-xs">codex {vals.codex_args.join(" ")}</code>
+            <Field label="執行參數" hint="生圖時實際執行的指令（不含參考圖與 prompt）；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔">
+              <code className="block rounded-lg bg-panel2 px-2.5 py-1.5 font-mono text-xs">{info.codex_command.join(" ")}</code>
+              <p className="mt-1 text-[11px] text-mute">--enable prefer_mxc：Windows 能用 MXC 沙盒就用，不能用時自動退回舊模式；只影響 EMochi 的呼叫，不改 Codex 的設定檔。</p>
             </Field>
           </Group>
         </>}

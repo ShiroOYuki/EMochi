@@ -106,7 +106,7 @@ def save(changes: dict) -> dict:
         # 和預設一樣的就不寫進檔案，檔案只留真的改過的（資料夾比對實際路徑）
         def same(k, v):
             return resolve(v) == default_dir(k) if k in DIRS else v == DEFAULTS[k]
-        data = {k: v for k, v in data.items() if k in DEFAULTS and (k == "codex_args" or not same(k, v))}
+        data = {k: v for k, v in data.items() if k in DEFAULTS and not same(k, v)}
         write_json(FILE, data)
         _cache["sig"] = None
         return load()

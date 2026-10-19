@@ -22,6 +22,10 @@ POLL_SEC = 3
 # 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
 ACTIVE: dict[str, dict] = {}
 DEFAULT_TIMEOUT = 20 * 60   # 保底；實際用設定頁的 image_timeout_min／text_timeout_min
+# Windows 沙盒：能用 MXC 就用，不能用時 Codex 自動退回舊模式（elevated／unelevated）。
+# 用「優先」而不是 -c windows.sandbox=mxc（強制）：Windows 10、舊版 Windows 11 等沒有 MXC 的電腦才不會整個生不了圖。
+# 只影響這次呼叫，不改使用者的 ~/.codex/config.toml；非 Windows 平台會忽略
+SANDBOX_ARGS = ["--enable", "prefer_mxc"]
 KEY_COLORS = {"#00FF00": (0, 255, 0), "#FF00FF": (255, 0, 255)}
 
 
@@ -189,7 +193,7 @@ def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout
 
 def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path: Path,
               on_tick=None) -> tuple[bool, str]:
-    cmd = [codex_bin(), *settings.get("codex_args")]
+    cmd = [codex_bin(), *settings.get("codex_args"), *SANDBOX_ARGS]
     for r in refs:
         cmd += ["-i", r]
     cmd.append("-")
@@ -215,7 +219,7 @@ def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int | None
     log_path.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()
-    cmd = [codex_bin(), "exec", "--skip-git-repo-check", "-s", "read-only", "--ephemeral",
+    cmd = [codex_bin(), "exec", *SANDBOX_ARGS, "--skip-git-repo-check", "-s", "read-only", "--ephemeral",
            "--output-schema", str(schema_path), "-o", str(out)]
     for img in images or []:
         cmd += ["-i", img]
