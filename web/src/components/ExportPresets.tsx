@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Popover } from "radix-ui";
 import type { ExportPreset } from "../api";
-import { resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
+import { groupPresets, OTHER_GROUP, resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { TrashIcon } from "./manage";
 import { Check, Modal } from "./ui";
 
-const blank = (n: number): ExportPreset => ({
-  id: `preset_${n}`, name: "新預設集", folder: `preset_${n}`, sizes: [{ w: 128, h: 128 }],
+const blank = (n: number, group = ""): ExportPreset => ({
+  id: `preset_${n}`, name: "新預設集", group, folder: `preset_${n}`, sizes: [{ w: 128, h: 128 }],
   mode: "fit", margin: 0, even: false, max_kb: null, naming: "keep", note: "",
 });
 
@@ -26,6 +28,65 @@ export function ManagePresetsButton({ className = "btn btn-sm", children = "管�
 }
 
 /** 匯出預設集管理：新增、複製、編輯、刪除、還原內建；改完按「儲存」才寫回 */
+
+/** 分組欄位：可以自己打字，也可以從已有的分組挑（groups 不含正在編輯的這一筆，不然打一個字就會整串都比對到自己）。
+ *  不用原生 <datalist>：它的下拉清單是瀏覽器畫的，樣式、深色主題都改不了；這裡外觀和 Select 一致 */
+function GroupInput({ value, onChange, groups }: { value: string; onChange: (v: string) => void; groups: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const k = value.trim().toLowerCase();
+  // 打的字剛好等於某個分組（例如剛選完）時列出全部，方便改選別組
+  const list = !k || groups.some((g) => g.toLowerCase() === k) ? groups : groups.filter((g) => g.toLowerCase().includes(k));
+  const show = open && list.length > 0;
+  const pick = (g: string) => { onChange(g); setOpen(false); };
+  useEffect(() => { setHi(Math.max(0, list.indexOf(value.trim()))); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Popover.Root open={show} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div className="group relative mt-1">
+          <input ref={inputRef} className="input pr-8" maxLength={20} placeholder={OTHER_GROUP} value={value}
+            role="combobox" aria-expanded={show} aria-autocomplete="list"
+            onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(0); }}
+            onFocus={() => setOpen(true)} onClick={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                if (!show) { setOpen(true); return; }
+                const d = e.key === "ArrowDown" ? 1 : -1;
+                setHi((h) => (h + d + list.length) % list.length);
+              } else if (e.key === "Enter" && show) { e.preventDefault(); pick(list[Math.min(hi, list.length - 1)]); }
+              else if (e.key === "Escape" && show) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+              else if (e.key === "Tab") setOpen(false);
+            }} />
+          <button type="button" tabIndex={-1} aria-label="列出分組" disabled={groups.length === 0}
+            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-mute hover:text-acc disabled:opacity-40 disabled:hover:text-mute"
+            onMouseDown={(e) => e.preventDefault()} onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}>
+            <ChevronDownIcon className={"size-4 transition-transform duration-200 " + (show ? "rotate-180 text-acc" : "")} />
+          </button>
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => { if (inputRef.current?.parentElement?.contains(e.target as Node)) e.preventDefault(); }}
+          className="select-pop z-[60] w-(--radix-popover-trigger-width) origin-(--radix-popover-content-transform-origin) rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+          <div role="listbox" className="scroll-inset-sm max-h-60 overflow-y-auto">
+            {list.map((g, i) => (
+              <div key={g} role="option" aria-selected={g === value.trim()}
+                className={"relative flex cursor-pointer select-none items-center rounded-xl py-1.5 pr-3 pl-8 transition-colors duration-100 " + (i === hi ? "bg-panel2 " : "") + (g === value.trim() ? "text-acc" : "")}
+                onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(g)}>
+                {g === value.trim() && <CheckIcon className="absolute left-2.5 size-3.5" strokeWidth={2.5} />}
+                <span className="truncate">{g}</span>
+              </div>
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 export function PresetManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { presets, custom } = usePresets();
   const [draft, setDraft] = useState<ExportPreset[]>([]);
@@ -56,16 +117,21 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
       <div className="flex min-h-[420px] gap-5">
         <div className="flex w-60 shrink-0 flex-col gap-2">
           <div ref={listRef} className="scroll-inset-sm max-h-[52vh] flex-1 space-y-1 overflow-y-auto pr-1">
-            {draft.map((x, i) => (
-              <button key={i} onClick={() => setCur(i)} aria-current={i === cur}
-                className={`block w-full rounded-xl border px-3 py-2 text-left transition ${i === cur ? "border-acc bg-panel2" : "border-transparent hover:bg-panel2/70"}`}>
-                <div className="truncate text-sm">{x.name || "（未命名）"}</div>
-                <div className="truncate text-[11px] text-mute">{presetSummary(x)}</div>
-              </button>
+            {groupPresets(draft.map((x, i) => ({ ...x, i }))).map(({ group, items }) => (
+              <div key={group}>
+                <div className="sticky top-0 z-[1] bg-panel px-1 pt-2 pb-1 text-[11px] text-mute">{group}</div>
+                {items.map((x) => (
+                  <button key={x.i} onClick={() => setCur(x.i)} aria-current={x.i === cur}
+                    className={`block w-full rounded-xl border px-3 py-2 text-left transition ${x.i === cur ? "border-acc bg-panel2" : "border-transparent hover:bg-panel2/70"}`}>
+                    <div className="truncate text-sm">{x.name || "（未命名）"}</div>
+                    <div className="truncate text-[11px] text-mute">{presetSummary(x)}</div>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn btn-sm" onClick={() => { setDraft((d) => [...d, blank(nextN())]); setCur(draft.length); }}>＋ 新增</button>
+            <button className="btn btn-sm" onClick={() => { setDraft((d) => [...d, blank(nextN(), p?.group ?? "")]); setCur(draft.length); }}>＋ 新增</button>
             <button className="btn btn-sm" disabled={!p} onClick={() => {
               const n = nextN();
               setDraft((d) => [...d, { ...structuredClone(p), id: `preset_${n}`, folder: `${p.folder}_${n}`, name: `${p.name}（複製）` }]);
@@ -78,8 +144,12 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
 
         {p ? (
           <div className="min-w-0 flex-1 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <label className="label">名稱<input className="input mt-1" maxLength={40} value={p.name} onChange={(e) => edit({ name: e.target.value })} /></label>
+              <label className="label">分組（例如平台名稱；空白＝{OTHER_GROUP}）
+                <GroupInput value={p.group} onChange={(group) => edit({ group })}
+                  groups={[...new Set(draft.filter((_, i) => i !== cur).map((x) => x.group.trim()).filter(Boolean))]} />
+              </label>
               <label className="label">zip 裡的資料夾名稱（英數、_、-）
                 <input className="input mt-1 font-mono" maxLength={40} value={p.folder}
                   onChange={(e) => edit({ folder: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") })} /></label>
@@ -168,6 +238,86 @@ function Seg<T extends string>({ value, onChange, options }: { value: T; onChang
         <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(v)}
           className={`rounded-full px-3 py-1 transition ${value === v ? "bg-panel text-text shadow-[var(--shadow-soft)]" : "text-mute hover:text-text"}`}>{label}</button>
       ))}
+    </div>
+  );
+}
+
+const XIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+);
+
+/** 匯出面板：只列出已選的預設集（標籤），完整清單收在「＋ 選擇」彈出選單（搜尋、依分組、整組勾選）。
+ *  預設集再多，面板高度也不變 */
+export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange: (ids: string[]) => void }) {
+  const { presets, loaded } = usePresets();
+  const [q, setQ] = useState("");
+  const picked = presets.filter((p) => chosen.includes(p.id));
+  const groups = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    const hit = (p: ExportPreset) => !k || [p.name, p.group, p.note, p.sizes.map(sizeText).join(" ")].join(" ").toLowerCase().includes(k);
+    return groupPresets(presets.filter(hit));
+  }, [presets, q]);
+  const toggle = (id: string, on: boolean) => onChange(on ? [...chosen, id] : chosen.filter((x) => x !== id));
+  const toggleGroup = (ids: string[], on: boolean) => onChange(on ? [...new Set([...chosen, ...ids])] : chosen.filter((x) => !ids.includes(x)));
+
+  return (
+    <div className="space-y-2">
+      {/* 「＋ 選擇」自己一行、固定不動；已選的標籤從下一行開始排（放在標籤後面的話，每多勾一組按鈕就被擠走，彈出選單跟著跑） */}
+      <div className="flex items-center gap-2">
+      <Popover.Root onOpenChange={(o) => { if (!o) setQ(""); }}>
+        <Popover.Trigger asChild>
+          <button className="btn btn-sm">＋ 選擇</button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          {/* 往左開：匯出面板在畫面最右邊，往下開會蓋住剛加上的標籤 */}
+          <Popover.Content side="left" align="start" sideOffset={14} collisionPadding={8}
+            className="select-pop z-[60] w-80 rounded-2xl border border-line bg-panel p-2 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+            <input className="input mb-2 !py-1" autoFocus placeholder="搜尋名稱、平台、尺寸…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <div className="scroll-inset-sm max-h-[min(24rem,60vh)] overflow-y-auto pr-1">
+              {groups.length === 0 && <p className="px-2 py-4 text-center text-xs text-mute">沒有符合的預設集</p>}
+              {groups.map(({ group, items }) => {
+                const ids = items.map((p) => p.id);
+                const all = ids.every((id) => chosen.includes(id));
+                return (
+                  <div key={group} className="mb-1">
+                    <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
+                      <span className="text-[11px] text-mute">{group}</span>
+                      {items.length > 1 && (
+                        <button className="text-[11px] text-acc hover:underline" onClick={() => toggleGroup(ids, !all)}>{all ? "整組取消" : "整組勾選"}</button>
+                      )}
+                    </div>
+                    {items.map((p) => (
+                      <label key={p.id} className="flex cursor-pointer items-start gap-2 rounded-xl px-2 py-1.5 hover:bg-panel2" title={p.note || undefined}>
+                        <Check className="mt-0.5" checked={chosen.includes(p.id)} onCheckedChange={(v) => toggle(p.id, v)} />
+                        <span className="min-w-0">
+                          <span className="block">{p.name}</span>
+                          <span className="block truncate text-[11px] text-mute">{presetSummary(p)}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-1 border-t border-line/60 px-2 pt-2 text-[11px] text-mute">已選 {picked.length} 組；要新增或修改尺寸請按「管理預設集…」</div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
+      </div>
+      {picked.length > 0 && (
+      <div className="flex flex-wrap gap-1.5">
+      {picked.map((p) => (
+        <span key={p.id} title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
+          className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs">
+          {p.name}
+          <button className="grid size-4 place-items-center rounded-full text-mute hover:bg-panel hover:text-bad" aria-label={`不要匯出 ${p.name}`} onClick={() => toggle(p.id, false)}>
+            <XIcon />
+          </button>
+        </span>
+      ))}
+      </div>
+      )}
     </div>
   );
 }

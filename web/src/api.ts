@@ -139,6 +139,8 @@ export type TrashItem = {
 export type PresetSize = { w: number; h: number };
 export type ExportPreset = {
   id: string; name: string; folder: string; sizes: PresetSize[];
+  /** 分組（通常是平台名稱）；空白＝「其他」 */
+  group: string;
   /** fit：等比縮進框內；canvas：剛好寬×高的透明畫布，置中 */
   mode: "fit" | "canvas";
   margin: number; even: boolean;
