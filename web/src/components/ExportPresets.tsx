@@ -201,8 +201,9 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
   const toggleGroup = (ids: string[], on: boolean) => onChange(on ? [...new Set([...chosen, ...ids])] : chosen.filter((x) => !ids.includes(x)));
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {/* 「＋ 選擇」固定在最前面：放在標籤後面的話，每多勾一組按鈕就被往後擠（甚至換行），彈出選單跟著跑 */}
+    <div className="space-y-2">
+      {/* 「＋ 選擇」自己一行、固定不動；已選的標籤從下一行開始排（放在標籤後面的話，每多勾一組按鈕就被擠走，彈出選單跟著跑） */}
+      <div className="flex items-center gap-2">
       <Popover.Root onOpenChange={(o) => { if (!o) setQ(""); }}>
         <Popover.Trigger asChild>
           <button className="btn btn-sm">＋ 選擇</button>
@@ -242,6 +243,10 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
+      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
+      </div>
+      {picked.length > 0 && (
+      <div className="flex flex-wrap gap-1.5">
       {picked.map((p) => (
         <span key={p.id} title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
           className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs">
@@ -251,7 +256,8 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
           </button>
         </span>
       ))}
-      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
+      </div>
+      )}
     </div>
   );
 }
