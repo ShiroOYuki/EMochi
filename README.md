@@ -115,7 +115,8 @@ tests/              pytest
 config/
   stickers.example.json  基礎 32 種表情（編號、名稱、中文說明、表情 prompt）；stickers.json 的起點
   export_presets.example.json  內建匯出預設集（各平台規格，2026-10-20 查）；export_presets.json 的起點
-  style_examples.example.json  擴寫／分析畫風時給 Codex 看的範例描述（s1、s2）
+  style_examples.example.json  擴寫／分析畫風時給 Codex 看的範例描述（s5、s4）
+  style_lib.example/  內建範例畫風（st1 暖柔奶油萌繪）；全新安裝第一次啟動時複製到畫風庫
   stickers.json     你的表情清單（本地資料，不進版控；第一次在網頁上修改時才產生）
   sticker_groups.example.json  預設 4 組表情分組
   sticker_groups.json   你的表情分組（本地資料，不進版控；沒有時用 example）

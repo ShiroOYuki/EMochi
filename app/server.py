@@ -17,6 +17,7 @@ from .paths import ROOT, STATIC, exports_dir, from_url, load_stickers, logs_dir,
 async def _lifespan(_app):
     characters.normalize_names()
     jobs.recover_interrupted()
+    style_lib.seed_defaults()   # 全新安裝才會放進內建範例畫風
     yield
 
 
