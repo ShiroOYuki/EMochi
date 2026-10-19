@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import characters, gallery, jobs, prompts, style_lib, trash, usage
+from . import characters, codex_status, gallery, jobs, prompts, style_lib, trash, usage
 from .images import decode_data_url
 from . import stickers as sticker_mod
 from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, load_stickers, next_style_id, read_json
@@ -35,6 +35,20 @@ def _err(e: Exception):
 @app.get("/api/codex-usage")
 def codex_usage(refresh: bool = False):
     return usage.rate_limits(force=refresh)
+
+
+@app.get("/api/codex-status")
+def get_codex_status(refresh: bool = False):
+    """Codex 狀態對話框：連線、登入、額度、執行中、近 7 天 token；refresh＝重新連線（重查 CLI／登入／額度）"""
+    return codex_status.status(force=refresh)
+
+
+@app.post("/api/codex-login")
+def codex_login():
+    try:
+        return codex_status.start_login()
+    except RuntimeError as e:
+        _err(e)
 
 
 @app.get("/api/stickers")

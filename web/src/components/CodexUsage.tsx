@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type CodexUsage as Usage, type RateWindow } from "../api";
+import CodexStatusDialog from "./CodexStatus";
 
 const POLL_MS = 30_000;
 type Level = "ok" | "warn" | "bad" | "off";
@@ -28,6 +29,7 @@ const pct = (w: RateWindow) => `${Math.round(w.used_percent)}%`;
 export default function CodexUsage({ className = "" }: { className?: string }) {
   const [u, setU] = useState<Usage | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [open, setOpen] = useState(false);
   const alive = useRef(true);
   const load = useCallback((force = false) =>
     api.get<Usage>(`/api/codex-usage${force ? "?refresh=1" : ""}`)
@@ -61,8 +63,10 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
       ].filter(Boolean).join("\n");
 
   return (
-    <div title={title} aria-label={title}
-      className={`flex items-center gap-2 rounded-full bg-panel2 px-3 py-1.5 text-sm ${className}`}>
+    <div className={`flex items-center gap-1 rounded-full bg-panel2 py-1 pr-1.5 pl-1 text-sm ${className}`}>
+      {/* 點一下打開詳細狀態（連線、額度、近 7 天用量） */}
+      <button onClick={() => setOpen(true)} title={`${title}\n\n點一下看詳細狀態`} aria-label={`${title}。點一下看詳細狀態`}
+        className="flex items-center gap-2 rounded-full px-2 py-0.5 transition hover:bg-panel">
       <span className="relative flex size-2.5" aria-hidden="true">
         {level === "bad" && <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-70 ${LAMP[level]}`} />}
         <span className={`relative inline-flex size-2.5 rounded-full ${LAMP[level]}`} />
@@ -73,13 +77,15 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
           <span className="text-xs text-mute">{windowName(w, f)} </span>{pct(w)}
         </span>
       )) : <span className="text-mute">—</span>}
+      </button>
       <button onClick={refresh} disabled={refreshing} aria-label="重新讀取 Codex 額度" title="重新讀取 Codex 額度"
-        className="-mr-1.5 flex size-6 items-center justify-center rounded-full text-mute transition hover:bg-panel hover:text-acc disabled:cursor-wait disabled:hover:bg-transparent">
+        className="flex size-6 items-center justify-center rounded-full text-mute transition hover:bg-panel hover:text-acc disabled:cursor-wait disabled:hover:bg-transparent">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
           className={refreshing ? "animate-spin" : ""} aria-hidden="true">
           <path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" />
         </svg>
       </button>
+      <CodexStatusDialog open={open} onClose={() => setOpen(false)} onReconnected={() => load(true)} />
     </div>
   );
 }
