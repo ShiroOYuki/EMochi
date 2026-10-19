@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
-import { Check, Modal } from "../components/ui";
+import { Check, Modal, Select } from "../components/ui";
 
 const FMT: Record<string, string> = { master: "Master 512", t112: "Twitch 112", t56: "Twitch 56", t28: "Twitch 28", discord: "Discord 128" };
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
@@ -138,9 +138,8 @@ export default function GalleryPage({ active }: { active: boolean }) {
             {s.id}<span className={mode === s.id ? "text-on-acc/70" : "text-mute"}>（{s.items.length}）</span>
           </button>
         ))}
-        <select className="input !w-32 !py-1" value={group} onChange={(e) => { const g = +e.target.value; withVT(() => setGroup(g)); }}>
-          <option value={0}>全部組別</option>{[1, 2, 3, 4].map((g) => <option key={g} value={g}>第 {g} 組</option>)}<option value={5}>自訂表情</option>
-        </select>
+        <Select label="組別" className="!w-32 !py-1" value={group} onChange={(g) => withVT(() => setGroup(g))}
+          options={[{ value: 0, label: "全部組別" }, ...[1, 2, 3, 4].map((g) => ({ value: g, label: `第 ${g} 組` })), { value: 5, label: "自訂表情" }]} />
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), true)}>全選此頁</button>
         <button className="btn btn-sm" onClick={() => setSel(view.map(keyOf), false)}>取消此頁</button>
         <button className="btn btn-sm" onClick={() => setSelArr(view.map(keyOf).filter((k) => !sel.has(k)).concat(selArr.filter((k) => !view.some((e) => keyOf(e) === k))))}>反選此頁</button>
@@ -250,10 +249,9 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
     <aside className="m-3 ml-0 w-80 shrink-0 space-y-4 overflow-y-auto rounded-[22px] bg-panel p-5 text-sm shadow-[var(--shadow-soft)]">
       <div>
         <h3 className="mb-2">勾選清單（JSON）</h3>
-        <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}>
-          {list.length === 0 && <option value="">（還沒有存過的清單）</option>}
-          {list.map((x) => <option key={x.file} value={x.file}>{x.created || x.file}（{KIND[x.kind] ?? "清單"}，{x.count} 張{x.tag ? `，${x.tag}` : ""}）</option>)}
-        </select>
+        <Select label="勾選清單" value={pick} onChange={setPick} disabled={list.length === 0}
+          placeholder={list.length === 0 ? "（還沒有存過的清單）" : "選擇清單"}
+          options={list.map((x) => ({ value: x.file, label: `${x.created || x.file}（${KIND[x.kind] ?? "清單"}，${x.count} 張${x.tag ? `，${x.tag}` : ""}）` }))} />
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button className="btn" disabled={!pick} onClick={async () => apply(await api.get(`/api/gallery/selections/${encodeURIComponent(pick)}`), pick)}>載入勾選</button>
           <button className="btn" disabled={!sel.length} onClick={async () => {
@@ -301,10 +299,10 @@ function SidePanel({ sel, setSel, styles }: { sel: string[]; setSel: (k: string[
         <h3 className="mb-2">組合成一張圖</h3>
         <div className="grid grid-cols-2 gap-2">
           <label className="label">欄數<input className="input mt-1" type="number" min={1} max={32} value={cmb.cols} onChange={(e) => setCmb({ ...cmb, cols: +e.target.value })} /></label>
-          <label className="label">格子 px<select className="input mt-1" value={cmb.cell} onChange={(e) => setCmb({ ...cmb, cell: +e.target.value })}>{[56, 112, 128, 256, 512].map((n) => <option key={n}>{n}</option>)}</select></label>
+          <div className="label">格子 px<Select label="格子 px" className="mt-1" value={cmb.cell} onChange={(n) => setCmb({ ...cmb, cell: n })} options={[56, 112, 128, 256, 512].map((n) => ({ value: n, label: n }))} /></div>
           <label className="label">間距 px<input className="input mt-1" type="number" min={0} max={64} value={cmb.gap} onChange={(e) => setCmb({ ...cmb, gap: +e.target.value })} /></label>
-          <label className="label">背景<select className="input mt-1" value={cmb.bg} onChange={(e) => setCmb({ ...cmb, bg: e.target.value })}>
-            <option value="transparent">透明</option><option value="dark">Discord 深色</option><option value="light">白色</option></select></label>
+          <div className="label">背景<Select label="背景" className="mt-1" value={cmb.bg} onChange={(bg) => setCmb({ ...cmb, bg })}
+            options={[{ value: "transparent", label: "透明" }, { value: "dark", label: "Discord 深色" }, { value: "light", label: "白色" }]} /></div>
         </div>
         <label className="mt-2 flex items-center gap-2"><Check checked={cmb.labels} onCheckedChange={(v) => setCmb({ ...cmb, labels: v })} />顯示名稱</label>
         <button className="btn mt-2 w-full" disabled={!sel.length} onClick={async () => {

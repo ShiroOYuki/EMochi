@@ -77,8 +77,8 @@ function DialogOverlay({
       <motion.div
         key="dialog-overlay"
         initial={{ opacity: 0, filter: 'blur(4px)' }}
-        animate={{ opacity: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, filter: 'blur(4px)' }}
+        animate={{ opacity: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+        exit={{ opacity: 0, filter: ['blur(0px)', 'blur(4px)'] }}
         transition={transition}
         {...props}
       />
@@ -133,11 +133,18 @@ function DialogContent({
           opacity: 1,
           filter: 'blur(0px)',
           transform: `perspective(500px) ${rotateAxis}(0deg) scale(1)`,
+          // 動畫結束後把 filter / 3D transform 拿掉：留著 blur(0px) + perspective 會讓整個框被當成圖層點陣化，文字變糊
+          transitionEnd: { filter: 'none', transform: 'none' },
         }}
+        // 收起時明確從「開好的狀態」起算：開好後 transform 已被設成 none，若直接從 none 插值到 perspective()，
+        // 中間的矩陣會出現極端的投影值，框會瞬間翻上去、拉成一大片三角形
         exit={{
           opacity: 0,
-          filter: 'blur(4px)',
-          transform: `perspective(500px) ${rotateAxis}(${initialRotation}) scale(0.8)`,
+          filter: ['blur(0px)', 'blur(4px)'],
+          transform: [
+            `perspective(500px) ${rotateAxis}(0deg) scale(1)`,
+            `perspective(500px) ${rotateAxis}(${initialRotation}) scale(0.8)`,
+          ],
         }}
         transition={transition}
         {...props}
