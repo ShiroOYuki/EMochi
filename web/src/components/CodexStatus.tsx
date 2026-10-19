@@ -182,7 +182,7 @@ function Bars({ title, items, total }: { title: string; items: CodexTally[]; tot
   const scroll = items.length > BAR_ROWS;
   return (
     <div>
-      <h5 className="mb-1.5 text-xs text-mute">{title}{scroll && <span className="ml-1 text-[11px]">（共 {items.length} 項，捲動看更多）</span>}</h5>
+      <h5 className="mb-1.5 text-xs text-mute">{title}</h5>
       {items.length ? <div className={scroll ? "scroll-inset-sm overflow-y-auto overscroll-contain pr-2" : ""} style={scroll ? { maxHeight: BAR_ROW * BAR_ROWS } : undefined}>
       {items.map((x) => (
         <div key={x.key} className="flex flex-col justify-center" style={{ height: BAR_ROW }} title={`${x.label}：${fmtFull(x.tokens)} tokens、${x.runs} 次（${total ? Math.round((x.tokens / total) * 100) : 0}%）`}>
