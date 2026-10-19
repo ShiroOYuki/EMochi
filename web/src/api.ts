@@ -2,7 +2,7 @@
 
 /** 表情；name 是檔名用（建立後不變）；deleted＝軟刪除（只有 ?all=1 才拿得到） */
 export type Sticker = {
-  id: number; group: number; name: string; label: string; zh: string; prompt: string;
+  id: number; name: string; label: string; zh: string; prompt: string;
   prompt_no_ears?: string; custom?: boolean; align?: string; deleted?: boolean;
 };
 /** 表情分組（config/sticker_groups.json）：一個表情可以在好幾組；default＝Gen 新專案預設勾選 */
@@ -55,7 +55,7 @@ export const readFiles = (files: Iterable<File>, role?: RefRole): Promise<Upload
   })));
 export type ProjectSummary = Pick<Project, "id" | "name" | "status" | "updated" | "request"> & { character_id: string | null };
 
-export type GalleryItem = { id: number; name: string; label: string; zh: string; group: number; files: Record<string, string>; mtime: number };
+export type GalleryItem = { id: number; name: string; label: string; zh: string; files: Record<string, string>; mtime: number };
 /** character_id：null ＝ 沒指定角色（只靠附圖）的畫風 */
 export type GalleryStyle = { id: string; name: string; items: GalleryItem[]; character_id: string | null; character_name: string };
 export type SelectionInfo = { file: string; count: number; created: string; kind: string; tag: string | null };

@@ -15,7 +15,6 @@ from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, load_stickers, next_style_id,
 
 @asynccontextmanager
 async def _lifespan(_app):
-    characters.ensure_default()
     characters.normalize_names()
     jobs.recover_interrupted()
     yield

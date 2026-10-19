@@ -24,18 +24,19 @@ def test_usage_days(data_root):
     _log(data_root, "s90", "preview", "20261018_090000", 20000)
     _log(data_root, "stickers", "expand", "20261017_090000", 9000)
     _log(data_root, "characters", "c1_describe", "20261010_090000", 7777)   # 超過 7 天
-    _log(data_root, "legacy", "g1", "20261019_100000", 99999)              # 舊格式資料夾不算
+    _log(data_root, "s90", "single", "20261019_080000", 1000, secs=-60)     # 從舊版轉換、不知道開始時間（結束 ≤ 開始）
     _log(data_root, "s90", "g3", "20261019_110000", None, end=None)         # 被中斷
     u = cs.usage_days(now=datetime(2026, 10, 19, 12, 0))
     assert [d["date"] for d in u["daily"]][0] == "2026-10-13" and len(u["daily"]) == 7
     day = {d["date"]: d for d in u["daily"]}
-    assert day["2026-10-19"]["tokens"] == 90000 and day["2026-10-19"]["runs"] == 3
-    assert day["2026-10-19"]["by_kind"] == {"批次生圖": 90000}
+    assert day["2026-10-19"]["tokens"] == 91000 and day["2026-10-19"]["runs"] == 4
+    assert day["2026-10-19"]["by_kind"] == {"批次生圖": 90000, "其他": 1000}
     assert day["2026-10-17"]["by_kind"] == {"表情擴寫": 9000}
-    assert u["total_tokens"] == 119000 and u["runs"] == 5 and u["failed"] == 1
+    assert u["total_tokens"] == 120000 and u["runs"] == 6 and u["failed"] == 1
     assert u["avg_grid_tokens"] == round((50000 + 40000 + 20000) / 3)
     res = {r["name"]: r["result"] for r in u["recent"]}
-    assert res == {"g1": "ok", "g2": "timeout", "g3": "unknown", "preview": "ok", "expand": "ok"}
+    assert res == {"g1": "ok", "g2": "timeout", "g3": "unknown", "preview": "ok", "expand": "ok", "single": "ok"}
+    assert {r["name"]: r["seconds"] for r in u["recent"]}["single"] is None
     assert {x["key"]: x["label"] for x in u["by_scope"]}["stickers"] == "表情"
     assert u["recent"][0]["name"] == "g3"
 

@@ -16,8 +16,7 @@ from pathlib import Path
 
 from . import characters, codex, pipeline, prompts, style_lib, usage
 from .images import move_to_removed, save_png
-from .paths import (OUTPUTS, PROMPTS_DIR, ROOT, load_styles_cfg, next_style_id, read_json,
-                    save_styles_cfg, sticker_map, write_json)
+from .paths import OUTPUTS, ROOT, next_style_id, read_json, sticker_map, write_json
 
 MAX_PARALLEL = 3
 BUSY = {"expanding", "previewing", "generating", "processing"}
@@ -111,12 +110,6 @@ def backup(path: Path) -> None:
         shutil.copy2(path, prev / f"{path.stem}_{stamp}{path.suffix}")
 
 
-def save_prompt_file(style: str, name: str, text: str) -> None:
-    d = PROMPTS_DIR / style
-    d.mkdir(parents=True, exist_ok=True)
-    (d / f"{name}.txt").write_text(text, encoding="utf-8")
-
-
 # ---------- 1. 建立專案＋用 Codex 擴寫需求 ----------
 
 def create(request: str, character_id: str | None = None, character_images: list[str] | None = None,
@@ -165,17 +158,18 @@ def reexpand(style: str, request: str) -> dict:
     return p
 
 
-def style_examples() -> list[str]:
-    """拿既有畫風的描述當範例，讓 Codex 寫出同樣格式"""
-    ex = []
-    for s in ("s5", "s4"):
-        f = PROMPTS_DIR / s / "g1.txt"
-        if f.exists():
-            t = f.read_text(encoding="utf-8")
-            a, b = t.find("- "), t.find("Character identity")
-            if 0 <= a < b:
-                ex.append(t[a:b])
-    return ex
+EXAMPLE_PROJECTS = ("s5", "s4")   # 擴寫時給 Codex 看的範例畫風（寫得最完整的兩套）
+
+
+def style_examples(n: int = 2) -> list[str]:
+    """拿既有畫風的描述當範例，讓 Codex 寫出同樣格式：先用 s5、s4，沒有的話用畫風庫裡的"""
+    ex = [b for s in EXAMPLE_PROJECTS if (b := ((load(s) or {}).get("style_block") or "").strip())]
+    for lib in style_lib.list_all():
+        if len(ex) >= n:
+            break
+        if (b := (lib.get("style_block") or "").strip()) and b not in ex:
+            ex.append(b)
+    return ex[:n]
 
 
 def _expand(style: str) -> None:
@@ -235,11 +229,7 @@ def temp_dir(style: str) -> Path:
 
 
 def refs_of(p: dict) -> dict:
-    """舊專案沒有 refs 欄位 → 視為用第一個角色（就是從 refs/ref.png 搬過去的原角色）的預設圖"""
-    r = p.get("refs")
-    if r is None:
-        chars = characters.list_all()
-        r = {"character_id": chars[0]["id"] if chars else None, "character_images": None, "temp": []}
+    r = p.get("refs") or {}
     return {"character_id": r.get("character_id"), "character_images": r.get("character_images"),
             "temp": list(r.get("temp", []))}
 
@@ -354,10 +344,9 @@ def _run_preview(style: str) -> None:
     p = load(style)
     pv = p["preview"]
     backup(ROOT / pv["image"])
-    save_prompt_file(style, "preview", pv["prompt"])
     log = codex.log_path_for(style, "preview")
     try:
-        ok, msg = codex.run_image(pv["prompt"], pv.get("refs") or ["refs/ref.png"], pv["image"], pv["layout"], log)
+        ok, msg = codex.run_image(pv["prompt"], pv.get("refs") or [], pv["image"], pv["layout"], log)
     except Exception as e:  # noqa: BLE001
         ok, msg = False, str(e)
 
@@ -424,11 +413,9 @@ def _run_group(style: str, index: int) -> None:
         p = mutate(style, start)
         g = _group(p, index)
         backup(ROOT / g["image"])
-        save_prompt_file(style, f"g{index}", g["prompt"])
         log = codex.log_path_for(style, f"g{index}")
         try:
-            refs = g.get("refs") or ["refs/ref.png", p["preview"]["image"]]
-            ok, msg = codex.run_image(g["prompt"], refs, g["image"], g["layout"], log)
+            ok, msg = codex.run_image(g["prompt"], g.get("refs") or [], g["image"], g["layout"], log)
         except Exception as e:  # noqa: BLE001
             ok, msg = False, str(e)
 
@@ -462,12 +449,6 @@ def _finalize(style: str) -> None:
             if g["status"] == "done":
                 made += pipeline.process_grid(style, ROOT / g["image"], g["layout"], g["ids"], p["process"])
         pipeline.build_previews(style)
-        cfg = load_styles_cfg()
-        cfg.setdefault("styles", {})[style] = {
-            "name": p["name"], "refs": ref_paths(p)["character"] or ["refs/ref.png"], "group1_refs": [],
-            "character_id": refs_of(p).get("character_id"),
-            "process": {"square": p["process"].get("square"), "margin": p["process"].get("margin", 0)}}
-        save_styles_cfg(cfg)
         mutate(style, lambda p: p.update(status="done", finished_ids=made, error=None, finished=now()))
     except Exception as e:  # noqa: BLE001
         mutate(style, lambda p: p.update(status="review", error=f"後處理失敗：{e}"))

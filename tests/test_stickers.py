@@ -13,7 +13,8 @@ def test_example_fallback(client, data_root):
     assert ex[0]["zh"] != "改過"
 
 
-def test_legacy_groups(client):
+def test_default_groups(client):
+    """沒有 sticker_groups.json 時用 sticker_groups.example.json"""
     groups = client.get("/api/sticker-groups").json()
     names = [g["name"] for g in groups]
     assert names[:4] == ["基礎情緒", "反應表情", "社群互動", "Twitch / 迷因"]
