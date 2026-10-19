@@ -41,7 +41,7 @@ scripts\build_desktop.bat --dir    :: 只要免安裝資料夾 desktop\release\w
 
 ### 自動更新與發版
 
-安裝版啟動 10 秒後、之後每 6 小時檢查一次 [Releases](https://github.com/ShiroOYuki/EMochi/releases)，有新版就在背景下載（只下載變動的部分），下載好 Navbar 會出現「重新啟動更新」；不按的話，下次關閉 EMochi 時自動安裝。設定頁「關於」可以看目前版本、手動檢查。開發模式不檢查。
+安裝版啟動 10 秒後、之後每 6 小時檢查一次 [Releases](https://github.com/ShiroOYuki/EMochi/releases)，只檢查、不自動下載：有新版時 Navbar 出現「v0.x.x 可更新」，按了才下載（只下載變動的部分），下載好再按「重新啟動並安裝」。不按就不會安裝（關閉 App 時也不會自動裝）。設定頁「關於」可以看目前版本、手動檢查、看更新內容。開發模式不檢查。
 
 分支：新功能從 `develop` 開 `feat/*`，做完合併回 `develop`；要發大版本時再把 `develop` 合併進 `main`，在 main 上發版。
 

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("emochi", {
   updates: {
     get: () => ipcRenderer.invoke("update-get"),
     check: () => ipcRenderer.invoke("update-check"),
+    download: () => ipcRenderer.invoke("update-download"),
     /** force：有 Codex 在跑也照樣更新 */
     install: (force) => ipcRenderer.invoke("update-install", !!force),
     onStatus: (cb) => {
