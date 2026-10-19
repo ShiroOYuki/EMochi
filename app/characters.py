@@ -18,18 +18,17 @@ from pathlib import Path
 
 from . import codex
 from .images import move_to_removed, save_png
-from .paths import OUTPUTS, ROOT, read_json, write_json
+from .paths import OUTPUTS, characters_dir, codex_path, read_json, write_json
 
-CHAR_DIR = ROOT / "characters"
 _lock = threading.Lock()
 
 
 def _json(cid: str) -> Path:
-    return CHAR_DIR / cid / "character.json"
+    return characters_dir() / cid / "character.json"
 
 
 def refs_dir(cid: str) -> Path:
-    return CHAR_DIR / cid / "refs"
+    return characters_dir() / cid / "refs"
 
 
 def get(cid: str) -> dict | None:
@@ -41,8 +40,8 @@ def get(cid: str) -> dict | None:
 
 def list_all() -> list[dict]:
     out = []
-    if CHAR_DIR.exists():
-        for f in sorted(CHAR_DIR.glob("*/character.json")):
+    if characters_dir().exists():
+        for f in sorted(characters_dir().glob("*/character.json")):
             c = get(f.parent.name)
             if c:
                 out.append(c)
@@ -84,7 +83,7 @@ def _new_id() -> str:
     from .trash import reserved_ids
     used = reserved_ids("characters")
     n = 1
-    while (CHAR_DIR / f"c{n}").exists() or f"c{n}" in used:
+    while (characters_dir() / f"c{n}").exists() or f"c{n}" in used:
         n += 1
     return f"c{n}"
 
@@ -227,7 +226,7 @@ def rel_paths(cid: str, files: list[str] | None = None) -> list[str]:
     if not c:
         return []
     names = [i["file"] for i in c["images"] if (i["use"] if files is None else i["file"] in files)]
-    return [(refs_dir(cid) / n).relative_to(ROOT).as_posix() for n in names]
+    return [codex_path(refs_dir(cid) / n) for n in names]
 
 
 # ---------- 讓 Codex 看圖寫角色特徵 ----------
@@ -259,7 +258,7 @@ the viewer's), and the key outfit color/neckwear. Max ~45 words, concrete colors
 `ears`: true only if the character has animal ears (fox, cat, dog, rabbit…) on the head; plain human ears → false.
 
 `notes_zh`: 繁體中文，一兩句說明你抓到的特徵，以及哪些細節在 28x28 小圖會看不出來。"""
-    schema = codex.LOGS / "characters" / f"{cid}_schema.json"
+    schema = codex.logs_dir() / "characters" / f"{cid}_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(DESCRIBE_SCHEMA), encoding="utf-8")
     answer = codex.run_text(prompt, schema, codex.log_path_for("characters", f"{cid}_describe"), images=imgs)

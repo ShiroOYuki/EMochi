@@ -7,10 +7,10 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import characters, codex_status, gallery, jobs, prompts, style_lib, trash, usage
+from . import characters, codex_status, gallery, jobs, prompts, settings, settings_ops, style_lib, trash, usage
 from .images import decode_data_url
 from . import stickers as sticker_mod
-from .paths import EXPORTS, OUTPUTS, ROOT, STATIC, load_stickers, next_style_id, read_json
+from .paths import ROOT, STATIC, exports_dir, from_url, load_stickers, logs_dir, next_style_id, read_json
 
 
 @asynccontextmanager
@@ -47,6 +47,70 @@ def codex_login():
     try:
         return codex_status.start_login()
     except RuntimeError as e:
+        _err(e)
+
+
+# ---------- 設定 ----------
+
+@app.get("/api/settings")
+def get_settings():
+    return settings_ops.info()
+
+
+class PathCheck(BaseModel):
+    key: str
+    value: str = ""
+    others: dict = {}
+
+
+@app.post("/api/settings/check")
+def check_setting_path(body: PathCheck):
+    try:
+        return settings_ops.check(body.key, body.value, body.others)
+    except (KeyError, ValueError) as e:
+        _err(e)
+
+
+class SettingsChange(BaseModel):
+    changes: dict
+    move: bool = True
+    conflict: str | None = None    # keep＝保留新位置的同名檔、overwrite＝覆蓋
+
+
+@app.post("/api/settings/plan")
+def plan_settings(body: SettingsChange):
+    try:
+        return settings_ops.plan(settings.validate(body.changes))
+    except (KeyError, ValueError) as e:
+        _err(e)
+
+
+@app.put("/api/settings")
+def put_settings(body: SettingsChange):
+    try:
+        return settings_ops.apply(body.changes, body.move, body.conflict)
+    except (KeyError, ValueError, OSError) as e:
+        _err(e)
+
+
+class FolderBody(BaseModel):
+    path: str = ""
+
+
+@app.post("/api/settings/pick-folder")
+def pick_folder(body: FolderBody):
+    """在伺服器這台電腦上跳出資料夾選擇視窗（同步等使用者選完）"""
+    try:
+        return {"path": settings_ops.pick_folder(body.path)}
+    except Exception as e:  # noqa: BLE001
+        _err(e)
+
+
+@app.post("/api/settings/open-folder")
+def open_folder(body: FolderBody):
+    try:
+        return {"opened": settings_ops.open_folder(body.path)}
+    except Exception as e:  # noqa: BLE001
         _err(e)
 
 
@@ -160,10 +224,10 @@ def _etag(p: Path) -> str:
 
 @app.get("/files/{path:path}")
 def files(path: str, request: Request, v: str | None = None):
-    """outputs/ 與 exports/ 底下的檔案（圖片、zip、json）"""
-    p = (ROOT / path).resolve()
-    bases = (OUTPUTS, EXPORTS, characters.CHAR_DIR, style_lib.LIB_DIR)
-    if not any(base.resolve() in p.parents for base in bases) or not p.is_file():
+    """outputs/、exports/、characters/、style_lib/ 底下的檔案（圖片、zip、json）。
+    網址的前綴固定，實際位置依設定（見 paths.URL_BASES）；跑出這些資料夾的路徑一律 404"""
+    p = from_url(path)
+    if p is None or not p.is_file():
         raise HTTPException(404)
     if p.suffix == ".zip":
         return FileResponse(p, filename=p.name, headers={"Cache-Control": "no-store"})
@@ -181,7 +245,8 @@ def files(path: str, request: Request, v: str | None = None):
 @app.get("/api/projects")
 def projects():
     return {"projects": jobs.list_projects(), "next_id": next_style_id(),
-            "preview_ids": prompts.template().get("preview_ids", []), "max_parallel": jobs.MAX_PARALLEL}
+            "preview_ids": prompts.template().get("preview_ids", []), "max_parallel": settings.get("max_parallel"),
+            "default_layout": settings.get("default_layout")}
 
 
 @app.get("/api/projects/{style}")
@@ -536,8 +601,8 @@ def reopen(style: str):
 
 @app.get("/api/projects/{style}/log")
 def log(style: str, path: str):
-    p = (ROOT / path).resolve()
-    if (ROOT / "logs").resolve() not in p.parents or not p.is_file():
+    p = (ROOT / path).resolve()   # 專案裡記的 log 路徑：相對資料根目錄或絕對路徑
+    if logs_dir().resolve() not in p.parents or not p.is_file():
         raise HTTPException(404)
     return {"text": p.read_text(encoding="utf-8", errors="replace")[-20000:]}
 
@@ -600,8 +665,9 @@ def save_selection(body: SelectionBody):
 
 @app.get("/api/gallery/selections/{name}")
 def get_selection(name: str):
-    p = (EXPORTS / name).resolve()
-    if EXPORTS.resolve() not in p.parents or p.suffix != ".json" or not p.exists():
+    base = exports_dir().resolve()
+    p = (base / name).resolve()
+    if base not in p.parents or p.suffix != ".json" or not p.exists():
         raise HTTPException(404)
     return JSONResponse(read_json(p))
 

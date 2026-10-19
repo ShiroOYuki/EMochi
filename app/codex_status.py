@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import codex, usage
-from .paths import LOGS, OUTPUTS, ROOT, read_json
+from .paths import OUTPUTS, ROOT, codex_path, logs_dir, read_json
 
 CHECK_TTL = 60          # 秒；CLI 版本、登入狀態不常變，沒按「重新連線」就用快取
 DAYS = 7
@@ -70,7 +70,7 @@ def start_login() -> dict:
     if _login_proc is not None and _login_proc.poll() is None:
         return {"started": False, "message": "登入流程已經在進行中，請到瀏覽器完成登入"}
     exe = codex.codex_bin()
-    log = LOGS / "codex_login.log"
+    log = logs_dir() / "codex_login.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with open(log, "w", encoding="utf-8") as f:
         _login_proc = subprocess.Popen([exe, "login"], cwd=ROOT, stdout=f, stderr=subprocess.STDOUT,
@@ -162,16 +162,17 @@ def _parse(path: Path) -> dict | None:
     return {"time": started.strftime("%Y-%m-%d %H:%M:%S"), "date": started.strftime("%Y-%m-%d"),
             "scope": scope, "name": m["name"], "kind": _kind(scope, m["name"]),
             "tokens": tokens, "seconds": round(seconds) if seconds is not None else None, "result": result,
-            "log": path.relative_to(ROOT).as_posix()}
+            "log": codex_path(path)}
 
 
 def usage_days(days: int = DAYS, now: datetime | None = None) -> dict:
     now = now or datetime.now()
     first = (now - timedelta(days=days - 1)).date()
     runs = []
-    if LOGS.exists():
+    logs = logs_dir()
+    if logs.exists():
         oldest = first.strftime("%Y%m%d")
-        for p in LOGS.glob("*/*.log"):
+        for p in logs.glob("*/*.log"):
             if p.parent.name in SKIP_DIRS:
                 continue
             # 先看檔名上的日期，太舊的連開都不開：耗時只跟近 N 天的呼叫數有關，不會隨歷史 log 越積越慢

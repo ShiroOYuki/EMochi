@@ -9,16 +9,19 @@
 """
 import json
 
-from .paths import CONFIG, _lock, load_stickers, read_json, slugify, write_json
+from .paths import BUILTIN_CONFIG, _lock, config_dir, load_stickers, read_json, slugify, write_json
 
-GROUPS_FILE = CONFIG / "sticker_groups.json"
-GROUPS_EXAMPLE = CONFIG / "sticker_groups.example.json"   # 預設 4 組（進版控）
+GROUPS_EXAMPLE = BUILTIN_CONFIG / "sticker_groups.example.json"   # 預設 4 組（進版控）
+
+
+def groups_file():
+    return config_dir() / "sticker_groups.json"
 ALIGNS = (None, "bottom")
 EDITABLE = ("label", "zh", "prompt", "prompt_no_ears", "align")
 
 
 def _save_stickers(items: list[dict]) -> None:
-    write_json(CONFIG / "stickers.json", items)
+    write_json(config_dir() / "stickers.json", items)
 
 
 def active(items: list[dict] | None = None) -> list[dict]:
@@ -72,7 +75,7 @@ def remove(sid: int) -> dict:
         groups = _load_groups(items)
         for g in groups:
             g["ids"] = [i for i in g["ids"] if i != sid]
-        write_json(GROUPS_FILE, groups)
+        write_json(groups_file(), groups)
         return s
 
 
@@ -88,7 +91,7 @@ def restore(sid: int) -> dict:
 # ---------- 分組 ----------
 
 def _load_groups(items: list[dict]) -> list[dict]:
-    groups = read_json(GROUPS_FILE)
+    groups = read_json(groups_file())
     if groups is None:
         groups = read_json(GROUPS_EXAMPLE, []) or []
     alive = {s["id"] for s in active(items)}
@@ -108,7 +111,7 @@ def save_groups(groups: list[dict]) -> list[dict]:
         items = load_stickers()
         alive = {s["id"] for s in active(items)}
         used = [g["id"] for g in groups if isinstance(g.get("id"), int)]
-        nxt = max(used + [g["id"] for g in (read_json(GROUPS_FILE) or [])] + [0]) + 1
+        nxt = max(used + [g["id"] for g in (read_json(groups_file()) or [])] + [0]) + 1
         seen, out = set(), []
         for g in groups:
             name = str(g.get("name") or "").strip()
@@ -123,7 +126,7 @@ def save_groups(groups: list[dict]) -> list[dict]:
                 raise ValueError(f"找不到表情 #{bad[0]}")
             out.append({"id": gid, "name": name, "ids": list(dict.fromkeys(g.get("ids", []))),
                         "default": bool(g.get("default"))})
-        write_json(GROUPS_FILE, out)
+        write_json(groups_file(), out)
         return out
 
 
@@ -152,7 +155,7 @@ def add(label: str, zh: str, prompt: str, align: str | None = None, prompt_no_ea
             for g in groups:
                 if g["id"] == group_id:
                     g["ids"].append(new_id)
-            write_json(GROUPS_FILE, groups)
+            write_json(groups_file(), groups)
         return item
 
 
@@ -218,7 +221,7 @@ def expand(idea: str, current: dict | None = None) -> dict:
     idea = (idea or "").strip() or " / ".join((current or {}).get(k, "") for k in ("zh", "label") if (current or {}).get(k))
     if not idea.strip():
         raise ValueError("先寫一句想要的表情")
-    schema = codex.LOGS / "stickers" / "expand_schema.json"
+    schema = codex.logs_dir() / "stickers" / "expand_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(EXPAND_SCHEMA), encoding="utf-8")
     data = json.loads(codex.run_text(expand_prompt(idea, current), schema, codex.log_path_for("stickers", "expand")))

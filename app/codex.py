@@ -16,12 +16,12 @@ from datetime import datetime
 from pathlib import Path
 
 from . import settings
-from .paths import LOGS, ROOT
+from .paths import ROOT, codex_path, logs_dir
 
 POLL_SEC = 3
 # 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
 ACTIVE: dict[str, dict] = {}
-DEFAULT_TIMEOUT = 20 * 60
+DEFAULT_TIMEOUT = 20 * 60   # 保底；實際用設定頁的 image_timeout_min／text_timeout_min
 KEY_COLORS = {"#00FF00": (0, 255, 0), "#FF00FF": (255, 0, 255)}
 
 
@@ -197,17 +197,18 @@ def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     started = time.time()
     state: dict = {}
-    code, reason = _run(cmd, prompt, log_path, on_tick=on_tick,
+    limit = settings.get("image_timeout_min")
+    code, reason = _run(cmd, prompt, log_path, on_tick=on_tick, timeout=limit * 60,
                         watch=lambda text: generation_finished(out_path, started, text, state, layout))
     ok, why = check_image(out_path, started, layout)
     if reason == "timeout" and not ok:
-        return False, "逾時（超過 20 分鐘）"
+        return False, f"逾時（超過 {limit} 分鐘）"
     if not ok:
         return False, why if code == 0 or reason != "exit" else f"codex 結束碼 {code}；{why}"
     return True, why
 
 
-def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int = 5 * 60,
+def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int | None = None,
              images: list[str] | None = None) -> str:
     """不生圖、只要文字（JSON）回覆：唯讀沙盒、不留 session；images 可附參考圖讓 Codex 看"""
     out = log_path.with_suffix(".answer.json")
@@ -219,11 +220,11 @@ def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int = 5 * 
     for img in images or []:
         cmd += ["-i", img]
     cmd.append("-")
-    code, reason = _run(cmd, prompt, log_path, timeout=timeout)
+    code, reason = _run(cmd, prompt, log_path, timeout=timeout or settings.get("text_timeout_min") * 60)
     if not out.exists():
-        raise RuntimeError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {log_path.relative_to(ROOT)}")
+        raise RuntimeError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {codex_path(log_path)}")
     return out.read_text(encoding="utf-8")
 
 
 def log_path_for(style: str, name: str) -> Path:
-    return LOGS / style / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.log"
+    return logs_dir() / style / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.log"

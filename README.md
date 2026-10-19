@@ -41,7 +41,8 @@ scripts\app.bat          :: 或 uv run python -m app（可加 --port N --no-brow
 - **Gallery**：跨畫風並排比較、勾選、匯出 zip（檔名加 `_s6`、`_s6_v1` 版本後綴，含規格檢查）、組合總覽圖、勾選清單 JSON 存讀
 
 刪除的專案、畫風、角色會先進垃圾桶（側欄左下角），可以還原；永久刪除過的編號不會再被使用。
-Navbar 右側顯示 Codex 額度（5 小時／每週窗口，讀 `~/.codex/sessions` 的紀錄）。
+Navbar 右側顯示 Codex 額度（5 小時／每週窗口，讀 `~/.codex/sessions` 的紀錄），點一下看詳細狀態（連線、登入、近 7 天用量）。
+Navbar 最右邊的齒輪是設定：Log、設定檔、匯出、角色庫、畫風庫的資料夾位置（可放在專案外，改位置時可把檔案一起搬過去），以及同時生圖組數、預設版型、逾時時間；儲存後立即生效。`outputs/` 不能改位置（Codex 生圖只能寫入專案資料夾）。
 
 每個專案的進度（含每組實際送出的 prompt）存在 `outputs/<專案>/project.json`，關掉伺服器再開也不會遺失。
 
@@ -80,7 +81,7 @@ config/
   sticker_groups.example.json  預設 4 組表情分組
   sticker_groups.json   你的表情分組（本地資料，不進版控；沒有時用 example）
   prompt_template.json  Gen 組 prompt 用的共用段落：構圖、版面規則、預覽用表情
-settings.local.json 程式設定（本地資料，不進版控；目前有 codex_args＝生圖時 codex exec 的參數）
+settings.local.json 設定頁的設定（本地資料，不進版控；只記和預設不同的值）
 characters/         角色庫（不進版控）
 style_lib/          畫風庫（不進版控）
 docs/

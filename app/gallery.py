@@ -9,7 +9,7 @@ import zipfile
 from PIL import Image, ImageDraw, ImageFont
 
 from . import characters, specs
-from .paths import EXPORTS, OUTPUTS, read_json, sticker_map
+from .paths import OUTPUTS, exports_dir, read_json, sticker_map
 
 FORMATS = {
     "master": ("Master 512", "master"),
@@ -89,16 +89,16 @@ def selection_doc(keys, **extra) -> dict:
 
 
 def write_export_json(name: str, doc: dict) -> str:
-    EXPORTS.mkdir(exist_ok=True)
-    (EXPORTS / name).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    exports_dir().mkdir(parents=True, exist_ok=True)
+    (exports_dir() / name).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     return name
 
 
 def list_selections() -> list[dict]:
-    if not EXPORTS.exists():
+    if not exports_dir().exists():
         return []
     out = []
-    for f in sorted(EXPORTS.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+    for f in sorted(exports_dir().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
             out.append({"file": f.name, "count": len(d.get("keys", [])), "created": d.get("created", ""),
@@ -130,10 +130,10 @@ def export(keys, fmts, tag="") -> dict:
                     if notes:
                         issues.append({"file": arc, "notes": notes})
                     n += 1
-    EXPORTS.mkdir(exist_ok=True)
+    exports_dir().mkdir(parents=True, exist_ok=True)
     st = stamp()
     name = f"export_{st}{'_' + tag if tag else ''}.zip"
-    (EXPORTS / name).write_bytes(buf.getvalue())
+    (exports_dir() / name).write_bytes(buf.getvalue())
     write_export_json(f"export_{st}.json", selection_doc(keys, kind="export", formats=list(fmts), zip=name,
                                                         tag=tag or None, issues=issues or None))
     return {"file": name, "count": n, "issues": issues}
@@ -181,10 +181,10 @@ def combine(keys, cols=8, cell=128, gap=8, bg="transparent", labels=False) -> di
         if labels:
             tw = d.textlength(lab, font=font)
             d.text((x + (cell - tw) / 2, y + cell + 1), lab, fill=txt, font=font)
-    EXPORTS.mkdir(exist_ok=True)
+    exports_dir().mkdir(parents=True, exist_ok=True)
     st = stamp()
     name = f"sheet_{st}.png"
-    sheet.save(EXPORTS / name, "PNG", optimize=True)
+    sheet.save(exports_dir() / name, "PNG", optimize=True)
     write_export_json(f"sheet_{st}.json", selection_doc(orig, kind="combine", sheet=name, combine={
         "cols": cols, "cell": cell, "gap": gap, "bg": bg, "labels": labels}))
     return {"file": name}

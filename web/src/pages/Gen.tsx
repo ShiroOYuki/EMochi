@@ -6,7 +6,7 @@ import { useStickers } from "../stickers";
 import RefPicker, { type TempRef } from "../components/RefPicker";
 import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
 
-type ProjectsResp = { projects: ProjectSummary[]; next_id: string; preview_ids: number[]; max_parallel: number };
+type ProjectsResp = { projects: ProjectSummary[]; next_id: string; preview_ids: number[]; max_parallel: number; default_layout?: "3x2" | "4x2w" };
 
 export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () => void; active: boolean }) {
   const [list, setList] = useState<ProjectsResp | null>(null);
@@ -99,7 +99,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
             ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} libs={libs} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
             : project
               ? <ProjectView p={project} stickers={stickers} act={act} chars={chars}
-                  previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} onOpenGallery={onOpenGallery}
+                  previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} defaultLayout={list?.default_layout ?? "4x2w"} onOpenGallery={onOpenGallery}
                   onDelete={() => askDelete(project)} />
               : <div className="flex items-center gap-2 text-mute"><Spinner />載入中…</div>}
         </div>
@@ -195,11 +195,11 @@ function NewProject({ nextId, onCreate, focusKey, chars, libs }: { nextId?: stri
 
 type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
-  previewIds: number[]; maxParallel: number; onOpenGallery: () => void;
+  previewIds: number[]; maxParallel: number; defaultLayout: "3x2" | "4x2w"; onOpenGallery: () => void;
   chars: Character[]; onDelete: () => void;
 };
 
-function ProjectView({ p, stickers, act, previewIds, maxParallel, onOpenGallery, chars, onDelete }: ViewProps) {
+function ProjectView({ p, stickers, act, previewIds, maxParallel, defaultLayout, onOpenGallery, chars, onDelete }: ViewProps) {
   const stage = { expanding: 1, draft: 1, previewing: 2, preview_ready: 3, generating: 4, review: 4, processing: 5, done: 5 }[p.status];
   const steps = ["描述畫風", "風格預覽", "選擇貼圖", "生成與審核", "放入 Gallery"];
   const byId = useMemo(() => new Map(stickers.map((s) => [s.id, s])), [stickers]);
@@ -221,7 +221,7 @@ function ProjectView({ p, stickers, act, previewIds, maxParallel, onOpenGallery,
       <StyleStep p={p} act={act} chars={chars} />
       <PreviewStep p={p} act={act} previewIds={previewIds} byId={byId} />
       {(p.status === "preview_ready" || p.groups.length > 0) &&
-        <PickStep p={p} act={act} maxParallel={maxParallel} />}
+        <PickStep p={p} act={act} maxParallel={maxParallel} defaultLayout={defaultLayout} />}
       {p.groups.length > 0 && <GroupsStep p={p} act={act} byId={byId} onOpenGallery={onOpenGallery} />}
     </>
   );
@@ -350,7 +350,7 @@ const LAYOUT_OPTIONS: { id: "3x2" | "4x2w"; label: string; hint: string }[] = [
   { id: "3x2", label: "3×2（每組 6 張）", hint: "1536×1024，每格 512 正方形；2:1 出問題時的備案" },
 ];
 
-function PickStep({ p, act, maxParallel }: { p: Project; act: ViewProps["act"]; maxParallel: number }) {
+function PickStep({ p, act, maxParallel, defaultLayout }: { p: Project; act: ViewProps["act"]; maxParallel: number; defaultLayout: "3x2" | "4x2w" }) {
   const locked = p.status !== "preview_ready";
   // 新專案預設勾「表情」分頁裡標了「Gen 預設勾選」的分組；表情清單還沒載入完時，載入後補上（使用者動過就不再覆蓋）
   const { defaults, loaded } = useStickers();
@@ -359,7 +359,7 @@ function PickStep({ p, act, maxParallel }: { p: Project; act: ViewProps["act"]; 
   const setIds = (v: number[]) => { touched.current = true; setIdsRaw(v); };
   useEffect(() => { if (p.sticker_ids.length) setIdsRaw(p.sticker_ids); }, [p.sticker_ids]);
   useEffect(() => { if (loaded && !p.sticker_ids.length && !touched.current) setIdsRaw(defaults); }, [loaded, defaults, p.sticker_ids.length]);
-  const [layout, setLayout] = useState<"3x2" | "4x2w">("4x2w");
+  const [layout, setLayout] = useState<"3x2" | "4x2w">(defaultLayout);   // 預設值在設定頁改
   const size = layout === "4x2w" ? 8 : 6;
   const groups = Math.ceil(ids.length / size);
   return (
