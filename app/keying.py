@@ -8,8 +8,25 @@ from PIL import Image
 from scipy import ndimage
 
 
+# 生圖 prompt 只會要求這兩種背景（角色身上綠色多時換洋紅）
+KEY_COLORS = ((0, 255, 0), (255, 0, 255))
+KEY_NEAR = 100          # 和標準色距離在這以內，算「背景那一群」
+KEY_MIN_SHARE = 0.05    # 那一群至少要佔全圖這麼多，才相信是這個背景
+
+
 def detect_key(rgb):
-    """取整張圖外框一圈的中位數當背景色"""
+    """找背景色：在整張圖裡找最接近純綠／洋紅的那一群像素，取它們的中位數（模型畫的綠常常不是剛好 #00FF00）。
+
+    以前是取外框一圈的中位數：特寫構圖的頭髮、衣服會蓋住大半個外框（實測只剩 35% 是綠），
+    中位數變成暗綠色，結果把黑髮當背景挖掉、綠色反而留下。兩種標準色都找不到才退回外框中位數"""
+    px = rgb.reshape(-1, 3)[:: max(1, rgb.shape[0] * rgb.shape[1] // 200_000)].astype(np.float32)   # 抽樣，大圖也快
+    best, share = None, 0.0
+    for c in KEY_COLORS:
+        near = np.linalg.norm(px - np.array(c, np.float32), axis=1) < KEY_NEAR
+        if near.mean() > share:
+            best, share = px[near], near.mean()
+    if best is not None and share >= KEY_MIN_SHARE:
+        return np.median(best, axis=0).astype(np.float32)
     border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
     return np.median(border, axis=0).astype(np.float32)
 
