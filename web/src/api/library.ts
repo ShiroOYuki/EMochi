@@ -1,6 +1,7 @@
 // 角色庫（/api/characters）、畫風庫（/api/style-lib）：兩邊共用同一套清單／參考圖操作（app/reflib.py）
 import { http } from "./client";
-import type { Character, Framing, Importable, LibStyle, Upload } from "./types";
+import type { Body } from "./requests";
+import type { Character, Importable, LibStyle, Upload } from "./types";
 
 const enc = encodeURIComponent;
 
@@ -21,7 +22,7 @@ export function refLibraryApi<T>(endpoint: string) {
 }
 export type RefLibraryApi<T> = ReturnType<typeof refLibraryApi<T>>;
 
-export type CharacterPatch = Partial<{ name: string; identity: string; ears: boolean | null }>;
+export type CharacterPatch = Body<"CharacterPatch">;
 
 export const charactersApi = {
   ...refLibraryApi<Character>("/api/characters"),
@@ -31,14 +32,8 @@ export const charactersApi = {
   describe: (id: string) => http.post<Character>(`/api/characters/${id}/describe`),
 };
 
-export type NewLibStyleBody = { name: string; request: string; images: Upload[]; analyze: boolean };
-export type LibStylePatch = Partial<{
-  name: string;
-  request: string;
-  framing: Framing;
-  style_block: string;
-  process: { square: number | null; margin: number };
-}>;
+export type NewLibStyleBody = Body<"NewLibStyle">;
+export type LibStylePatch = Body<"LibStylePatch">;
 
 export const styleLibApi = {
   ...refLibraryApi<LibStyle>("/api/style-lib"),

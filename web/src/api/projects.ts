@@ -1,6 +1,7 @@
 // 生成頁：畫風專案（app/routes/projects.py）
 import { http } from "./client";
-import type { Framing, LibStyle, Project, ProjectSummary, RefRole, Upload } from "./types";
+import type { Body } from "./requests";
+import type { LibStyle, Project, ProjectSummary, RefRole, Upload } from "./types";
 
 const enc = encodeURIComponent;
 const base = (id: string) => `/api/projects/${id}`;
@@ -15,23 +16,10 @@ export type ProjectList = {
 };
 export type GroupLayout = "4x2w" | "3x2";
 
-export type CreateProjectBody = {
-  request: string;
-  character_id: string | null;
-  /** null＝用角色庫預設勾選的圖；[]＝一張都不用 */
-  character_images: string[] | null;
-  temp_refs: Upload[];
-  style_lib_id: string | null;
-};
-export type ProjectPatch = Partial<{
-  name: string;
-  request: string;
-  framing: Framing;
-  style_block: string;
-  process: { square: number | null; margin: number };
-  character_id: string | null;
-  character_images: string[] | null;
-}>;
+/** character_images：null＝用角色庫預設勾選的圖；[]＝一張都不用 */
+export type CreateProjectBody = Body<"CreateBody">;
+/** 只會改有傳的欄位 */
+export type ProjectPatch = Body<"ProjectPatch">;
 /** 預覽圖或第幾組 */
 export type GridTarget = "preview" | number;
 

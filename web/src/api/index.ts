@@ -4,6 +4,7 @@ export * from "./gallery";
 export * from "./library";
 export * from "./projects";
 export * from "./queries";
+export type { Body } from "./requests";
 export * from "./settings";
 export * from "./stickers";
 export * from "./system";
