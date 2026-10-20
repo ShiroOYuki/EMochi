@@ -53,6 +53,22 @@ jobs:
       - name: 打包後端（PyInstaller）
         run: uv run --group desktop pyinstaller desktop/emochi-server.spec --noconfirm --distpath dist --workpath build
 
+      # 先建好 Release，electron-builder 只負責上傳：
+      # Release 還不存在時，electron-builder 平行上傳的幾個檔案會各自建一個 Release（v0.2.0 就變成兩個，
+      # 安裝檔和 latest.yml 分在不同 Release，自動更新會找不到檔案）
+      - name: 建立 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo ${{ github.repository }} --verify-tag --title $tag.TrimStart("v") --notes "（打包中，說明稍後補上）"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          exit 0
+
       - name: 打包並發布（electron-builder → Releases）
         working-directory: desktop
         env:
