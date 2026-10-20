@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-用 uv 跑原始碼的後端，資料和網頁版共用專案資料夾。
+用 uv 跑原始碼的後端，資料和網頁版共用專案資料夾。開發模式的視窗設定、記錄檔、瀏覽器資料放在 `%APPDATA%\EMochi-dev`、後端優先用 port 38766，和安裝版（`%APPDATA%\EMochi`、38765）分開，兩個可以同時開。
 
 架構：Electron（`desktop/main.js`）找一個空的 port 啟動後端 → 等 `/api/health` → 視窗載入同一套 React 前端；選資料夾等原生功能走 `desktop/preload.js` 的 `window.emochi`。
 
