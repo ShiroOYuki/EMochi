@@ -1,62 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import { api, fileUrl, type CustomExport, type GalleryItem, type GalleryStyle, type SelectionInfo } from "../api";
 import { ManagePresetsButton, PresetPicker } from "../components/ExportPresets";
 import { legacyToPresets, parseSizes, sizeText, usePresets } from "../exportPresets";
-import { Check, Modal, Select } from "../components/ui";
+import { Check, Modal, ScrollRow, Select } from "../components/ui";
 import { useStickers } from "../stickers";
 
 const KIND: Record<string, string> = { export: "匯出", combine: "組合", selection: "勾選" };
 type Entry = { s: GalleryStyle; it: GalleryItem };
 const keyOf = (e: Entry) => `${e.s.id}:${e.it.id}`;
 const VT_MAX = 120;   // 一次最多替幾個元素做位置動畫（只算畫面上看得到的）
-
-/** 並排比較的一列：不顯示捲軸，放不下時兩側淡出＋左右箭頭翻頁（觸控板左右滑、Shift＋滾輪也可以） */
-function ScrollRow({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  const [edge, setEdge] = useState({ l: false, r: false });
-  const update = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
-    setEdge((e) => (e.l === l && e.r === r ? e : { l, r }));
-  }, []);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [update]);
-  useEffect(update);   // 卡片數量變了（篩選、重新整理）也要重算
-  const page = (dir: 1 | -1) => {
-    const el = ref.current;
-    if (el) el.scrollBy({ left: dir * Math.max(140, el.clientWidth - 160), behavior: reduce ? "auto" : "smooth" });
-  };
-  const fade = 48;
-  const mask = `linear-gradient(to right, ${edge.l ? "transparent" : "#000"} 0, #000 ${edge.l ? fade : 0}px, #000 calc(100% - ${edge.r ? fade : 0}px), ${edge.r ? "transparent" : "#000"} 100%)`;
-  const arrow = "row-arrow absolute top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-line bg-panel text-text shadow-[var(--shadow-soft)] transition hover:border-acc hover:text-acc active:scale-95";
-  return (
-    <div className="relative">
-      <div ref={ref} onScroll={update} className="no-scrollbar flex snap-x snap-proximity gap-2.5 overflow-x-auto overscroll-x-contain"
-        style={{ maskImage: mask, WebkitMaskImage: mask }}>
-        {children}
-      </div>
-      {edge.l && (
-        <button className={`${arrow} -left-2`} onClick={() => page(-1)} aria-label="往左看更多">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" /></svg>
-        </button>
-      )}
-      {edge.r && (
-        <button className={`${arrow} -right-2`} onClick={() => page(1)} aria-label="往右看更多">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5.5 3l4 4-4 4" /></svg>
-        </button>
-      )}
-    </div>
-  );
-}
 
 function useStored<T>(key: string, init: T) {
   const [v, setV] = useState<T>(() => {
@@ -228,7 +182,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
                       <button className="btn btn-sm shrink-0 whitespace-nowrap" onClick={() => setSel(keys, false)}>取消此組</button>
                     </div>
                     {oneLine
-                      ? <ScrollRow>{r.entries.map((e, j) => card(e, start + j))}</ScrollRow>
+                      ? <ScrollRow arrows className="snap-x snap-proximity gap-2.5 overscroll-x-contain">{r.entries.map((e, j) => card(e, start + j))}</ScrollRow>
                       : <div className="flex flex-wrap gap-2.5">{r.entries.map((e, j) => card(e, start + j))}</div>}
                   </div>
                 );

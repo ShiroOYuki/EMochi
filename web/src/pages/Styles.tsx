@@ -1,96 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, fileUrl, libCover, libImageUrl, readFiles, type Importable, type LibStyle, type Upload } from "../api";
-import { DropZone, Section, Select, Spinner } from "../components/ui";
-import { copyText, DeleteButton, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
+import { useEffect, useRef, useState } from "react";
+import { api, fileUrl, libCover, libImageUrl, type Importable, type LibStyle, type Upload } from "../api";
+import { Section, Select, Spinner } from "../components/ui";
+import { DeleteButton } from "../components/manage";
+import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
 export default function StylesPage({ active }: { active: boolean }) {
-  const [list, setList] = useState<LibStyle[]>([]);
-  const [current, setCurrent] = useState<string | null>(null);   // null = 新增
-  const [newKey, setNewKey] = useState(0);
-  const [err, setErr] = useState("");
-
-  const load = useCallback(async () => {
-    const l = await api.get<LibStyle[]>("/api/style-lib");
-    setList(l);
-    return l;
-  }, []);
-  useEffect(() => {
-    if (!active) return;
-    load().then((l) => setCurrent((c) => (c === null && l.length && newKey === 0 ? l[0].id : c)));
-  }, [active, load, newKey]);
-
-  /** 執行後重新整理清單並切到回傳的畫風；回傳帶 error（分析失敗）時仍切過去並顯示錯誤 */
-  const act = async (fn: () => Promise<LibStyle>) => {
-    setErr("");
-    try {
-      const s = await fn(); await load(); setCurrent(s.id);
-      if (s.error) setErr(s.error);
-      return s;
-    } catch (e) { setErr((e as Error).message); }
-  };
-  // 刪除：側欄垃圾桶圖示、右鍵選單、頁面內容的刪除鈕都走這裡（先跳確認框，移到垃圾桶）
-  const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
-  const [trashKey, setTrashKey] = useState(0);
-  const askDelete = (s: LibStyle) => setToDelete({ id: s.id, title: s.name });
-  const doDelete = async (id: string) => {
-    await api.del(`/api/style-lib/${id}`);
-    setTrashKey((k) => k + 1);
-    const l = await load();
-    if (current === id) setCurrent(l[0]?.id ?? null);
-  };
-  const [menu, openMenu] = useContextMenu();
-  const menuFor = (s: LibStyle): MenuItem[] => [
-    { label: "開啟", icon: MenuIcons.open, onSelect: () => setCurrent(s.id) },
-    { label: `複製編號 ${s.id}`, icon: MenuIcons.copy, onSelect: () => copyText(s.id) },
-    "sep",
-    { label: "刪除", icon: MenuIcons.trash, danger: true, onSelect: () => askDelete(s) },
-  ];
-  const style = list.find((s) => s.id === current) ?? null;
+  const lib = useLibrary<LibStyle>({ endpoint: "/api/style-lib", active });
+  const style = lib.current === null ? null : lib.selected;
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col">
-        <div className="shrink-0 px-4 pt-4">
-          <button className={`btn mb-3 w-full ${current === null ? "btn-primary" : ""}`} onClick={() => { setCurrent(null); setNewKey((k) => k + 1); }}>＋ 新增畫風</button>
-          <div className="mb-1 px-1 text-xs text-mute">畫風庫</div>
-        </div>
-        <div className="side-list">
-        {list.length === 0 && <div className="px-1 text-xs text-mute">還沒有畫風。上傳範例貼圖讓 Codex 分析，或從現有的畫風專案匯入。</div>}
-        {list.map((s) => {
+      <LibrarySidebar lib={lib} noun="畫風" newLabel="新增畫風" heading="畫風庫" trashKind="styles" active={active}
+        empty="還沒有畫風。上傳範例貼圖讓 Codex 分析，或從現有的畫風專案匯入。"
+        row={(s) => {
           const cover = libCover(s);
-          return (
-            <div key={s.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(s))}>
-            <button onClick={() => setCurrent(s.id)}
-              className={`flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-9 text-left transition ${current === s.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
-              {cover
-                ? <img src={libImageUrl(s, cover)} className="checker size-10 rounded-xl object-cover" alt="" />
-                : <span className="flex size-10 items-center justify-center rounded-xl bg-panel2 text-mute">?</span>}
-              <span className="min-w-0">
-                <span className="block truncate">{s.name || "（未命名）"}</span>
-                <span className="text-[11px] text-mute">{s.id}{s.source_project ? `・來自 ${s.source_project}` : ""}{!s.style_block && "・待分析"}</span>
-              </span>
-            </button>
-            <SideDeleteIcon onClick={() => askDelete(s)} label={`刪除畫風 ${s.id}`} shown={current === s.id} />
-            </div>
-          );
-        })}
-        </div>
-        {menu}
-        <DeleteConfirm target={toDelete} noun="畫風" onConfirm={doDelete} onClose={() => setToDelete(null)} />
-        <TrashButton kind="styles" active={active} refreshKey={trashKey}
-          onRestored={(id) => { load(); setCurrent(id); }} />
-      </aside>
+          return {
+            title: s.name || "（未命名）", cover: cover && libImageUrl(s, cover),
+            sub: <>{s.id}{s.source_project ? `・來自 ${s.source_project}` : ""}{!s.style_block && "・待分析"}</>,
+          };
+        }} />
 
       <div className="min-w-0 flex-1 overflow-y-auto p-5">
         <div className="mx-auto max-w-4xl space-y-4">
-          {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
-          {current === null || !style
+          {lib.err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{lib.err}</div>}
+          {!style
             ? <>
-                <NewStyle focusKey={newKey} onCreate={(body) => act(() => api.post<LibStyle>("/api/style-lib", body))} />
-                <ImportSection active={active && current === null} onImport={(project) => act(() => api.post<LibStyle>("/api/style-lib/import", { project }))} />
+                <NewStyle focusKey={lib.newKey} onCreate={(body) => lib.act(() => api.post<LibStyle>("/api/style-lib", body))} />
+                <ImportSection active={active && lib.current === null} onImport={(project) => lib.act(() => api.post<LibStyle>("/api/style-lib/import", { project }))} />
               </>
-            : <StyleView key={style.id} s={style} act={act} onRemove={() => askDelete(style)} />}
+            : <StyleView key={style.id} s={style} act={lib.act} onRemove={() => lib.askDelete(style, style.name)} />}
         </div>
       </div>
     </div>
@@ -115,14 +54,7 @@ function NewStyle({ onCreate, focusKey }: { onCreate: (b: NewBody) => Promise<Li
     <Section title="從範例貼圖分析畫風">
       <p className="mb-3 text-sm text-mute">放幾張想模仿的貼圖（同一種畫風，1～4 張最好），Codex 只看「畫法」——線條、上色、比例、表情怎麼畫——不管圖裡畫的是誰。</p>
       <div ref={drop} className="flex flex-wrap gap-2">
-        {images.map((u, i) => (
-          <div key={i} className="checker relative size-28 overflow-hidden rounded-xl">
-            <img src={u.data} className="size-full object-contain" alt={u.name} />
-            <button onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label={`移除 ${u.name}`}
-              className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full bg-panel/90 text-xs shadow hover:text-bad">✕</button>
-          </div>
-        ))}
-        <DropZone className="size-28" disabled={busy} onFiles={async (f) => { const u = await readFiles(f); setImages((x) => [...x, ...u]); }} />
+        <PendingUploads images={images} setImages={setImages} disabled={busy} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-[220px_1fr]">
         <div><label className="label">畫風名稱（可空，Codex 會取）</label>
@@ -184,21 +116,7 @@ function StyleView({ s, act, onRemove }: { s: LibStyle; act: (fn: () => Promise<
   return (
     <>
       <Section title="範例貼圖" right={<span className="text-xs text-mute">粉框＝分析與套用時會附上</span>}>
-        <div className="flex flex-wrap gap-3">
-          {s.images.map((i) => (
-            <div key={i.file} className="w-32">
-              <button onClick={() => act(() => api.patch<LibStyle>(base, { use: { [i.file]: !i.use } }))} aria-pressed={i.use} title="切換是否附上"
-                className={`checker block aspect-square w-full overflow-hidden rounded-xl border-[3px] transition ${i.use ? "border-pink" : "border-transparent opacity-50 hover:opacity-90"}`}>
-                <img src={libImageUrl(s, i.file)} className="size-full object-contain" alt={i.file} />
-              </button>
-              <div className="mt-1 flex items-center gap-1 text-[11px] text-mute">
-                <span className="truncate" title={i.source ? `原檔名：${i.source}` : undefined}>{i.file.replace(/\.png$/, "")}</span>
-                <button className="ml-auto shrink-0 hover:text-bad" onClick={() => act(() => api.del<LibStyle>(`${base}/images/${encodeURIComponent(i.file)}`))}>移除</button>
-              </div>
-            </div>
-          ))}
-          <DropZone className="size-32" onFiles={async (files) => { const u = await readFiles(files); if (u.length) await act(() => api.post<LibStyle>(`${base}/images`, u)); }} />
-        </div>
+        <RefImageGrid images={s.images} url={(f) => libImageUrl(s, f)} base={base} act={act} toggleTitle="切換是否附上" />
       </Section>
 
       <Section title="畫風描述"

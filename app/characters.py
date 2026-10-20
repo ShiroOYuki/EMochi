@@ -6,86 +6,21 @@ character.json
   images: [{file, use, source}]   use = 新畫風預設是否附上這張；source = 上傳時的原檔名
   next_index                      下一張圖的流水號
 
-每個角色的圖片檔名都用同一套：ref_01.png、ref_02.png…（角色靠資料夾區分）。
-流水號只增不減：移除 ref_02 之後新上傳的是 ref_03，不會沿用舊號，
-這樣已經記錄「用了 ref_02」的畫風專案不會在不知情下換成另一張圖。
+參考圖的檔名與流水號規則見 reflib.py（和畫風庫共用）。
 """
 import json
 import re
-import threading
-from datetime import datetime
-from pathlib import Path
 
 from . import codex
 from .images import move_to_removed, save_png
 from .paths import outputs_dir, characters_dir, codex_path, read_json, write_json
+from .reflib import STD_RE, RefLibrary, now
 
-_lock = threading.Lock()
-
-
-def _json(cid: str) -> Path:
-    return characters_dir() / cid / "character.json"
-
-
-def refs_dir(cid: str) -> Path:
-    return characters_dir() / cid / "refs"
-
-
-def get(cid: str) -> dict | None:
-    c = read_json(_json(cid))
-    if c:
-        c["images"] = [i for i in c.get("images", []) if (refs_dir(cid) / i["file"]).exists()]
-    return c
-
-
-def list_all() -> list[dict]:
-    out = []
-    if characters_dir().exists():
-        for f in sorted(characters_dir().glob("*/character.json")):
-            c = get(f.parent.name)
-            if c:
-                out.append(c)
-    return sorted(out, key=lambda c: c.get("created", ""))
-
-
-def _save(c: dict) -> dict:
-    c["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    write_json(_json(c["id"]), c)
-    return c
-
-
-PREFIX = "ref"
-STD_RE = re.compile(rf"^{PREFIX}_(\d{{2,}})\.png$")
-
-
-def std_name(n: int) -> str:
-    return f"{PREFIX}_{n:02d}.png"
-
-
-def _take_name(c: dict) -> str:
-    """發下一個標準檔名（並推進流水號）"""
-    folder = refs_dir(c["id"])
-    used = [int(m.group(1)) for i in c["images"] if (m := STD_RE.match(i["file"]))]
-    n = max([c.get("next_index", 1), *(u + 1 for u in used)])
-    while (folder / std_name(n)).exists():
-        n += 1
-    c["next_index"] = n + 1
-    return std_name(n)
-
-
-def _store(c: dict, files: list[tuple[str, bytes]], use: bool = True) -> None:
-    for fname, raw in files:
-        c["images"].append({"file": save_png(raw, refs_dir(c["id"]), fname, exact=_take_name(c)),
-                            "use": use, "source": fname})
-
-
-def _new_id() -> str:
-    from .trash import reserved_ids
-    used = reserved_ids("characters")
-    n = 1
-    while (characters_dir() / f"c{n}").exists() or f"c{n}" in used:
-        n += 1
-    return f"c{n}"
+# lambda：每次用到才查模組裡的 *_dir（設定改路徑、測試 monkeypatch 都會跟著變）
+_lib = RefLibrary(lambda: characters_dir(), "character.json", "characters", "c")
+_lock = _lib.lock
+refs_dir, get, list_all, _save, _take_name = _lib.refs_dir, _lib.get, _lib.list_all, _lib.save, _lib.take_name
+add_images, remove_image, delete = _lib.add_images, _lib.remove_image, _lib.delete
 
 
 _ANIMAL_EARS = re.compile(r"\b(?<!human )ears\b|\b(?:kemonomimi|nekomimi)\b", re.I)
@@ -108,56 +43,26 @@ def has_ears(c: dict) -> bool:
     return guess_ears(c.get("identity", "")) if v is None else bool(v)
 
 
-def delete(cid: str) -> None:
-    """整個角色移到垃圾桶 characters/_removed/（見 trash.py）；用到它的專案在還原前會找不到角色圖"""
-    from .trash import move_to_trash
-    with _lock:
-        move_to_trash("characters", cid)
-
-
 def create(name: str, files: list[tuple[str, bytes]]) -> dict:
     if not name.strip():
         raise ValueError("請輸入角色名稱")
     with _lock:
-        c = {"id": _new_id(), "name": name.strip(), "identity": "", "notes_zh": "", "images": [],
-             "next_index": 1, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        _store(c, files)
+        c = {"id": _lib.new_id(), "name": name.strip(), "identity": "", "notes_zh": "", "images": [],
+             "next_index": 1, "created": now()}
+        _lib.store(c, files)
         return _save(c)
 
 
 def update(cid: str, fields: dict) -> dict:
     with _lock:
-        c = get(cid)
-        if not c:
-            raise KeyError(cid)
+        c = _lib.require(cid)
         for k in ("name", "identity", "notes_zh"):
             if k in fields:
                 c[k] = fields[k]
         if "ears" in fields:
             c["ears"] = None if fields["ears"] is None else bool(fields["ears"])
         if "use" in fields:   # {file: bool}
-            for i in c["images"]:
-                if i["file"] in fields["use"]:
-                    i["use"] = bool(fields["use"][i["file"]])
-        return _save(c)
-
-
-def add_images(cid: str, files: list[tuple[str, bytes]]) -> dict:
-    with _lock:
-        c = get(cid)
-        if not c:
-            raise KeyError(cid)
-        _store(c, files)
-        return _save(c)
-
-
-def remove_image(cid: str, file: str) -> dict:
-    with _lock:
-        c = get(cid)
-        if not c:
-            raise KeyError(cid)
-        move_to_removed(refs_dir(cid) / Path(file).name)
-        c["images"] = [i for i in c["images"] if i["file"] != file]
+            _lib.apply_use(c, fields["use"])
         return _save(c)
 
 

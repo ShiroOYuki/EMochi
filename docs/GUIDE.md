@@ -154,20 +154,4 @@ Save the result as single_{編號}.png in the current folder.
 
 ## 後處理
 
-```bash
-pip install pillow numpy scipy
-
-# 四張網格一次處理（預設輸出 Twitch 尺寸 112 / 56 / 28）
-python postprocess.py group1.png group2.png group3.png group4.png
-
-# 頭部特寫：裁掉下方身體、切口貼齊底邊（Discord / Twitch 28px 更好認，建議 0.75~0.8）
-python postprocess.py group1.png group2.png group3.png group4.png --head 0.78
-
-# 單張重生的圖，覆蓋原本那一張（例：第 14 張）
-python postprocess.py single_14.png --grid 1x1 --start 14
-
-# 其他平台尺寸，例如 LINE（370x320，留白 10px 左右）
-python postprocess.py group*.png --sizes 370x320 --margin 0.03
-```
-
-輸出在 `out/`：每個尺寸一個資料夾、`out/master/` 是 512 的高解析版本，另外會產生 `out/preview.png` 棋盤格總覽，方便一眼檢查去背和一致性。
+早期的命令列後處理工具（`postprocess.py`）已移除；切割、去背、縮放現在由 App 自動處理（核心在 `app/keying.py`、`app/pipeline.py`）。
