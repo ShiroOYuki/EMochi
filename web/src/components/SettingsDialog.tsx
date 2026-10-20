@@ -6,6 +6,7 @@ import { permission, requestPermission, setNotifyPref, showNotification, useNoti
 import { AboutUpdates } from "./Updates";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
+import { hasSponsors, SponsorLinks } from "./Sponsor";
 import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
@@ -166,6 +167,11 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             <Field top label="回報問題" hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊">
               <ReportSection />
             </Field>
+            {hasSponsors && (
+              <Field label="支持開發" hint="EMochi 免費開源；喜歡的話可以請我喝杯咖啡（在瀏覽器開啟付款頁）">
+                <SponsorLinks />
+              </Field>
+            )}
           </Group>
 
           {desktop && (

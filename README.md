@@ -71,6 +71,10 @@ EMochi 用 [Codex CLI](https://github.com/openai/codex) 生圖，**生圖用的�
    - 兩種方式都會先把診斷資訊（版本、系統、Codex 狀態、設定摘要、最近失敗的 Codex 呼叫）複製到剪貼簿，路徑裡的使用者名稱會換成 `~`
 3. 需要附 log 的話，同一區可以開啟 log 資料夾：Codex 的呼叫紀錄在 EMochi 資料夾（預設 `%LOCALAPPDATA%\EMochi`）的 `logs\`，桌面程式本身的 log 在 `%APPDATA%\EMochi\logs\`（`server.log` 是後端、`updater.log` 是更新）。log 裡可能有你的電腦路徑，附上前可以先看一下。EMochi 不會自動上傳任何檔案
 
+## 支持開發
+
+EMochi 免費、開源，所有功能都可以直接使用。如果它對你有幫助，歡迎請我喝杯咖啡：[綠界](https://p.ecpay.com.tw/C487EF9)（台灣，新台幣付款）或 [Ko-fi](https://ko-fi.com/ciel518)（國際：信用卡、PayPal）。App 右上角的愛心、或「設定 → 說明 → 支持開發」也能找到贊助連結。
+
 ## 從原始碼執行、開發
 
 見 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)：網頁版、修改前端、測試、打包、發版流程、資料夾結構。
