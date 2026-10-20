@@ -73,7 +73,7 @@ EMochi 用 [Codex CLI](https://github.com/openai/codex) 生圖，**生圖用的�
 
 ## 支持開發
 
-EMochi 免費、開源，所有功能都可以直接使用。如果它對你有幫助，歡迎[在 Ko-fi 請我喝杯咖啡](https://ko-fi.com/ciel518)；App 右上角的愛心、或「設定 → 說明 → 支持開發」也能找到贊助連結。
+EMochi 免費、開源，所有功能都可以直接使用。如果它對你有幫助，歡迎請我喝杯咖啡：[綠界](https://p.ecpay.com.tw/C487EF9)（台灣，新台幣付款）或 [Ko-fi](https://ko-fi.com/ciel518)（國際：信用卡、PayPal）。App 右上角的愛心、或「設定 → 說明 → 支持開發」也能找到贊助連結。
 
 ## 從原始碼執行、開發
 

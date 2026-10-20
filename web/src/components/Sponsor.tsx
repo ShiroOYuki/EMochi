@@ -6,7 +6,7 @@ import { Modal } from "./ui";
 type Sponsor = { id: string; name: string; url: string; note: string };
 /** url 留空的平台不顯示（例如還沒申請好的） */
 const SPONSORS: Sponsor[] = [
-  { id: "ecpay", name: "綠界", url: "", note: "台灣：信用卡、ATM、超商代碼" },
+  { id: "ecpay", name: "綠界", url: "https://p.ecpay.com.tw/C487EF9", note: "台灣在地付款（新台幣）" },
   { id: "kofi", name: "Ko-fi", url: "https://ko-fi.com/ciel518", note: "國際：信用卡、PayPal" },
 ].filter((s) => s.url);
 
