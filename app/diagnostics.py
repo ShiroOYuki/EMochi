@@ -9,10 +9,11 @@ import platform
 import sys
 from pathlib import Path
 
-from . import codex_status, settings
+from . import applog, codex_status, settings
 from .paths import APP_ROOT, FROZEN, ROOT
 
 RECENT_FAILED = 5
+RECENT_LOG_LINES = 15  # 附上 app.log 最後幾行（只記警告和錯誤）
 
 
 def mask(text: str) -> str:
@@ -73,6 +74,10 @@ def collect(app_version: str | None = None, desktop: bool = False) -> dict:
             )
     else:
         lines.append("最近失敗的 Codex 呼叫：近 7 天沒有")
+    recent_log = applog.tail(RECENT_LOG_LINES)
+    if recent_log:
+        lines.append(f"程式記錄（app.log 最後 {len(recent_log)} 行）：")
+        lines += [f"  {mask(line)}" for line in recent_log]
     return {
         "version": version,
         "os": os_name(),

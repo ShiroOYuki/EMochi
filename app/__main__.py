@@ -59,7 +59,10 @@ def main():
             st.reconfigure(encoding="utf-8", errors="replace")
         except AttributeError:
             pass
+    from . import applog
     from .server import app  # 直接傳物件（不用 "app.server:app" 字串），打包後也找得到
+
+    applog.setup()
 
     url = f"http://127.0.0.1:{a.port}"
     print(f"EMochi 已啟動：{url}（Ctrl+C 結束）", flush=True)

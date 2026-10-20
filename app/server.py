@@ -12,7 +12,7 @@ from .errors import AppError
 from .paths import STATIC
 from .routes import files, gallery, library, projects, settings, stickers, system
 
-log = logging.getLogger("emochi")
+log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
