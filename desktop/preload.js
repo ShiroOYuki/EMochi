@@ -7,6 +7,13 @@ contextBridge.exposeInMainWorld("emochi", {
   setTheme: (pref) => ipcRenderer.send("set-theme", pref),
   /** 打開桌面程式的 log 資料夾（%APPDATA%\\EMochi\\logs：server.log、updater.log） */
   openLogs: () => ipcRenderer.invoke("open-logs"),
+  /** 系統通知；點通知時主程序把視窗叫到前面，再呼叫 onNotifyClick 的 cb(專案編號) */
+  notify: (n) => ipcRenderer.invoke("notify", n),
+  onNotifyClick: (cb) => {
+    const h = (_e, project) => cb(project);
+    ipcRenderer.on("notify-click", h);
+    return () => ipcRenderer.removeListener("notify-click", h);
+  },
   updates: {
     get: () => ipcRenderer.invoke("update-get"),
     check: () => ipcRenderer.invoke("update-check"),

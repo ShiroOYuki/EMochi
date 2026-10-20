@@ -7,6 +7,7 @@ import { UpdateBadge } from "./components/Updates";
 import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
+import { useNotifier } from "./notify";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
@@ -37,6 +38,7 @@ function Ears() {
 export default function App() {
   const [tab, setTab] = useState<Tab>(readTab);
   const reduce = useReducedMotion();
+  useNotifier();
   useEffect(() => {
     const on = () => setTab(readTab());
     window.addEventListener("hashchange", on);

@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from . import characters, codex, pipeline, prompts, settings, style_lib, usage
+from . import characters, codex, events, pipeline, prompts, settings, style_lib, usage
 from .images import move_to_removed, save_png
 from .paths import BUILTIN_CONFIG, ROOT, data_path, next_style_id, outputs_dir, stored_path, read_json, sticker_map, write_json
 
@@ -376,7 +376,9 @@ def _run_preview(style: str) -> None:
         p["preview"].update(status="done" if ok else "failed", message=msg, log=rel(log), finished=now())
         p["status"] = "preview_ready" if ok else "draft"
         p["error"] = None if ok else f"預覽失敗：{msg}"
-    mutate(style, fn)
+    p = mutate(style, fn)
+    events.emit("preview", style, "預覽圖完成" if ok else "預覽圖失敗",
+                _label(p) + ("：可以確認風格、挑選貼圖了" if ok else f"：{msg}"), ok)
 
 
 # ---------- 3. 確認風格 → 批次生成 ----------
@@ -443,12 +445,34 @@ def _run_group(style: str, index: int) -> None:
         except Exception as e:  # noqa: BLE001
             ok, msg = False, str(e)
 
+    finished = []   # 這次讓整批跑完的那一組才發通知（鎖內判斷，同時結束的兩組不會都發）
+
     def fn(p):
         gg = _group(p, index)
         gg.update(status="done" if ok else "failed", message=msg, log=rel(log), finished=now())
         if all(x["status"] in ("done", "failed") for x in p["groups"]):
+            if p["status"] != "review":
+                finished.append(True)
             p["status"] = "review"
-    mutate(style, fn)
+    p = mutate(style, fn)
+    if finished:
+        _notify_batch(p)
+
+
+def _label(p: dict) -> str:
+    return f"{p.get('name') or '未命名'}（{p['id']}）"
+
+
+def _notify_batch(p: dict) -> None:
+    gs = p["groups"]
+    bad = [g["index"] for g in gs if g["status"] == "failed"]
+    if not bad:
+        events.emit("batch", p["id"], "生成完成", f"{_label(p)}：{len(gs)} 組全部成功，可以檢查後收尾", True)
+    elif len(bad) == len(gs):
+        events.emit("batch", p["id"], "生成失敗", f"{_label(p)}：{len(gs)} 組都失敗了", False)
+    else:
+        events.emit("batch", p["id"], "生成完成（有失敗）",
+                    f"{_label(p)}：{len(gs) - len(bad)} 組成功，第 {'、'.join(map(str, bad))} 組失敗", False)
 
 
 # ---------- 4. 全部確認 → 後處理 → 進 Gallery ----------

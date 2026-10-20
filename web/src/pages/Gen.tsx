@@ -3,6 +3,7 @@ import { api, BUSY, type Character, type LibStyle, type Project, type ProjectSum
 import { Spinner, StatusBadge } from "../components/ui";
 import { useStickers } from "../stickers";
 import { copyText, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "../components/manage";
+import { onOpenProject } from "../notify";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
 
@@ -32,6 +33,8 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   // 切回這頁就重抓專案清單（可能剛在別的分頁從垃圾桶還原）
   useEffect(() => { if (active) loadList(); }, [active, loadList]);
   useEffect(() => { setProject(null); setErr(""); if (current) loadProject(current); }, [current, loadProject]);
+  // 點桌面通知：打開那個專案（已經開著就重抓一次，馬上看到最新狀態）
+  useEffect(() => onOpenProject((id) => { setCurrent(id); loadProject(id).catch(() => {}); loadList(); }), [loadProject, loadList]);
 
   // 執行中時輪詢
   const busy = project && BUSY.includes(project.status);
