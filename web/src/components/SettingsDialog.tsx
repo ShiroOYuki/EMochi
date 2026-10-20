@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type SettingsPlan, type SettingsValues } from "../api";
 import { desktop } from "../desktop";
 import { setThemePref, useThemePref, type ThemePref } from "../theme";
+import { permission, requestPermission, setNotifyPref, showNotification, useNotifyPref, type Permission } from "../notify";
 import { AboutUpdates } from "./Updates";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
+import { hasSponsors, SponsorLinks } from "./Sponsor";
 import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
@@ -131,6 +133,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             </Field>
           </Group>
 
+          <Group title="通知">
+            <Field top label="桌面通知" hint="預覽圖或整批生成跑完時通知（視窗在前景時不跳），點了會打開那個專案">
+              <NotifySetting />
+            </Field>
+          </Group>
+
           <Group title="生成">
             <Field label="同時生圖組數" hint="調低比較不容易撞到 Codex 額度上限；改了之後，排隊中的組別也照新的上限">
               <Seg options={[1, 2, 3].map((n) => [n, `${n} 組`])} value={vals.max_parallel} onChange={(v) => setVals({ ...vals, max_parallel: v })} />
@@ -159,6 +167,11 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             <Field top label="回報問題" hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊">
               <ReportSection />
             </Field>
+            {hasSponsors && (
+              <Field label="支持開發" hint="EMochi 免費開源；喜歡的話可以請我喝杯咖啡（在瀏覽器開啟付款頁）">
+                <SponsorLinks />
+              </Field>
+            )}
           </Group>
 
           {desktop && (
@@ -191,6 +204,35 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
       </div>
       <MoveConfirm plan={plan} saving={saving} onCancel={() => setPlan(null)} onConfirm={commit} />
     </Modal>
+  );
+}
+
+/** 開關立即存檔（像主題）；網頁版另外處理瀏覽器的通知權限 */
+function NotifySetting() {
+  const on = useNotifyPref();
+  const [perm, setPerm] = useState<Permission>(permission);
+  const [msg, setMsg] = useState("");
+  const ask = async () => setPerm(await requestPermission());
+  const turn = async (v: boolean) => {
+    setNotifyPref(v);
+    setMsg("");
+    if (v && perm === "default") await ask();
+  };
+  const test = async () => {
+    const ok = await showNotification({ title: "EMochi 測試通知", body: "生圖完成或失敗時，會像這樣通知你" });
+    setMsg(ok ? "已送出；沒看到的話，檢查 Windows「設定 → 系統 → 通知」和「勿打擾」" : "沒辦法發通知，請確認瀏覽器允許這個網站的通知");
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Seg<"on" | "off"> options={[["on", "開"], ["off", "關"]]} value={on ? "on" : "off"} onChange={(v) => turn(v === "on")} />
+        <button className="btn btn-sm" onClick={test} disabled={perm === "unsupported" || perm === "denied" || perm === "default"}>測試通知</button>
+        {perm === "default" && <button className="btn btn-sm" onClick={ask}>允許瀏覽器通知</button>}
+      </div>
+      {perm === "denied" && <p className="text-[11px] text-warn">瀏覽器封鎖了這個網站的通知：點網址列左邊的圖示，把「通知」改成允許後重新整理。</p>}
+      {perm === "unsupported" && <p className="text-[11px] text-warn">這個瀏覽器不支援通知。</p>}
+      {msg && <p className="text-[11px] text-mute">{msg}</p>}
+    </div>
   );
 }
 

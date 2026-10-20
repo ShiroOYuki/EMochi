@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, charImageUrl, type Character, type ProjectSummary, type Upload } from "../api";
 import { Section, Spinner } from "../components/ui";
-import { DeleteButton } from "../components/manage";
+import { DeleteButton, useConfirm } from "../components/manage";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 角色庫：每個角色是一個資料夾（characters/<id>/refs/ + character.json） */
@@ -70,8 +70,9 @@ function CharacterView({ c, act, onRemove }: { c: Character; act: (fn: () => Pro
   const [describing, setDescribing] = useState(false);
   const base = `/api/characters/${c.id}`;
 
+  const [confirmDialog, ask] = useConfirm();
   const describe = async () => {
-    if (dirty && !confirm("Codex 寫的特徵會蓋掉目前沒儲存的修改，要繼續嗎？")) return;
+    if (dirty && !(await ask({ title: "讓 Codex 重寫角色特徵？", body: "Codex 寫的特徵會蓋掉目前還沒儲存的修改。", ok: "繼續" }))) return;
     setDescribing(true);
     try { await act(() => api.post<Character>(`${base}/describe`)); } finally { setDescribing(false); }
   };
@@ -114,6 +115,7 @@ function CharacterView({ c, act, onRemove }: { c: Character; act: (fn: () => Pro
 
       <div className="flex items-center gap-3">
         <DeleteButton onClick={onRemove} title="移到垃圾桶" />
+        {confirmDialog}
         <button className="btn btn-primary ml-auto" disabled={!dirty || !f.name.trim()} onClick={() => act(() => api.patch<Character>(base, f))}>儲存修改</button>
       </div>
     </>

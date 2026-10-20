@@ -4,6 +4,7 @@
  *  - SideDeleteIcon：側欄項目右上角的垃圾桶小圖示（滑過才出現）
  *  - useContextMenu：側欄右鍵選單
  *  - TrashButton：側欄左下角的「垃圾桶」，專案／畫風／角色共用一個清單（還原／永久刪除／清空）
+ *  - useConfirm：一般的確認框（取代瀏覽器原生 confirm()，樣式和 App 一致）
  */
 import { useCallback, useEffect, useState, type MouseEvent as RMouseEvent, type ReactNode } from "react";
 import {
@@ -58,6 +59,29 @@ export function DeleteConfirm({ target, noun, onConfirm, onClose }: {
       </div>}
     </Modal>
   );
+}
+
+export type ConfirmOptions = { title: string; body?: ReactNode; ok?: string; cancel?: string; danger?: boolean };
+
+/** App 樣式的確認框：const [confirmDialog, ask] = useConfirm()；if (!(await ask({ title: "…" }))) return;
+ *  把 confirmDialog 放進畫面裡。取消、按 Esc、點外面都算「否」 */
+export function useConfirm(): [ReactNode, (o: ConfirmOptions) => Promise<boolean>] {
+  const [req, setReq] = useState<(ConfirmOptions & { resolve: (v: boolean) => void }) | null>(null);
+  const ask = useCallback((o: ConfirmOptions) => new Promise<boolean>((resolve) => setReq({ ...o, resolve })), []);
+  const done = (v: boolean) => { req?.resolve(v); setReq(null); };
+  const node = (
+    <Modal open={!!req} onClose={() => done(false)} label={req?.title ?? "確認"}>
+      {req && <div className="space-y-3">
+        <h3 className="text-lg">{req.title}</h3>
+        {req.body && <div className="text-sm leading-relaxed text-mute">{req.body}</div>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn" onClick={() => done(false)}>{req.cancel ?? "取消"}</button>
+          <button className={`btn ${req.danger ? DANGER : "btn-primary"}`} onClick={() => done(true)} autoFocus>{req.ok ?? "確定"}</button>
+        </div>
+      </div>}
+    </Modal>
+  );
+  return [node, ask];
 }
 
 /** 頁面內容裡的刪除按鈕（外框款，滑過變紅） */

@@ -4,9 +4,11 @@ import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
 import { UpdateBadge } from "./components/Updates";
+import { SponsorButton } from "./components/Sponsor";
 import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
+import { useNotifier } from "./notify";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import { Tabs, TabsHighlight, TabsHighlightItem, TabsList, TabsTrigger } from "@/components/animate-ui/primitives/radix/tabs";
@@ -37,6 +39,7 @@ function Ears() {
 export default function App() {
   const [tab, setTab] = useState<Tab>(readTab);
   const reduce = useReducedMotion();
+  useNotifier();
   useEffect(() => {
     const on = () => setTab(readTab());
     window.addEventListener("hashchange", on);
@@ -70,6 +73,7 @@ export default function App() {
         <UpdateBadge />
         <CodexUsage />
         <ThemeToggle />
+        <SponsorButton />
         <SettingsButton />
         <WindowControls />
       </header>
