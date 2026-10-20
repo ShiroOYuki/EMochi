@@ -1,0 +1,3 @@
+node_modules
+# 從 Animate UI 複製進來的元件，維持原樣方便之後對照上游更新
+src/components/animate-ui
