@@ -19,7 +19,9 @@ export function PreviewStep({ p, act, previewIds, byId }: { p: Project; act: Vie
         <div className="flex items-center gap-2 text-mute"><Spinner />Codex 正在生成預覽圖 <Elapsed since={pv.started} />（通常 1～3 分鐘）</div>
       ) : pv?.status === "failed" ? (
         <FailedImage path={pv.image} v={p.updated} message={`預覽失敗：${pv.message}`} className="w-72" tokens={pv.tokens}
-          onRecheck={() => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/preview`))} />
+          rechecked={pv.rechecked}
+          onRecheck={() => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/preview`))}
+          onAccept={() => act(() => api.post<Project>(`/api/projects/${p.id}/accept/preview`))} />
       ) : pv ? (
         <div className="flex flex-wrap items-start gap-4">
           <img src={fileUrl(pv.image, p.updated)} onClick={() => setZoom(true)} className="w-72 cursor-pointer rounded-lg" />
