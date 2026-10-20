@@ -15,6 +15,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+from .errors import KIND_LABEL, Conflict, NotFound
 from .paths import characters_dir, outputs_dir, read_json, style_lib_dir, url_path, write_json
 
 # 種類 → (取得所在資料夾的函式, 中繼檔名)；角色庫、畫風庫的位置可以在設定頁改，所以每次重新取
@@ -28,7 +29,7 @@ _lock = threading.Lock()
 
 def _kind(kind: str) -> tuple[Path, str]:
     if kind not in KINDS:
-        raise KeyError(f"垃圾桶種類 {kind}")
+        raise NotFound(f"垃圾桶種類 {kind}")
     get_dir, meta = KINDS[kind]
     return get_dir(), meta
 
@@ -45,7 +46,7 @@ def move_to_trash(kind: str, item_id: str) -> Path:
     root, meta = _kind(kind)
     src = root / item_id
     if not (src / meta).exists():
-        raise KeyError(item_id)
+        raise NotFound(f"{KIND_LABEL.get(kind, kind)} {item_id}")
     with _lock:
         dest = bin_dir(kind) / f"{item_id}_{datetime.now():%Y%m%d_%H%M%S}"
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +57,7 @@ def move_to_trash(kind: str, item_id: str) -> Path:
 def _entry(kind: str, name: str) -> Path:
     d = (bin_dir(kind) / name).resolve()
     if d.parent != bin_dir(kind).resolve() or not d.is_dir() or not (d / _kind(kind)[1]).exists():
-        raise KeyError(name)
+        raise NotFound(f"垃圾桶裡的 {name}")
     return d
 
 
@@ -120,7 +121,7 @@ def restore(kind: str, name: str) -> str:
         d = _entry(kind, name)
         iid = _id_of(d, read_json(d / meta_name))
         if (root / iid).exists():
-            raise ValueError(f"{iid} 已經存在，不能還原")
+            raise Conflict(f"{iid} 已經存在，不能還原")
         shutil.move(str(d), str(root / iid))
     return iid
 

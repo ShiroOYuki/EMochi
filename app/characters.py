@@ -13,6 +13,7 @@ import json
 import re
 
 from . import codex
+from .errors import Invalid
 from .images import move_to_removed, save_png
 from .paths import characters_dir, codex_path, outputs_dir, read_json, write_json
 from .reflib import STD_RE, RefLibrary, now
@@ -46,7 +47,7 @@ def has_ears(c: dict) -> bool:
 
 def create(name: str, files: list[tuple[str, bytes]]) -> dict:
     if not name.strip():
-        raise ValueError("請輸入角色名稱")
+        raise Invalid("請輸入角色名稱")
     with _lock:
         c = {
             "id": _lib.new_id(),
@@ -163,7 +164,7 @@ DESCRIBE_SCHEMA = {
 def describe(cid: str) -> dict:
     c = get(cid)
     if not c or not c["images"]:
-        raise ValueError("請先上傳角色圖片")
+        raise Invalid("請先上傳角色圖片")
     imgs = rel_paths(cid, [i["file"] for i in c["images"]])
     prompt = f"""Look at the attached reference images of ONE original character named "{c["name"]}".
 Do not run any tools and do not generate images. Answer only with the JSON required by the output schema.

@@ -8,6 +8,8 @@ Status／ItemStatus 是 StrEnum：值就是原本的字串，存進 JSON、和�
 from enum import StrEnum
 from typing import Literal, NotRequired, TypedDict
 
+from .errors import Conflict
+
 
 class Status(StrEnum):
     """專案狀態（流程圖見 jobs.py 開頭）"""
@@ -113,4 +115,4 @@ class Project(TypedDict):
 def require_status(p: Project, allowed: frozenset[Status] | set[Status], action: str) -> None:
     """專案不在 allowed 狀態時丟 ValueError「目前狀態 X 不能<action>」"""
     if p["status"] not in allowed:
-        raise ValueError(f"目前狀態 {p['status']} 不能{action}")
+        raise Conflict(f"目前狀態 {p['status']} 不能{action}")

@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import characters, codex, events, pipeline, prompts, settings, style_lib, usage
+from .errors import Conflict, Invalid, NotFound
 from .images import move_to_removed, save_png
 from .paths import (
     BUILTIN_CONFIG,
@@ -92,7 +93,7 @@ def mutate(style: str, fn: Callable[[Project], None]) -> Project:
     with _lock(style):
         p = load(style)
         if p is None:
-            raise KeyError(style)
+            raise NotFound(f"專案 {style}")
         fn(p)
         return save(p)
 
@@ -115,9 +116,9 @@ def delete(style: str) -> None:
     with _lock(style):
         p = load(style)
         if not p:
-            raise KeyError(style)
+            raise NotFound(f"專案 {style}")
         if p.get("status") in BUSY:
-            raise ValueError("專案正在執行中，等它結束再刪除")
+            raise Conflict("專案正在執行中，等它結束再刪除")
         trash.move_to_trash("projects", style)
 
 
@@ -165,14 +166,14 @@ def create(
 
     style_lib_id：直接套用畫風庫的畫風 → 不擴寫，描述照抄、勾選的範例圖當畫風參考圖，直接進入 draft"""
     if character_id and not characters.get(character_id):
-        raise KeyError(f"角色 {character_id}")
+        raise NotFound(f"角色 {character_id}")
     lib = style_lib.get(style_lib_id) if style_lib_id else None
     if style_lib_id and not lib:
-        raise KeyError(f"畫風庫 {style_lib_id}")
+        raise NotFound(f"畫風庫 {style_lib_id}")
     if lib and not lib.get("style_block", "").strip():
-        raise ValueError("這個畫風還沒有描述，請先到「畫風」分頁讓 Codex 分析")
+        raise Invalid("這個畫風還沒有描述，請先到「畫風」分頁讓 Codex 分析")
     if not lib and not request.strip() and not any(_role(r) == "style" for _, _, r in temp or []):
-        raise ValueError("請描述想要的畫風，或上傳畫風參考圖")
+        raise Invalid("請描述想要的畫風，或上傳畫風參考圖")
     style = next_style_id()
     p = {
         "id": style,
@@ -292,7 +293,7 @@ def update(style: str, fields: dict) -> Project:
             if "character_id" in fields:
                 cid = fields["character_id"] or None
                 if cid and not characters.get(cid):
-                    raise KeyError(f"角色 {cid}")
+                    raise NotFound(f"角色 {cid}")
                 if cid != r.get("character_id"):
                     r["character_images"] = None  # 換角色 → 先用該角色的預設圖
                 r["character_id"] = cid
@@ -438,7 +439,7 @@ def start_preview(style: str) -> Project:
     def fn(p):
         require_status(p, EDITABLE, "預覽")
         if not p["style_block"].strip():
-            raise ValueError("畫風描述是空的")
+            raise Invalid("畫風描述是空的")
         text, ids, out, refs = preview_prompt(p)
         p["preview"] = {
             "image": out,
@@ -489,16 +490,16 @@ def _run_preview(style: str) -> None:
 
 def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> Project:
     if layout not in prompts.GROUP_LAYOUTS:
-        raise ValueError(f"不支援的版型 {layout}")
+        raise Invalid(f"不支援的版型 {layout}")
     meta = sticker_map()
     # 已刪除的表情不能再排進新的批次（已經在跑的組別重生不受影響）
     ids = [i for i in dict.fromkeys(ids) if i in meta and not meta[i].get("deleted")]
     if not ids:
-        raise ValueError("請至少選一張貼圖")
+        raise Invalid("請至少選一張貼圖")
 
     def fn(p):
         if p["status"] != Status.PREVIEW_READY:
-            raise ValueError("請先產生並確認風格預覽圖")
+            raise Conflict("請先產生並確認風格預覽圖")
         groups = []
         for n, chunk in enumerate(prompts.chunk(ids, prompts.GROUP_LAYOUTS[layout]), 1):
             lay = prompts.layout_for_group(len(chunk), layout)
@@ -529,7 +530,7 @@ def regenerate_group(style: str, index: int) -> Project:
         require_status(p, {Status.REVIEW, Status.GENERATING}, "重生")
         g = _group(p, index)
         if g["status"] in (ItemStatus.PENDING, ItemStatus.RUNNING):
-            raise ValueError("這組還在執行中")
+            raise Conflict("這組還在執行中")
         g.update(status=ItemStatus.PENDING, message="")
         g.pop("accepted", None)
         g.pop("rechecked", None)
@@ -544,7 +545,7 @@ def _group(p: Project, index: int) -> Group:
     for g in p["groups"]:
         if g["index"] == index:
             return g
-    raise KeyError(f"沒有第 {index} 組")
+    raise NotFound(f"第 {index} 組")
 
 
 def _run_group(style: str, index: int) -> None:
@@ -607,9 +608,9 @@ def _notify_batch(p: Project) -> None:
 def start_finalize(style: str) -> Project:
     def fn(p):
         if p["status"] != Status.REVIEW:
-            raise ValueError("還有組別在生成中")
+            raise Conflict("還有組別在生成中")
         if not any(g["status"] == ItemStatus.DONE for g in p["groups"]):
-            raise ValueError("沒有成功的組別可以處理")
+            raise Conflict("沒有成功的組別可以處理")
         p.update(status=Status.PROCESSING, error=None)
 
     p = mutate(style, fn)
@@ -638,11 +639,11 @@ def _failed_item(p: Project, target: str) -> GridItem:
     if target == "preview":
         item = p.get("preview")
         if not item or item.get("status") != ItemStatus.FAILED:
-            raise ValueError("預覽圖沒有失敗，不需要處理")
+            raise Conflict("預覽圖沒有失敗，不需要處理")
     else:
         item = _group(p, int(target))
         if item["status"] != ItemStatus.FAILED:
-            raise ValueError("這組沒有失敗，不需要處理")
+            raise Conflict("這組沒有失敗，不需要處理")
     return item
 
 
@@ -678,14 +679,14 @@ def accept(style: str, target: str) -> Project:
         item = _failed_item(p, target)
         path = data_path(item["image"])
         if not path.exists():
-            raise ValueError("圖檔不存在，只能重新生成")
+            raise Invalid("圖檔不存在，只能重新生成")
         try:
             from PIL import Image
 
             with Image.open(path) as im:
                 im.load()
         except Exception as e:  # noqa: BLE001
-            raise ValueError(f"圖檔打不開，只能重新生成：{e}") from None
+            raise Invalid(f"圖檔打不開，只能重新生成：{e}") from None
         item["accepted"] = True
         _mark_done(p, target, item, f"手動通過（自動檢查：{item.get('message') or '未通過'}）")
 
@@ -697,7 +698,7 @@ def reopen(style: str) -> Project:
 
     def fn(p):
         if p["status"] != Status.DONE:
-            raise ValueError("只有已完成的專案可以重新開啟")
+            raise Conflict("只有已完成的專案可以重新開啟")
         p["status"] = Status.REVIEW
 
     return mutate(style, fn)

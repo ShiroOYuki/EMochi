@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from .. import jobs, prompts, settings, trash
 from ..paths import ROOT, logs_dir, next_style_id
-from ._shared import Upload, _decode
+from ._shared import Framing, ProcessPatch, Upload, _decode
 
 router = APIRouter()
 
@@ -96,9 +96,21 @@ def reexpand(style: str, body: ExpandBody):
     return jobs.view(jobs.reexpand(style, body.request))
 
 
+class ProjectPatch(BaseModel):
+    """只會改有傳的欄位；character_images：null＝用角色預設勾選的圖、[]＝一張都不用"""
+
+    name: str | None = None
+    request: str | None = None
+    style_block: str | None = None
+    framing: Framing | None = None
+    process: ProcessPatch | None = None
+    character_id: str | None = None
+    character_images: list[str] | None = None
+
+
 @router.patch("/api/projects/{style}")
-def update(style: str, body: dict):
-    return jobs.view(jobs.update(style, body))
+def update(style: str, body: ProjectPatch):
+    return jobs.view(jobs.update(style, body.model_dump(exclude_unset=True)))
 
 
 @router.get("/api/projects/{style}/prompt")

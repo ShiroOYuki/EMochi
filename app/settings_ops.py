@@ -18,6 +18,7 @@ import threading
 from pathlib import Path
 
 from . import codex, settings
+from .errors import Conflict, Invalid, NotFound
 from .paths import APP_ROOT, ROOT, codex_path, outputs_dir, outside_root, read_json, write_json
 
 USER_CONFIG_FILES = (
@@ -102,7 +103,7 @@ def _inside(a: Path, b: Path) -> bool:
 def check(key: str, value: str, others: dict | None = None) -> dict:
     """others：這次一起改的其他資料夾設定（還沒存），一起檢查有沒有互相包含"""
     if key not in settings.DIRS:
-        raise KeyError(key)
+        raise NotFound(f"設定 {key}")
     value = str(value or "").strip()
     if not value or not Path(value).is_absolute():
         return {
@@ -286,11 +287,11 @@ def apply(changes: dict, move: bool = True, conflict: str | None = None) -> dict
     if dir_changes:
         pl = plan(dir_changes)
         if pl["errors"]:
-            raise ValueError("；".join(pl["errors"]))
+            raise Invalid("；".join(pl["errors"]))
         if pl["dirs"] and pl["busy"]:
-            raise ValueError(f"{pl['busy']}，等它結束再改資料夾位置")
+            raise Conflict(f"{pl['busy']}，等它結束再改資料夾位置")
         if move and any(d["conflict_count"] for d in pl["dirs"]) and conflict not in ("keep", "overwrite"):
-            raise ValueError("新位置已經有同名的檔案，請選擇保留新位置的還是覆蓋")
+            raise Conflict("新位置已經有同名的檔案，請選擇保留新位置的還是覆蓋")
         mapping = []
         for d in pl["dirs"]:
             src, dst = Path(d["from"]), Path(d["to"])
@@ -319,13 +320,13 @@ def pick_folder(initial: str | None = None) -> str | None:
     """在這台電腦上跳出資料夾選擇視窗（伺服器就跑在使用者的電腦上）。
     之後如果改成桌面應用程式（pywebview 等），換成它的原生對話框即可，前端不用改"""
     if not _pick_lock.acquire(blocking=False):
-        raise ValueError("已經有一個選擇資料夾的視窗開著")
+        raise Conflict("已經有一個選擇資料夾的視窗開著")
     try:
         try:
             import tkinter
             from tkinter import filedialog
         except ImportError:
-            raise ValueError("這個環境沒有資料夾選擇視窗，請直接貼上完整路徑") from None
+            raise Invalid("這個環境沒有資料夾選擇視窗，請直接貼上完整路徑") from None
         root = tkinter.Tk()
         root.withdraw()
         root.attributes("-topmost", True)  # 不然常被瀏覽器蓋住

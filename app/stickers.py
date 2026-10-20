@@ -10,6 +10,7 @@
 
 import json
 
+from .errors import Conflict, Invalid, NotFound
 from .paths import BUILTIN_CONFIG, _lock, config_dir, load_stickers, read_json, slugify, write_json
 
 GROUPS_EXAMPLE = BUILTIN_CONFIG / "sticker_groups.example.json"  # 預設 4 組（進版控）
@@ -35,7 +36,7 @@ def _find(items: list[dict], sid: int) -> dict:
     for s in items:
         if s["id"] == sid:
             return s
-    raise KeyError(f"找不到表情 #{sid}")
+    raise NotFound(f"表情 #{sid}")
 
 
 def update(sid: int, changes: dict) -> dict:
@@ -44,14 +45,14 @@ def update(sid: int, changes: dict) -> dict:
         items = load_stickers()
         s = _find(items, sid)
         if s.get("deleted"):
-            raise ValueError(f"表情 #{sid} 已刪除，請先還原")
+            raise Conflict(f"表情 #{sid} 已刪除，請先還原")
         for k in EDITABLE:
             if k not in changes:
                 continue
             v = changes[k]
             if k == "align":
                 if v not in ALIGNS:
-                    raise ValueError(f"不支援的對齊方式 {v}")
+                    raise Invalid(f"不支援的對齊方式 {v}")
                 if v:
                     s["align"] = v
                 else:
@@ -59,7 +60,7 @@ def update(sid: int, changes: dict) -> dict:
                 continue
             v = (v or "").strip()
             if k in ("label", "prompt") and not v:
-                raise ValueError("名稱和英文描述都要填")
+                raise Invalid("名稱和英文描述都要填")
             if k == "prompt_no_ears" and not v:
                 s.pop(k, None)
             else:
@@ -120,14 +121,14 @@ def save_groups(groups: list[dict]) -> list[dict]:
         for g in groups:
             name = str(g.get("name") or "").strip()
             if not name:
-                raise ValueError("分組名稱不能空白")
+                raise Invalid("分組名稱不能空白")
             gid = g.get("id")
             if not isinstance(gid, int) or gid <= 0 or gid in seen:  # 前端新增的分組 id 送 0
                 gid, nxt = nxt, nxt + 1
             seen.add(gid)
             bad = [i for i in g.get("ids", []) if i not in alive]
             if bad:
-                raise ValueError(f"找不到表情 #{bad[0]}")
+                raise Invalid(f"找不到表情 #{bad[0]}")
             out.append(
                 {
                     "id": gid,
@@ -150,7 +151,7 @@ def add(
 ) -> dict:
     """新增表情（id 取所有表情含已刪除的最大值 +1，不重用）；group_id 有給就順便放進那個分組"""
     if align not in ALIGNS:
-        raise ValueError(f"不支援的對齊方式 {align}")
+        raise Invalid(f"不支援的對齊方式 {align}")
     with _lock:
         items = load_stickers()
         new_id = max((s["id"] for s in items), default=0) + 1
@@ -247,7 +248,7 @@ def expand(idea: str, current: dict | None = None) -> dict:
         (current or {}).get(k, "") for k in ("zh", "label") if (current or {}).get(k)
     )
     if not idea.strip():
-        raise ValueError("先寫一句想要的表情")
+        raise Invalid("先寫一句想要的表情")
     schema = codex.logs_dir() / "stickers" / "expand_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(EXPAND_SCHEMA), encoding="utf-8")

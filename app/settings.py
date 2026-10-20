@@ -9,6 +9,7 @@ outputs 放在資料根目錄外時，生圖會加 --add-dir 讓 Codex 的沙盒
 import threading
 from pathlib import Path
 
+from .errors import Invalid
 from .paths import ROOT, read_json, write_json
 
 FILE = ROOT / "settings.local.json"
@@ -97,20 +98,20 @@ def validate(changes: dict) -> dict:
             if not v:
                 v = str(default_dir(k))
             elif not Path(v).is_absolute():
-                raise ValueError(f"{DIRS[k][1]}請填完整路徑（例如 D:\\EMochiData\\{DEFAULTS[k]}）")
+                raise Invalid(f"{DIRS[k][1]}請填完整路徑（例如 D:\\EMochiData\\{DEFAULTS[k]}）")
             v = str(resolve(v))
         elif k in LIMITS:
             lo, hi = LIMITS[k]
             try:
                 v = int(v)
             except (TypeError, ValueError):
-                raise ValueError(f"{k} 要填數字") from None
+                raise Invalid(f"{k} 要填數字") from None
             if not lo <= v <= hi:
-                raise ValueError(f"{k} 要在 {lo}～{hi} 之間")
+                raise Invalid(f"{k} 要在 {lo}～{hi} 之間")
         elif k == "default_layout" and v not in LAYOUTS:
-            raise ValueError(f"不支援的版型 {v}")
+            raise Invalid(f"不支援的版型 {v}")
         elif k == "theme" and v not in THEMES:
-            raise ValueError(f"不支援的主題 {v}")
+            raise Invalid(f"不支援的主題 {v}")
         elif k in ("tour_done", "notify"):
             v = bool(v)
         out[k] = v

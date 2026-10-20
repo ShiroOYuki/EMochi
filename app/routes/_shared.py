@@ -1,5 +1,7 @@
 """多個路由共用的請求格式"""
 
+from typing import Literal
+
 from fastapi import HTTPException
 from pydantic import BaseModel
 
@@ -12,6 +14,17 @@ class Upload(BaseModel):
     name: str = "image.png"
     data: str
     role: str = "character"  # 暫時參考圖：character / style
+
+
+Framing = Literal["closeup", "whole"]
+
+
+class ProcessPatch(BaseModel):
+    """後處理參數（project.json／style.json 的 process）；只會改有傳的欄位"""
+
+    square: float | None = None  # None＝整顆入鏡
+    margin: float | None = None
+    min_blob: float | None = None
 
 
 def _decode(files: list[Upload]) -> list[tuple[str, bytes, str]]:

@@ -4,9 +4,29 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from .. import characters, jobs, style_lib
-from ._shared import Upload, _decode
+from ._shared import Framing, ProcessPatch, Upload, _decode
 
 router = APIRouter()
+
+
+class CharacterPatch(BaseModel):
+    """只會改有傳的欄位；use＝{檔名: 是否預設附上}"""
+
+    name: str | None = None
+    identity: str | None = None
+    notes_zh: str | None = None
+    ears: bool | None = None  # null＝由特徵句自動判斷
+    use: dict[str, bool] | None = None
+
+
+class LibStylePatch(BaseModel):
+    name: str | None = None
+    request: str | None = None
+    style_block: str | None = None
+    notes_zh: str | None = None
+    framing: Framing | None = None
+    process: ProcessPatch | None = None
+    use: dict[str, bool] | None = None
 
 
 @router.get("/api/characters")
@@ -25,8 +45,8 @@ def create_character(body: NewCharacter):
 
 
 @router.patch("/api/characters/{cid}")
-def update_character(cid: str, body: dict):
-    return characters.update(cid, body)
+def update_character(cid: str, body: CharacterPatch):
+    return characters.update(cid, body.model_dump(exclude_unset=True))
 
 
 @router.delete("/api/characters/{cid}")
@@ -99,8 +119,8 @@ def project_to_library(style: str):
 
 
 @router.patch("/api/style-lib/{sid}")
-def update_lib_style(sid: str, body: dict):
-    return style_lib.update(sid, body)
+def update_lib_style(sid: str, body: LibStylePatch):
+    return style_lib.update(sid, body.model_dump(exclude_unset=True))
 
 
 @router.delete("/api/style-lib/{sid}")

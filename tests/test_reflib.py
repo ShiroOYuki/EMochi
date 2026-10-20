@@ -48,7 +48,7 @@ def test_style_lib_shares_rules():
 
 
 def test_api_errors_become_json(client):
-    """路由不再各自 try/except：KeyError → 404、其他例外 → 400，都帶 detail 給前端顯示"""
+    """路由不再各自 try/except：NotFound → 404、Invalid → 400，都帶 detail 給前端顯示"""
     r = client.patch("/api/characters/c999", json={"name": "x"})
     assert r.status_code == 404 and "找不到" in r.json()["detail"]
     r = client.post("/api/characters", json={"name": "  "})

@@ -7,6 +7,7 @@ Codex 偶爾會「圖已經存好、程序卻不結束」（s5 第 1 組就卡�
   - 超過 timeout → 結束並標記失敗
 """
 
+import json
 import os
 import re
 import shutil
@@ -17,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import settings
+from .errors import CodexError
 from .paths import ROOT, codex_path, data_path, logs_dir, outputs_dir, outside_root, to_codex
 
 POLL_SEC = 3
@@ -74,7 +76,7 @@ def codex_bin() -> str:
     if not exe and refresh_path():
         exe = shutil.which("codex")
     if not exe:
-        raise RuntimeError("找不到 codex 指令，請確認 Codex CLI 已安裝並在 PATH 中")
+        raise CodexError("找不到 codex 指令，請確認 Codex CLI 已安裝並在 PATH 中")
     return exe
 
 
@@ -351,8 +353,13 @@ def run_text(
     cmd.append("-")
     code, reason = _run(cmd, prompt, log_path, timeout=timeout or settings.get("text_timeout_min") * 60)
     if not out.exists():
-        raise RuntimeError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {codex_path(log_path)}")
-    return out.read_text(encoding="utf-8")
+        raise CodexError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {codex_path(log_path)}")
+    text = out.read_text(encoding="utf-8")
+    try:
+        json.loads(text)
+    except ValueError:
+        raise CodexError(f"Codex 的回覆不是 JSON，請看 {codex_path(log_path)}") from None
+    return text
 
 
 def log_path_for(style: str, name: str) -> Path:

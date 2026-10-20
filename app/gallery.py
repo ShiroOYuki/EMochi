@@ -10,6 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from . import characters, presets, specs
+from .errors import Invalid
 from .paths import exports_dir, outputs_dir, read_json, sticker_map
 
 # 後處理（pipeline）已經產生好的檔案（scan() 回傳的 files）；匯出預設集剛好要這些尺寸時直接沿用，畫質和以前一樣
@@ -185,7 +186,7 @@ def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
     if custom:
         chosen.append(presets.custom(custom))
     if not chosen:
-        raise ValueError("請至少選一個預設集，或填寫自訂尺寸")
+        raise Invalid("請至少選一個預設集，或填寫自訂尺寸")
     styles = scan()
     picked = [(s, it) for s, it in (find(styles, k) for k in keys) if it and "master" in it["files"]]
     # 序號檔名（LINE）：每個畫風依貼圖編號排序後 01、02…
@@ -279,7 +280,7 @@ def combine(keys, cols=8, cell=128, gap=8, bg="transparent", labels=False) -> di
             )
             imgs.append((im, f"{s['id']} {it['label']}"))
     if not imgs:
-        raise ValueError("沒有可組合的貼圖")
+        raise Invalid("沒有可組合的貼圖")
     cols = max(1, min(cols, len(imgs)))
     rows = (len(imgs) + cols - 1) // cols
     lab_h = max(14, cell // 7) if labels else 0

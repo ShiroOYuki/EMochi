@@ -14,6 +14,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
+from .errors import KIND_LABEL, NotFound
 from .images import move_to_removed, save_png
 from .paths import read_json, write_json
 
@@ -54,7 +55,7 @@ class RefLibrary:
     def require(self, item_id: str) -> dict:
         d = self.get(item_id)
         if not d:
-            raise KeyError(item_id)
+            raise NotFound(f"{KIND_LABEL.get(self.trash_kind, self.trash_kind)} {item_id}")
         return d
 
     def list_all(self) -> list[dict]:

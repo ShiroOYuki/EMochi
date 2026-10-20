@@ -119,7 +119,7 @@ def test_conflict_and_keep_path(client, data_root, clean, ext):
     new.mkdir()
     (new / "a.json").write_text('{"v": "new"}')
     body = {"changes": {"exports_dir": str(new)}, "move": True}
-    assert client.put("/api/settings", json=body).status_code == 400  # 有衝突沒說怎麼辦
+    assert client.put("/api/settings", json=body).status_code == 409  # 有衝突沒說怎麼辦
     r = client.put("/api/settings", json={**body, "conflict": "keep"})
     assert r.json()["report"]["moved"][0]["skipped"] == 1
     assert json.loads((new / "a.json").read_text())["v"] == "new"
@@ -163,7 +163,7 @@ def test_config_dir_and_busy(client, data_root, clean, ext):
     new = ext / "cfg"
     codex.ACTIVE["x"] = {"pid": 1, "started": 0}
     try:
-        assert client.put("/api/settings", json={"changes": {"config_dir": str(new)}}).status_code == 400
+        assert client.put("/api/settings", json={"changes": {"config_dir": str(new)}}).status_code == 409
     finally:
         codex.ACTIVE.pop("x")
     r = client.put("/api/settings", json={"changes": {"config_dir": str(new)}, "move": True})

@@ -20,6 +20,7 @@ import shutil
 from pathlib import Path
 
 from . import codex, prompts
+from .errors import Invalid, NotFound
 from .paths import BUILTIN_CONFIG, codex_path, data_path, outputs_dir, read_json, style_lib_dir
 from .reflib import RefLibrary, now
 
@@ -66,7 +67,7 @@ def _blank(name: str, request: str = "") -> dict:
 
 def create(name: str, files: list[tuple[str, bytes]], request: str = "") -> dict:
     if not files:
-        raise ValueError("請至少上傳一張範例貼圖")
+        raise Invalid("請至少上傳一張範例貼圖")
     with _lock:
         s = _blank(name, request)
         _lib.store(s, files)
@@ -100,12 +101,12 @@ def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
     """同步執行（30~90 秒）。request 有給就先存起來，當作文字補充"""
     s = get(sid)
     if not s:
-        raise KeyError(sid)
+        raise NotFound(f"畫風 {sid}")
     if request is not None:
         s = update(sid, {"request": request})
     imgs = rel_paths(sid)
     if not imgs:
-        raise ValueError("請至少勾選一張範例貼圖")
+        raise Invalid("請至少勾選一張範例貼圖")
     schema = codex.logs_dir() / "style_lib" / f"{sid}_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     prompts.write_schema(schema)
@@ -162,7 +163,7 @@ def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
     """把畫風專案的描述存成畫風庫的一筆。範例圖用專案自己生出來的圖（預覽或第一組）＋ extra_refs"""
     p = read_json(outputs_dir() / style / "project.json")
     if not p:
-        raise KeyError(f"畫風專案 {style}")
+        raise NotFound(f"畫風專案 {style}")
     name, request, block = p.get("name", ""), p.get("request", ""), (p.get("style_block") or "").strip()
     framing, process, notes = p.get("framing", "closeup"), p.get("process") or {}, p.get("notes_zh", "")
     sample = _sample(p)
@@ -171,7 +172,7 @@ def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
         if rel and data_path(rel).exists():
             files.append((Path(rel).name, data_path(rel).read_bytes()))
     if not files and not block:
-        raise ValueError(f"{style} 沒有描述也沒有圖可以匯入")
+        raise Invalid(f"{style} 沒有描述也沒有圖可以匯入")
     with _lock:
         s = _blank(name or style, request)
         s.update(

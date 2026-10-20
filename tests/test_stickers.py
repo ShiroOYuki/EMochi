@@ -53,7 +53,7 @@ def test_crud(client):
     assert sid not in [x["id"] for x in client.get("/api/stickers").json()]
     assert sid in [x["id"] for x in client.get("/api/stickers?all=1").json()]
     assert sid not in client.get("/api/sticker-groups").json()[0]["ids"]
-    assert client.patch(f"/api/stickers/{sid}", json={"zh": "x"}).status_code == 400
+    assert client.patch(f"/api/stickers/{sid}", json={"zh": "x"}).status_code == 409
     nxt = client.post("/api/stickers", json={"label": "Next", "prompt": "next"}).json()
     assert nxt["id"] == sid + 1
 

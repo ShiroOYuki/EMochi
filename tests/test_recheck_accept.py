@@ -80,7 +80,7 @@ def test_accept_and_regenerate_clears(data_root, client, monkeypatch):
     r = client.post("/api/projects/s903/accept/1").json()
     g = r["groups"][0]
     assert g["status"] == "done" and g["accepted"] is True and g["message"].startswith("手動通過")
-    assert client.post("/api/projects/s903/accept/1").status_code == 400  # 已經不是失敗
+    assert client.post("/api/projects/s903/accept/1").status_code == 409  # 已經不是失敗
     monkeypatch.setattr(jobs._pool, "submit", lambda *a, **k: None)  # 不真的跑 Codex
     g = jobs.regenerate_group("s903", 1)["groups"][0]
     assert "accepted" not in g and g["status"] == "pending"

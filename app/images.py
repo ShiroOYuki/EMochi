@@ -7,6 +7,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from .errors import Invalid
+
 MAX_SIDE = 1536  # Codex 讀圖不需要更大，太大只會變慢、佔額度
 MAX_BYTES = 30 * 1024 * 1024
 
@@ -15,7 +17,7 @@ def decode_data_url(data: str) -> bytes:
     m = re.match(r"^data:[^;]+;base64,(.*)$", data, re.S)
     raw = base64.b64decode(m.group(1) if m else data)
     if len(raw) > MAX_BYTES:
-        raise ValueError("圖片超過 30 MB")
+        raise Invalid("圖片超過 30 MB")
     return raw
 
 
@@ -33,7 +35,7 @@ def save_png(raw: bytes, folder: Path, name: str, exact: str | None = None) -> s
         im = Image.open(io.BytesIO(raw))
         im.load()
     except Exception as e:  # noqa: BLE001
-        raise ValueError(f"無法讀取圖片：{e}") from e
+        raise Invalid(f"無法讀取圖片：{e}") from e
     im = im.convert("RGBA" if "A" in im.getbands() or im.mode == "P" else "RGB")
     if max(im.size) > MAX_SIDE:
         im.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)

@@ -8,8 +8,25 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((data as { detail?: string }).detail || `HTTP ${r.status}`);
+  if (!r.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    // 422＝參數驗證失敗，FastAPI 給的是陣列
+    let msg = typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : `HTTP ${r.status}`;
+    // 500＝後端程式 bug（app/errors.py 以外的例外），請使用者回報
+    if (r.status === 500) msg += "（程式錯誤，可以到「設定 → 說明 → 回報問題」回報）";
+    throw new ApiError(msg, r.status);
+  }
   return data as T;
+}
+
+/** 後端回的錯誤；status：404 找不到、400 輸入不對、409 目前狀態不允許、502 Codex 失敗、500 程式錯誤 */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
 }
 
 /** 低階 HTTP 呼叫：只給 api/ 底下的模組用，元件請用各領域的 xxxApi */
