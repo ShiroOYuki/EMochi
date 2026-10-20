@@ -112,8 +112,6 @@ style_lib/          畫風庫                                                   
 docs/
   DEVELOPMENT.md    本文件
   GUIDE.md          prompt 撰寫說明（早期手寫 prompt 時的參考）
-tools/
-  postprocess.py    切割、去背、縮放的核心（app/pipeline.py 使用）
 scripts/app.bat     啟動網頁版
 scripts/build_desktop.bat  打包桌面版（本機）
 scripts/release.bat 發新版（改版號、打 tag）
@@ -138,5 +136,5 @@ archive/            試驗品、檢查腳本                                    
 - 專案輸出放在資料根目錄外時，生圖會加 `--add-dir <該資料夾>` 讓 Codex 的沙盒能寫入
 - Windows 上呼叫 Codex 時固定加 `--enable prefer_mxc`：能用 MXC 沙盒就用，不能用（Windows 10、較舊的 Windows 11）時 Codex 自動退回舊模式。只影響 EMochi 的呼叫，不改 `~/.codex/config.toml`
 - Codex 額度讀 `~/.codex/sessions` 的紀錄（5 小時／每週窗口）
-- 角色身上若有大面積綠色，把 prompt 的 `#00FF00` 換成 `#FF00FF`，`postprocess.py` 會自動偵測背景色
+- 角色身上若有大面積綠色，把 prompt 的 `#00FF00` 換成 `#FF00FF`，`app/keying.py` 會自動偵測背景色
 - 批次檔：CRLF、`chcp 65001` 放第二行、開頭 rem 用英文
