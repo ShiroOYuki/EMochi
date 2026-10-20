@@ -4,6 +4,7 @@ import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
 import { UpdateBadge } from "./components/Updates";
+import { SponsorButton } from "./components/Sponsor";
 import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
@@ -70,6 +71,7 @@ export default function App() {
         <UpdateBadge />
         <CodexUsage />
         <ThemeToggle />
+        <SponsorButton />
         <SettingsButton />
         <WindowControls />
       </header>
