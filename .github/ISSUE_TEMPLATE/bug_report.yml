@@ -1,0 +1,62 @@
+name: 問題回報
+description: EMochi 出錯、當掉、結果不如預期
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        謝謝你回報！從 App 的「設定 → 說明 → 在 GitHub 回報」開啟的話，版本、系統、Codex 欄位會自動填好，診斷資訊也已經複製到剪貼簿。
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生了什麼事
+      description: 看到什麼錯誤訊息、畫面哪裡不對？可以直接貼截圖。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎麼重現
+      description: 做了哪些步驟會發生？
+      placeholder: |
+        1. 到「生成」分頁
+        2. 選角色 …
+        3. 按「交給 Codex 擴寫」
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期的結果
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: EMochi 版本
+      description: 設定頁「關於」可以看到
+      placeholder: v0.2.0（桌面版）
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 系統
+      placeholder: Windows 11（build 26100）
+  - type: input
+    id: codex
+    attributes:
+      label: Codex CLI
+      placeholder: codex-cli 0.162.1・已登入
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 診斷資訊
+      description: 在 App 按「複製診斷資訊」後貼上（路徑裡的使用者名稱已換成 ~）
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: log（選填）
+      description: 設定頁可以開啟 log 資料夾。log 裡可能有你的電腦路徑，貼上前請先看一下；檔案可以直接拖進這裡。

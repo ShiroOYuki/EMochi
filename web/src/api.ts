@@ -134,3 +134,21 @@ export type TrashItem = {
   name: string; id: string; title: string; status: ProjectStatus | null; removed: string; size: number;
   thumb: string | null; restorable: boolean;
 };
+
+/** 匯出預設集（app/presets.py）：一組平台規格＝尺寸、縮放方式、邊距、大小上限、檔名方式 */
+export type PresetSize = { w: number; h: number };
+export type ExportPreset = {
+  id: string; name: string; folder: string; sizes: PresetSize[];
+  /** 分組（通常是平台名稱）；空白＝「其他」 */
+  group: string;
+  /** fit：等比縮進框內；canvas：剛好寬×高的透明畫布，置中 */
+  mode: "fit" | "canvas";
+  margin: number; even: boolean;
+  /** 每個檔案的上限（KB）；null＝不限 */
+  max_kb: number | null;
+  /** keep：01_happy_s6.png；index：01.png、02.png…（LINE） */
+  naming: "keep" | "index";
+  note: string;
+};
+/** 匯出時的「自訂」：只用這一次，不存成預設集 */
+export type CustomExport = { sizes: PresetSize[]; mode: "fit" | "canvas"; margin: number; even: boolean; max_kb: number | null };

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import characters, codex, pipeline, prompts, settings, style_lib, usage
 from .images import move_to_removed, save_png
-from .paths import ROOT, data_path, next_style_id, outputs_dir, stored_path, read_json, sticker_map, write_json
+from .paths import BUILTIN_CONFIG, ROOT, data_path, next_style_id, outputs_dir, stored_path, read_json, sticker_map, write_json
 
 BUSY = {"expanding", "previewing", "generating", "processing"}
 EDITABLE = {"draft", "preview_ready", "error"}
@@ -178,12 +178,14 @@ def reexpand(style: str, request: str) -> dict:
     return p
 
 
-EXAMPLE_PROJECTS = ("s5", "s4")   # 擴寫時給 Codex 看的範例畫風（寫得最完整的兩套）
+# 擴寫、分析畫風時給 Codex 看的範例描述（內建，跟著程式走）：以前直接讀使用者的 s5、s4 專案，
+# 別人的電腦（桌面版）沒有這些專案就沒範例；改成 config/style_examples.example.json（內容是 s5、s4 的描述）
+STYLE_EXAMPLES = BUILTIN_CONFIG / "style_examples.example.json"
 
 
 def style_examples(n: int = 2) -> list[str]:
-    """拿既有畫風的描述當範例，讓 Codex 寫出同樣格式：先用 s5、s4，沒有的話用畫風庫裡的"""
-    ex = [b for s in EXAMPLE_PROJECTS if (b := ((load(s) or {}).get("style_block") or "").strip())]
+    """範例畫風描述，讓 Codex 寫出同樣格式：先用內建範例，不足 n 組再用畫風庫裡的"""
+    ex = [b for e in read_json(STYLE_EXAMPLES, []) if (b := (e.get("style_block") or "").strip())]
     for lib in style_lib.list_all():
         if len(ex) >= n:
             break

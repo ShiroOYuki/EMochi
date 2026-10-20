@@ -3,6 +3,9 @@ import { api, type DirInfo, type DirKey, type PathCheck, type SettingsInfo, type
 import { desktop } from "../desktop";
 import { setThemePref, useThemePref, type ThemePref } from "../theme";
 import { AboutUpdates } from "./Updates";
+import { startTour } from "./Tour";
+import { ReportSection } from "./BugReport";
+import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
 
@@ -14,7 +17,7 @@ export function SettingsButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="設定" title="設定" className="btn px-2.5">
+      <button onClick={() => setOpen(true)} aria-label="設定" title="設定" className="btn px-2.5" data-tour="settings">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
@@ -143,6 +146,21 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             </Field>
           </Group>
 
+          <Group title="匯出">
+            <Field label="匯出預設集" hint="圖庫匯出 ZIP 時可勾選的平台尺寸（Twitch、Discord、LINE…），可新增自己的尺寸與檔案大小上限">
+              <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
+            </Field>
+          </Group>
+
+          <Group title="說明">
+            <Field label="新手導覽" hint="依序介紹生成、表情、畫風、角色、圖庫等主要功能">
+              <button className="btn btn-sm" onClick={() => { onClose(); startTour(); }}>重看導覽</button>
+            </Field>
+            <Field top label="回報問題" hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊">
+              <ReportSection />
+            </Field>
+          </Group>
+
           {desktop && (
             <Group title="關於">
               <AboutUpdates />
@@ -184,9 +202,10 @@ function Group({ title, note, children }: { title: string; note?: string; childr
     </section>
   );
 }
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+/** top：右邊內容較高（多行按鈕、可展開）時，左邊標題靠上對齊 */
+function Field({ label, hint, children, top }: { label: string; hint?: string; children: ReactNode; top?: boolean }) {
   return (
-    <div className="grid items-center gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr]">
+    <div className={`grid gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr] ${top ? "items-start" : "items-center"}`}>
       <div><div className="text-sm">{label}</div>{hint && <div className="text-[11px] leading-snug text-mute">{hint}</div>}</div>
       <div>{children}</div>
     </div>

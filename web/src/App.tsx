@@ -4,6 +4,8 @@ import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
 import { UpdateBadge } from "./components/Updates";
+import CodexSetup from "./components/CodexSetup";
+import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
@@ -54,7 +56,7 @@ export default function App() {
               <TabsList className="flex rounded-full bg-panel2 p-1" aria-label="分頁">
                 {TABS.map((t) => (
                   <TabsHighlightItem key={t.id} value={t.id}>
-                    <TabsTrigger value={t.id}
+                    <TabsTrigger value={t.id} data-tour={`tab-${t.id}`}
                       className="relative z-[1] rounded-full px-5 py-1.5 text-sm text-mute outline-none transition-colors hover:text-text focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=active]:text-on-acc data-[state=active]:hover:text-on-acc">
                       {t.label}
                     </TabsTrigger>
@@ -79,6 +81,8 @@ export default function App() {
         <div className={tab === "characters" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><CharactersPage active={tab === "characters"} /></ErrorBoundary></div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GalleryPage active={tab === "gallery"} /></ErrorBoundary></div>
       </main>
+      <CodexSetup />
+      <Tour />
       <TitleTooltips />
     </div>
   );

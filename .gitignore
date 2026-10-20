@@ -16,6 +16,8 @@ characters/
 style_lib/
 config/stickers.json
 config/sticker_groups.json
+config/export_presets.json
+config/export_presets.json.bak
 settings.local.json
 
 # OS

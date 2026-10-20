@@ -9,9 +9,10 @@ CONFIG = [(str(p), "config") for p in (ROOT / "config").glob("*.json")
 
 a = Analysis(
     [str(ROOT / "desktop" / "server_entry.py")],
-    pathex=[str(ROOT), str(ROOT / "tools")],
-    datas=[(str(ROOT / "app" / "static"), "app/static"), *CONFIG],
-    hiddenimports=["postprocess", "scipy.ndimage"],
+    pathex=[str(ROOT)],
+    datas=[(str(ROOT / "app" / "static"), "app/static"), *CONFIG,
+           (str(ROOT / "config" / "style_lib.example"), "config/style_lib.example")],   # 內建範例畫風（含圖）
+    hiddenimports=["scipy.ndimage"],
     excludes=["tkinter", "_tkinter", "rembg", "onnxruntime", "matplotlib", "pytest", "IPython"],
     noarchive=False,
 )

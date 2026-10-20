@@ -174,13 +174,13 @@ function createWindow() {
 
   // 外部連結用預設瀏覽器開，不在 App 裡開新視窗
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (!isLocal(url) && /^https?:/.test(url)) shell.openExternal(url);
+    if (!isLocal(url) && /^(https?|mailto):/.test(url)) shell.openExternal(url);   // mailto：回報問題用預設郵件程式開
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!isLocal(url) && !url.startsWith("data:")) {
       e.preventDefault();
-      if (/^https?:/.test(url)) shell.openExternal(url);
+      if (/^(https?|mailto):/.test(url)) shell.openExternal(url);
     }
   });
   // 沒有選單列，補上常用快捷鍵
@@ -221,6 +221,12 @@ function createWindow() {
 
 ipcMain.on("app-version", (e) => { e.returnValue = app.getVersion(); });
 ipcMain.on("set-theme", (_e, pref) => applyTheme(pref));
+ipcMain.handle("open-logs", async () => {
+  const dir = app.getPath("logs");
+  fs.mkdirSync(dir, { recursive: true });
+  await shell.openPath(dir);
+  return dir;
+});
 ipcMain.on("win-is-maximized", (e) => { e.returnValue = !!win?.isMaximized(); });
 ipcMain.on("win", (_e, action) => {
   if (!win) return;

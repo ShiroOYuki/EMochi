@@ -63,7 +63,7 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
       ].filter(Boolean).join("\n");
 
   return (
-    <div className={`flex items-center gap-1 rounded-full bg-panel2 py-1 pr-1.5 pl-1 text-sm ${className}`}>
+    <div data-tour="codex" className={`flex items-center gap-1 rounded-full bg-panel2 py-1 pr-1.5 pl-1 text-sm ${className}`}>
       {/* 點一下打開詳細狀態（連線、額度、近 7 天用量） */}
       <button onClick={() => setOpen(true)} title={`${title}\n\n點一下看詳細狀態`} aria-label={`${title}。點一下看詳細狀態`}
         className="flex items-center gap-2 rounded-full px-2 py-0.5 transition hover:bg-panel">

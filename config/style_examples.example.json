@@ -1,0 +1,16 @@
+[
+  {
+    "id": "s5",
+    "name": "賽璐璐動畫截圖風",
+    "framing": "closeup",
+    "style_block": "- Looks like a frame captured from a modern Japanese TV anime: traditional cel shading with flat base colors, ONE hard-edged shadow tone and crisp hard-edged highlights. No soft airbrush gradients, no painterly texture, no watercolor.\n- Clean, thin-to-medium lineart of consistent weight in dark brown/near-black, typical of anime key animation; colored inner lines (slightly darker than the fill) inside the hair.\n- Anime-style eyes: large irises with a darker top band, 2-3 sharp white highlight shapes and a simple gradient-free iris design; eyebrows and mouth drawn in the simplified anime way, mouths with a flat darker interior and a tongue shape.\n- Hair rendered as clear anime hair clumps with a hard shadow band and one sharp \"angel ring\" highlight.\n- Normal anime proportions for a cute character (not super-deformed chibi), like a reaction close-up shot in an anime episode. Expression effects (tears, sweat drops, blush hatching lines, anger mark, sparkles) drawn in the standard anime manner.",
+    "note": "取自 s5 專案的畫風描述"
+  },
+  {
+    "id": "s4",
+    "name": "麻糬 / 糰子（整顆入鏡）",
+    "framing": "whole",
+    "style_block": "- The character is simplified into a soft, squishy, perfectly round mochi blob: the head IS the body, a smooth round dumpling shape slightly wider than tall, like a rice cake or dango.\n- Extremely simplified face: small shiny bean-shaped eyes (blue, with one white highlight), tiny mouth that can stretch wide for big expressions, round pink blush dots.\n- Hair reduced to a simple smooth white cap with 2-3 soft bangs and one ahoge; fluffy triangle fox ears on top.\n- Tiny stubby nub hands (no fingers, or very simple ones) only when a gesture is described.\n- Soft pastel colors, smooth matte surface with one gentle soft shading tone on the blob itself (no cast shadow on the background), slight squash-and-stretch to sell the emotion (squished when sad, stretched tall when shocked, bouncy when happy).\n- Soft warm-brown lineart of medium thickness, rounded and clean.",
+    "note": "取自 s4 專案的畫風描述"
+  }
+]
