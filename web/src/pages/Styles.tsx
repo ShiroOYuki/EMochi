@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { api, fileUrl, libCover, libImageUrl, type Importable, type LibStyle, type Upload } from "../api";
+import {
+  fileUrl,
+  libCover,
+  libImageUrl,
+  styleLibApi,
+  type Importable,
+  type LibStyle,
+  type NewLibStyleBody,
+  type Upload,
+} from "../api";
 import { Section, Select, Spinner } from "../components/ui";
 import { DeleteButton, useConfirm } from "../components/manage";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
 export default function StylesPage({ active }: { active: boolean }) {
-  const lib = useLibrary<LibStyle>({ endpoint: "/api/style-lib", active });
+  const lib = useLibrary<LibStyle>({ api: styleLibApi, active });
   const style = lib.current === null ? null : lib.selected;
 
   return (
@@ -44,15 +53,10 @@ export default function StylesPage({ active }: { active: boolean }) {
           )}
           {!style ? (
             <>
-              <NewStyle
-                focusKey={lib.newKey}
-                onCreate={(body) => lib.act(() => api.post<LibStyle>("/api/style-lib", body))}
-              />
+              <NewStyle focusKey={lib.newKey} onCreate={(body) => lib.act(() => styleLibApi.create(body))} />
               <ImportSection
                 active={active && lib.current === null}
-                onImport={(project) =>
-                  lib.act(() => api.post<LibStyle>("/api/style-lib/import", { project }))
-                }
+                onImport={(project) => lib.act(() => styleLibApi.importProject(project))}
               />
             </>
           ) : (
@@ -69,13 +73,11 @@ export default function StylesPage({ active }: { active: boolean }) {
   );
 }
 
-type NewBody = { name: string; request: string; images: Upload[]; analyze: boolean };
-
 function NewStyle({
   onCreate,
   focusKey,
 }: {
-  onCreate: (b: NewBody) => Promise<LibStyle | undefined>;
+  onCreate: (b: NewLibStyleBody) => Promise<LibStyle | undefined>;
   focusKey: number;
 }) {
   const [name, setName] = useState("");
@@ -163,8 +165,8 @@ function ImportSection({
   const [items, setItems] = useState<Importable[]>([]);
   useEffect(() => {
     if (active)
-      api
-        .get<Importable[]>("/api/style-lib/importable")
+      styleLibApi
+        .importable()
         .then(setItems)
         .catch(() => {});
   }, [active]);
@@ -225,7 +227,6 @@ function StyleView({
   const orig = pick(s);
   const dirty = (Object.keys(f) as (keyof typeof f)[]).some((k) => f[k] !== orig[k]);
   const [analyzing, setAnalyzing] = useState(false);
-  const base = `/api/style-lib/${s.id}`;
   const body = () => ({
     name: f.name,
     request: f.request,
@@ -253,7 +254,7 @@ function StyleView({
       return;
     setAnalyzing(true);
     try {
-      await act(() => api.post<LibStyle>(`${base}/analyze`, { request: f.request }));
+      await act(() => styleLibApi.analyze(s.id, f.request));
     } finally {
       setAnalyzing(false);
     }
@@ -266,7 +267,8 @@ function StyleView({
         <RefImageGrid
           images={s.images}
           url={(f) => libImageUrl(s, f)}
-          base={base}
+          api={styleLibApi}
+          id={s.id}
           act={act}
           toggleTitle="切換是否附上"
         />
@@ -346,7 +348,7 @@ function StyleView({
         <button
           className="btn btn-primary"
           disabled={!dirty}
-          onClick={() => act(() => api.patch<LibStyle>(base, body()))}
+          onClick={() => act(() => styleLibApi.update(s.id, body()))}
         >
           儲存修改
         </button>

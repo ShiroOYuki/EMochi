@@ -2,10 +2,10 @@
  *  localStorage 只當快取，讓 index.html 在畫面出來前先套用、不閃白；以伺服器為準。
  *  Navbar 的切換鈕、設定頁共用這個 store */
 import { useSyncExternalStore } from "react";
-import { api } from "./api";
+import { uiPrefsApi, type ThemePref } from "./api";
 import { desktop } from "./desktop";
 
-export type ThemePref = "system" | "light" | "dark";
+export type { ThemePref };
 const media = matchMedia("(prefers-color-scheme: dark)");
 const listeners = new Set<() => void>();
 
@@ -46,7 +46,7 @@ media.addEventListener("change", () => {
 export function setThemePref(p: ThemePref) {
   pref = p;
   apply();
-  api.put("/api/ui-prefs", { theme: p }).catch(() => {
+  uiPrefsApi.set({ theme: p }).catch(() => {
     /* 存不了就只在這次生效 */
   });
 }
@@ -54,7 +54,7 @@ export function setThemePref(p: ThemePref) {
 /** 啟動時跟伺服器同步一次（快取和伺服器不同時以伺服器為準） */
 export async function loadThemePref() {
   try {
-    const r = await api.get<{ theme: ThemePref; stored: boolean }>("/api/ui-prefs");
+    const r = await uiPrefsApi.get();
     // 設定檔還沒存過主題、但瀏覽器裡有舊版留下的選擇 → 搬到設定檔（只發生一次）
     if (!r.stored && pref !== "system") {
       setThemePref(pref);

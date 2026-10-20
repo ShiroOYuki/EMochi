@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { api, type Sticker, type StickerGroup } from "../api";
+import { stickersApi, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
 import { Check, Modal, SPRING, Spinner } from "../components/ui";
 import { MenuIcons, TrashIcon, useContextMenu, type MenuItem } from "../components/manage";
@@ -531,7 +531,7 @@ function ConfirmDelete({
     setBusy(true);
     setErr("");
     try {
-      await api.del(`/api/stickers/${sticker.id}`);
+      await stickersApi.remove(sticker.id);
       onDone();
       onClose();
     } catch (e) {
@@ -576,7 +576,7 @@ function DeletedList({ open, items, onClose }: { open: boolean; items: Sticker[]
   const restore = async (s: Sticker) => {
     setErr("");
     try {
-      await api.post(`/api/stickers/${s.id}/restore`);
+      await stickersApi.restore(s.id);
       await reloadStickers();
     } catch (e) {
       setErr((e as Error).message);

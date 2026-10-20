@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Sticker } from "../api";
+import { stickersApi, type Sticker, type StickerBody } from "../api";
 import { reloadStickers, useStickers } from "../stickers";
 import { Check, Modal, Select, Spinner } from "./ui";
 import { DeleteButton } from "./manage";
@@ -61,13 +61,7 @@ export default function StickerEditor({
     setExpanding(true);
     setErr("");
     try {
-      const d = await api.post<{
-        label: string;
-        zh: string;
-        prompt: string;
-        prompt_no_ears: string;
-        align: string | null;
-      }>("/api/stickers/expand", { idea, label: f.label, zh: f.zh, prompt: f.prompt });
+      const d = await stickersApi.expand({ idea, label: f.label, zh: f.zh, prompt: f.prompt });
       // 編輯既有表情時保留原本的英文名稱（使用者通常只想改描述）
       setF((x) => ({
         ...x,
@@ -87,7 +81,7 @@ export default function StickerEditor({
     setBusy(true);
     setErr("");
     try {
-      const body = {
+      const body: StickerBody = {
         label: f.label,
         zh: f.zh,
         prompt: f.prompt,
@@ -95,8 +89,8 @@ export default function StickerEditor({
         align: f.bottom ? "bottom" : null,
       };
       const s = sticker
-        ? await api.patch<Sticker>(`/api/stickers/${sticker.id}`, body)
-        : await api.post<Sticker>("/api/stickers", { ...body, group_id: f.group || null });
+        ? await stickersApi.update(sticker.id, body)
+        : await stickersApi.create({ ...body, group_id: f.group || null });
       await reloadStickers();
       onSaved?.(s);
       onClose();

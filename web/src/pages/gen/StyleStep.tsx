@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, fileUrl, readFiles, type Character, type LibStyle, type Project } from "../../api";
+import { fileUrl, projectsApi, readFiles, type Character, type Project } from "../../api";
 import { Modal, Section, Select, Spinner } from "../../components/ui";
 import RefPicker, { type TempRef } from "../../components/RefPicker";
 import { type ViewProps } from "./shared";
@@ -42,10 +42,10 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
     style_block: f.style_block,
     process: { square: f.square, margin: f.margin },
   });
-  const save = () => act(() => api.patch<Project>(`/api/projects/${p.id}`, body()));
+  const save = () => act(() => projectsApi.update(p.id, body()));
   const openPrompt = async () => {
     if (dirty) await save();
-    setPromptText((await api.get<{ prompt: string }>(`/api/projects/${p.id}/prompt`)).prompt);
+    setPromptText(await projectsApi.prompt(p.id));
     setShowPrompt(true);
   };
   const setFraming = (framing: "closeup" | "whole") =>
@@ -66,7 +66,7 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
     setSaving(true);
     setSaveErr("");
     try {
-      setSaved((await api.post<LibStyle>(`/api/projects/${p.id}/to-library`)).id);
+      setSaved((await projectsApi.toLibrary(p.id)).id);
     } catch (e) {
       setSaveErr(`存到畫風庫失敗：${(e as Error).message}`);
     } finally {
@@ -109,9 +109,7 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
               className="btn shrink-0"
               disabled={!editable || (!f.request.trim() && !p.ref_paths?.style.length)}
               title="用新的需求（和畫風參考圖）讓 Codex 重寫畫風描述"
-              onClick={() =>
-                act(() => api.post<Project>(`/api/projects/${p.id}/expand`, { request: f.request }))
-              }
+              onClick={() => act(() => projectsApi.expand(p.id, f.request))}
             >
               重新擴寫
             </button>
@@ -183,7 +181,7 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
             disabled={!editable || !f.style_block.trim()}
             onClick={async () => {
               if (dirty) await save();
-              await act(() => api.post<Project>(`/api/projects/${p.id}/preview`));
+              await act(() => projectsApi.preview(p.id));
             }}
           >
             {p.preview ? "用目前描述重新產生預覽" : "確認，產生風格預覽圖"}
@@ -217,7 +215,6 @@ function ProjectRefs({
   chars: Character[];
   editable: boolean;
 }) {
-  const base = `/api/projects/${p.id}`;
   const refs = p.refs ?? { character_id: null, character_images: null, temp: [] };
   const paths = p.ref_paths ?? { character: [], style: [], identity: "", ears: true };
   const temp: TempRef[] = refs.temp.map((t) => ({
@@ -252,7 +249,7 @@ function ProjectRefs({
             disabled={!editable}
             onCharacter={(id, images) =>
               act(() =>
-                api.patch<Project>(base, {
+                projectsApi.update(p.id, {
                   character_id: id,
                   character_images: id === refs.character_id ? images : null,
                 }),
@@ -261,14 +258,10 @@ function ProjectRefs({
             temp={temp}
             onAddTemp={async (files) => {
               const ups = await readFiles(files, "character");
-              if (ups.length) await act(() => api.post<Project>(`${base}/refs`, ups));
+              if (ups.length) await act(() => projectsApi.addRefs(p.id, ups));
             }}
-            onTempRole={(file, role) =>
-              act(() => api.patch<Project>(`${base}/refs/${encodeURIComponent(file)}`, { role }))
-            }
-            onRemoveTemp={(file) =>
-              act(() => api.patch<Project>(`${base}/refs/${encodeURIComponent(file)}`, { remove: true }))
-            }
+            onTempRole={(file, role) => act(() => projectsApi.setRefRole(p.id, file, role))}
+            onRemoveTemp={(file) => act(() => projectsApi.removeRef(p.id, file))}
           />
           {editable && p.preview && (
             <p className="mt-2 text-xs text-mute">改了參考圖之後，記得按「重新產生預覽」才會套用到樣張。</p>

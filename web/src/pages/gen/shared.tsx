@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, fileUrl, type Character, type Project, type Sticker } from "../../api";
+import { projectsApi, fileUrl, type Character, type Project, type Sticker } from "../../api";
 import { Modal, Spinner } from "../../components/ui";
 import { useConfirm } from "../../components/manage";
 
@@ -19,15 +19,7 @@ export function LogLink({ path, style }: { path: string; style: string }) {
   const [text, setText] = useState<string | null>(null);
   return (
     <>
-      <button
-        className="btn btn-sm"
-        onClick={async () =>
-          setText(
-            (await api.get<{ text: string }>(`/api/projects/${style}/log?path=${encodeURIComponent(path)}`))
-              .text,
-          )
-        }
-      >
+      <button className="btn btn-sm" onClick={async () => setText(await projectsApi.log(style, path))}>
         紀錄
       </button>
       <Modal open={text !== null} onClose={() => setText(null)} wide>

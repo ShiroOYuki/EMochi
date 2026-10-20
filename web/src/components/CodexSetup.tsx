@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { api, type CodexStatus } from "../api";
+import { codexApi, type CodexCheck } from "../api";
 import { Modal, Spinner } from "./ui";
 import { copyText } from "./manage";
 
-type Check = Pick<CodexStatus, "cli" | "login" | "checked_at">;
 const PS_INSTALL = `powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"`;
 const NPM_INSTALL = "npm install -g @openai/codex";
 const DISMISS_KEY = "codexSetup.dismissed"; // 這次開 App 按過「稍後再說」就不再自動跳（下次開 App 還是會檢查）
@@ -39,13 +38,13 @@ const dismissed = () => {
 /** 掛在 App 上：啟動時查一次 Codex，找不到 CLI 或沒登入就跳出準備視窗 */
 export default function CodexSetup() {
   const g = useCodexGate();
-  const [c, setC] = useState<Check | null>(null);
+  const [c, setC] = useState<CodexCheck | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const alive = useRef(true);
   const load = useCallback(async (force: boolean) => {
     try {
-      const x = await api.get<Check>(`/api/codex-check${force ? "?refresh=1" : ""}`);
+      const x = await codexApi.check(force);
       if (alive.current) setC(x);
       return x;
     } catch {
@@ -92,8 +91,7 @@ export default function CodexSetup() {
   const login = async () => {
     setNote("");
     try {
-      const r = await api.post<{ message: string }>("/api/codex-login");
-      setNote(r.message);
+      setNote(await codexApi.login());
       load(true);
     } catch (e) {
       setNote((e as Error).message);

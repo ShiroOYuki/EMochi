@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type Project } from "../../api";
+import { projectsApi, type Project } from "../../api";
 import { Section } from "../../components/ui";
 import StickerPicker from "../../components/StickerPicker";
 import { useStickers } from "../../stickers";
@@ -73,7 +73,7 @@ export function PickStep({
             <button
               className="btn btn-primary"
               disabled={!ids.length}
-              onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/generate`, { ids, layout }))}
+              onClick={() => act(() => projectsApi.generate(p.id, ids, layout))}
             >
               開始生成 {ids.length} 張（{groups} 組）
             </button>

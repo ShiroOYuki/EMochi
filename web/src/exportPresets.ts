@@ -1,6 +1,6 @@
 // 匯出預設集的共用狀態：圖庫的匯出面板、預設集管理視窗（從匯出面板或設定頁打開）看到的是同一份
 import { useEffect, useSyncExternalStore } from "react";
-import { api, type ExportPreset, type PresetSize } from "./api";
+import { exportPresetsApi, type ExportPreset, type PresetSize } from "./api";
 
 type State = { presets: ExportPreset[]; custom: boolean; loaded: boolean };
 let state: State = { presets: [], custom: false, loaded: false };
@@ -11,16 +11,16 @@ const set = (s: Omit<State, "loaded">) => {
 };
 
 export async function reloadPresets() {
-  set(await api.get<Omit<State, "loaded">>("/api/export-presets"));
+  set(await exportPresetsApi.get());
 }
 
 /** 整份存回去；驗證失敗會丟錯（訊息直接給使用者看） */
 export async function savePresets(presets: ExportPreset[]) {
-  set(await api.put<Omit<State, "loaded">>("/api/export-presets", { presets }));
+  set(await exportPresetsApi.save(presets));
 }
 
 export async function resetPresets() {
-  set(await api.post<Omit<State, "loaded">>("/api/export-presets/reset", {}));
+  set(await exportPresetsApi.reset());
 }
 
 export function usePresets() {

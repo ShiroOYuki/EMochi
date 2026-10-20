@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, charImageUrl, type Character, type ProjectSummary, type Upload } from "../api";
+import { charactersApi, charImageUrl, projectsApi, type Character, type Upload } from "../api";
 import { Section, Spinner } from "../components/ui";
 import { DeleteButton, useConfirm } from "../components/manage";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
@@ -8,15 +8,15 @@ import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../com
 export default function CharactersPage({ active }: { active: boolean }) {
   // 刪除前先查有哪些專案用到這個角色，提醒一下
   const deleteWarn = useCallback(async (c: Character) => {
-    const used = await api
-      .get<{ projects: ProjectSummary[] }>("/api/projects")
+    const used = await projectsApi
+      .list()
       .then((r) => r.projects.filter((p) => p.character_id === c.id).map((p) => p.id))
       .catch(() => [] as string[]);
     return used.length
       ? `${used.join("、")} 用到這個角色；刪除後這些專案重新生成時會找不到角色圖（還原後就恢復）。`
       : undefined;
   }, []);
-  const lib = useLibrary<Character>({ endpoint: "/api/characters", active, deleteWarn });
+  const lib = useLibrary<Character>({ api: charactersApi, active, deleteWarn });
   const char = lib.current === null ? null : lib.selected;
 
   return (
@@ -48,9 +48,7 @@ export default function CharactersPage({ active }: { active: boolean }) {
           {!char ? (
             <NewCharacter
               focusKey={lib.newKey}
-              onCreate={(name, images) =>
-                lib.act(() => api.post<Character>("/api/characters", { name, images }))
-              }
+              onCreate={(name, images) => lib.act(() => charactersApi.create(name, images))}
             />
           ) : (
             <CharacterView
@@ -134,7 +132,6 @@ function CharacterView({
   useEffect(() => setF({ name: c.name, identity: c.identity }), [c.name, c.identity]);
   const dirty = f.name !== c.name || f.identity !== c.identity;
   const [describing, setDescribing] = useState(false);
-  const base = `/api/characters/${c.id}`;
 
   const [confirmDialog, ask] = useConfirm();
   const describe = async () => {
@@ -149,7 +146,7 @@ function CharacterView({
       return;
     setDescribing(true);
     try {
-      await act(() => api.post<Character>(`${base}/describe`));
+      await act(() => charactersApi.describe(c.id));
     } finally {
       setDescribing(false);
     }
@@ -170,7 +167,8 @@ function CharacterView({
         <RefImageGrid
           images={c.images}
           url={(f) => charImageUrl(c, f)}
-          base={base}
+          api={charactersApi}
+          id={c.id}
           act={act}
           toggleTitle="切換是否預設附上"
         />
@@ -212,7 +210,7 @@ function CharacterView({
             return (
               <button
                 key={label}
-                onClick={() => act(() => api.patch<Character>(base, { ears: v }))}
+                onClick={() => act(() => charactersApi.update(c.id, { ears: v }))}
                 aria-pressed={on}
                 className={`rounded-full border-2 px-3 py-0.5 text-xs transition ${on ? "border-pink bg-pink-soft" : "border-line text-mute hover:border-acc"}`}
               >
@@ -234,7 +232,7 @@ function CharacterView({
         <button
           className="btn btn-primary ml-auto"
           disabled={!dirty || !f.name.trim()}
-          onClick={() => act(() => api.patch<Character>(base, f))}
+          onClick={() => act(() => charactersApi.update(c.id, f))}
         >
           儲存修改
         </button>

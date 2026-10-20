@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, fileUrl, type Group, type Project, type Sticker } from "../../api";
+import { projectsApi, fileUrl, type Group, type Project, type Sticker } from "../../api";
 import { Elapsed, Modal, ScrollRow, Section, Spinner, StatusBadge } from "../../components/ui";
 import { type ViewProps, LogLink, FailedImage, TokenBadge } from "./shared";
 
@@ -47,10 +47,7 @@ export function GroupsStep({
         {p.status === "done" ? (
           <>
             <span className="text-ok">已完成 {p.finished_ids?.length ?? 0} 張，已放入圖庫</span>
-            <button
-              className="btn"
-              onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/reopen`))}
-            >
+            <button className="btn" onClick={() => act(() => projectsApi.reopen(p.id))}>
               重新開啟（再重生某組）
             </button>
             <button className="btn btn-primary" onClick={onOpenGallery}>
@@ -61,7 +58,7 @@ export function GroupsStep({
           <button
             className="btn btn-primary"
             disabled={p.status !== "review" || done === 0}
-            onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/finalize`))}
+            onClick={() => act(() => projectsApi.finalize(p.id))}
           >
             確認，處理並放入圖庫
           </button>
@@ -109,7 +106,7 @@ function GroupCard({
           <button
             className="btn btn-sm"
             disabled={!canRegen}
-            onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/groups/${g.index}/regenerate`))}
+            onClick={() => act(() => projectsApi.regenerate(p.id, g.index))}
           >
             重生
           </button>
@@ -144,16 +141,8 @@ function GroupCard({
           message={g.message}
           className="w-full"
           rechecked={g.rechecked}
-          onRecheck={
-            canRegen
-              ? () => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/${g.index}`))
-              : undefined
-          }
-          onAccept={
-            canRegen
-              ? () => act(() => api.post<Project>(`/api/projects/${p.id}/accept/${g.index}`))
-              : undefined
-          }
+          onRecheck={canRegen ? () => act(() => projectsApi.recheck(p.id, g.index)) : undefined}
+          onAccept={canRegen ? () => act(() => projectsApi.accept(p.id, g.index)) : undefined}
         />
       ) : (
         <div className="flex aspect-[3/2] items-center justify-center rounded-md bg-panel text-sm text-mute">

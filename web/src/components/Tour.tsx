@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { api } from "../api";
+import { uiPrefsApi } from "../api";
 import { SPRING } from "./ui";
 import { useCodexGate } from "./CodexSetup";
 
@@ -115,7 +115,7 @@ function place(box: Box | null, cw: number, ch: number): { x: number; y: number 
 }
 
 const markDone = () =>
-  api.put("/api/ui-prefs", { tour_done: true }).catch(() => {
+  uiPrefsApi.set({ tour_done: true }).catch(() => {
     /* 存不了下次再跳 */
   });
 
@@ -136,8 +136,8 @@ export default function Tour() {
   useEffect(() => {
     if (gate !== "done" || checked.current) return;
     checked.current = true;
-    api
-      .get<{ tour_done?: boolean }>("/api/ui-prefs")
+    uiPrefsApi
+      .get()
       .then((r) => {
         if (!r.tour_done) startTour();
       })

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useReducedMotion } from "motion/react";
 import {
-  api,
+  galleryApi,
   fileUrl,
   type CustomExport,
   type GalleryItem,
@@ -86,7 +86,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
   const sel = useMemo(() => new Set(selArr), [selArr]);
   const [open, setOpen] = useState<number | null>(null);
 
-  const reload = useCallback(async () => setStyles(await api.get<GalleryStyle[]>("/api/gallery")), []);
+  const reload = useCallback(async () => setStyles(await galleryApi.list()), []);
   useEffect(() => {
     if (active) reload();
   }, [active, reload]);
@@ -490,7 +490,7 @@ function SidePanel({
   const [sheet, setSheet] = useState<string | null>(null);
 
   const loadList = useCallback(async () => {
-    const l = await api.get<SelectionInfo[]>("/api/gallery/selections");
+    const l = await galleryApi.selections();
     setList(l);
     setPick((p) => p || l[0]?.file || "");
   }, []);
@@ -546,9 +546,7 @@ function SidePanel({
           <button
             className="btn"
             disabled={!pick}
-            onClick={async () =>
-              apply(await api.get(`/api/gallery/selections/${encodeURIComponent(pick)}`), pick)
-            }
+            onClick={async () => apply(await galleryApi.selection(pick), pick)}
           >
             載入勾選
           </button>
@@ -556,7 +554,7 @@ function SidePanel({
             className="btn"
             disabled={!sel.length}
             onClick={async () => {
-              const r = await api.post<{ file: string }>("/api/gallery/selections", {
+              const r = await galleryApi.saveSelection({
                 keys: sel,
                 presets: validChosen,
                 custom: customBody,
@@ -681,11 +679,7 @@ function SidePanel({
           onClick={async () => {
             say("exp", "匯出中…");
             try {
-              const r = await api.post<{
-                file: string;
-                count: number;
-                issues: { file: string; notes: string[] }[];
-              }>("/api/gallery/export", {
+              const r = await galleryApi.export({
                 keys: sel,
                 presets: validChosen,
                 custom: customBody,
@@ -773,7 +767,7 @@ function SidePanel({
           onClick={async () => {
             say("cmb", "組合中…");
             try {
-              const r = await api.post<{ file: string }>("/api/gallery/combine", { keys: sel, ...cmb });
+              const r = await galleryApi.combine(sel, cmb);
               say("cmb", `完成，存在 exports\\${r.file}`);
               setSheet(r.file);
               loadList();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type CodexUsage as Usage, type RateWindow } from "../api";
+import { codexApi, type CodexUsage as Usage, type RateWindow } from "../api";
 import CodexStatusDialog from "./CodexStatus";
 
 const POLL_MS = 30_000;
@@ -45,8 +45,8 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
   const alive = useRef(true);
   const load = useCallback(
     (force = false) =>
-      api
-        .get<Usage>(`/api/codex-usage${force ? "?refresh=1" : ""}`)
+      codexApi
+        .usage(force)
         .then((d) => alive.current && setU(d))
         .catch(() => alive.current && setU(null)),
     [],

@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/animate-ui/primitives/radix/dropdown-menu";
-import { api, fileUrl, type TrashItem, type TrashKind } from "../api";
+import { fileUrl, trashApi, type TrashItem, type TrashKind } from "../api";
 import { SPRING, Modal, Spinner, StatusBadge } from "./ui";
 import { useReducedMotion } from "motion/react";
 import {
@@ -387,9 +387,7 @@ export function TrashButton({
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TrashKind>(kind);
   const load = useCallback(async () => {
-    const lists = await Promise.all(
-      KINDS.map((k) => api.get<TrashItem[]>(`/api/trash/${k.kind}`).catch(() => [] as TrashItem[])),
-    );
+    const lists = await Promise.all(KINDS.map((k) => trashApi.list(k.kind).catch(() => [] as TrashItem[])));
     setItems({ projects: lists[0], styles: lists[1], characters: lists[2] });
   }, []);
   useEffect(() => {
@@ -481,7 +479,6 @@ function TrashModal({
   const list = items[tab];
   const noun = KINDS.find((k) => k.kind === tab)!.noun;
   const size = list.reduce((n, t) => n + t.size, 0);
-  const base = `/api/trash/${tab}`;
   return (
     <Modal open={open} onClose={() => !busy && onClose()} label="垃圾桶">
       <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -513,7 +510,7 @@ function TrashModal({
           <button
             className={`btn btn-sm ml-auto ${arm === "*" ? DANGER : "hover:border-bad hover:text-bad"}`}
             disabled={!!busy}
-            onClick={() => (arm === "*" ? run("*", () => api.del(base)) : setArm("*"))}
+            onClick={() => (arm === "*" ? run("*", () => trashApi.empty(tab)) : setArm("*"))}
           >
             {busy === "*" ? "清空中…" : arm === "*" ? `確定永久刪除全部${noun}？` : `清空${noun}`}
           </button>
@@ -555,9 +552,7 @@ function TrashModal({
                   className="btn btn-sm"
                   disabled={!!busy || !t.restorable}
                   title={t.restorable ? "放回清單" : `已經有 ${t.id}，不能還原`}
-                  onClick={() =>
-                    run(t.name, () => api.post(`${base}/${encodeURIComponent(t.name)}/restore`), t.id)
-                  }
+                  onClick={() => run(t.name, () => trashApi.restore(tab, t.name), t.id)}
                 >
                   還原
                 </button>
@@ -565,9 +560,7 @@ function TrashModal({
                   className={`btn btn-sm ${arm === t.name ? DANGER : "hover:border-bad hover:text-bad"}`}
                   disabled={!!busy}
                   onClick={() =>
-                    arm === t.name
-                      ? run(t.name, () => api.del(`${base}/${encodeURIComponent(t.name)}`))
-                      : setArm(t.name)
+                    arm === t.name ? run(t.name, () => trashApi.purge(tab, t.name)) : setArm(t.name)
                   }
                 >
                   {busy === t.name && arm === t.name ? "刪除中…" : arm === t.name ? "確定？" : "永久刪除"}

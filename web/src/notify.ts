@@ -3,7 +3,7 @@
  *  桌面版走 Electron 原生通知（window.emochi.notify），網頁版用瀏覽器的 Notification（要先允許）。
  *  點通知：視窗叫到前面 → 切到「生成」分頁 → 打開那個專案 */
 import { useEffect, useSyncExternalStore } from "react";
-import { api } from "./api";
+import { systemApi, uiPrefsApi, type AppEvent } from "./api";
 import { desktop } from "./desktop";
 
 const POLL_MS = 3000;
@@ -12,22 +12,13 @@ const listeners = new Set<() => void>();
 let enabled = true;
 const emit = () => listeners.forEach((f) => f());
 
-export type AppEvent = {
-  seq: number;
-  kind: "preview" | "batch";
-  project: string;
-  title: string;
-  body: string;
-  ok: boolean;
-  time: number;
-};
-type EventsResp = { boot: string; seq: number; events: AppEvent[] };
+export type { AppEvent };
 
 /** 設定頁開關：立即存到 settings.local.json */
 export function setNotifyPref(v: boolean) {
   enabled = v;
   emit();
-  api.put("/api/ui-prefs", { notify: v }).catch(() => {
+  uiPrefsApi.set({ notify: v }).catch(() => {
     /* 存不了就只在這次生效 */
   });
 }
@@ -94,8 +85,8 @@ export async function showNotification(n: {
 /** App 掛一次：讀開關、輪詢事件、接桌面版的通知點擊 */
 export function useNotifier() {
   useEffect(() => {
-    api
-      .get<{ notify?: boolean }>("/api/ui-prefs")
+    uiPrefsApi
+      .get()
       .then((r) => {
         if (typeof r.notify === "boolean" && r.notify !== enabled) {
           enabled = r.notify;
@@ -112,7 +103,7 @@ export function useNotifier() {
     let timer = 0;
     const tick = async () => {
       try {
-        const r = await api.get<EventsResp>(`/api/events?after=${seq}&boot=${boot}`);
+        const r = await systemApi.events(seq, boot);
         seq = r.seq;
         boot = r.boot;
         if (enabled && !document.hasFocus()) {

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  api,
+  codexApi,
   type CodexRun,
   type CodexRunResult,
   type CodexStatus,
@@ -59,7 +59,7 @@ export default function CodexStatusDialog({
   const alive = useRef(true);
   const load = useCallback(async (force = false) => {
     try {
-      const x = await api.get<CodexStatus>(`/api/codex-status${force ? "?refresh=1" : ""}`);
+      const x = await codexApi.status(force);
       if (alive.current) {
         setD(x);
         setErr("");
@@ -89,8 +89,7 @@ export default function CodexStatusDialog({
   };
   const login = async () => {
     try {
-      const r = await api.post<{ message: string }>("/api/codex-login");
-      setNote(r.message);
+      setNote(await codexApi.login());
       load();
     } catch (e) {
       setNote((e as Error).message);

@@ -4,22 +4,14 @@ import {
   libImageUrl,
   readFiles,
   type Character,
+  type CreateProjectBody,
   type LibStyle,
   type RefRole,
-  type Upload,
 } from "../../api";
 import { Section } from "../../components/ui";
 import RefPicker, { type TempRef } from "../../components/RefPicker";
 
 // ---------- 0. 新增 ----------
-
-type CreateBody = {
-  request: string;
-  character_id: string | null;
-  character_images: string[] | null;
-  temp_refs: Upload[];
-  style_lib_id: string | null;
-};
 
 export function NewProject({
   nextId,
@@ -29,7 +21,7 @@ export function NewProject({
   libs,
 }: {
   nextId?: string;
-  onCreate: (b: CreateBody) => void;
+  onCreate: (b: CreateProjectBody) => void;
   focusKey: number;
   chars: Character[];
   libs: LibStyle[];

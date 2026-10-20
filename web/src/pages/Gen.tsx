@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, BUSY, type Character, type LibStyle, type Project, type ProjectSummary } from "../api";
+import {
+  BUSY,
+  charactersApi,
+  projectsApi,
+  styleLibApi,
+  type Character,
+  type LibStyle,
+  type Project,
+  type ProjectList,
+  type ProjectSummary,
+} from "../api";
 import { Spinner, StatusBadge } from "../components/ui";
 import { useStickers } from "../stickers";
 import {
@@ -16,16 +26,8 @@ import { onOpenProject } from "../notify";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
 
-type ProjectsResp = {
-  projects: ProjectSummary[];
-  next_id: string;
-  preview_ids: number[];
-  max_parallel: number;
-  default_layout?: "3x2" | "4x2w";
-};
-
 export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () => void; active: boolean }) {
-  const [list, setList] = useState<ProjectsResp | null>(null);
+  const [list, setList] = useState<ProjectList | null>(null);
   const [current, setCurrent] = useState<string | null>(null); // null = 新增貼圖
   const [project, setProject] = useState<Project | null>(null);
   const { all: stickers } = useStickers(); // 含已刪除的（舊專案的組別還要顯示名稱）
@@ -37,22 +39,19 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   // 切回這頁就重抓角色和畫風庫（可能剛在其他分頁新增或改過）
   useEffect(() => {
     if (!active) return;
-    api
-      .get<Character[]>("/api/characters")
+    charactersApi
+      .list()
       .then(setChars)
       .catch(() => {});
-    api
-      .get<LibStyle[]>("/api/style-lib")
+    styleLibApi
+      .list()
       .then(setLibs)
       .catch(() => {});
   }, [active]);
 
   const [trashKey, setTrashKey] = useState(0); // 刪除後 +1，讓右下角垃圾桶重抓數量
-  const loadList = useCallback(async () => setList(await api.get<ProjectsResp>("/api/projects")), []);
-  const loadProject = useCallback(
-    async (id: string) => setProject(await api.get<Project>(`/api/projects/${id}`)),
-    [],
-  );
+  const loadList = useCallback(async () => setList(await projectsApi.list()), []);
+  const loadProject = useCallback(async (id: string) => setProject(await projectsApi.get(id)), []);
 
   // 切回這頁就重抓專案清單（可能剛在別的分頁從垃圾桶還原）
   useEffect(() => {
@@ -107,7 +106,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
       warn: p.status === "done" ? "這個專案已完成，它的貼圖也會一起從圖庫消失（還原後會回來）。" : undefined,
     });
   const doDelete = async (id: string) => {
-    await api.del(`/api/projects/${id}`);
+    await projectsApi.remove(id);
     if (current === id) setCurrent(null);
     setTrashKey((k) => k + 1);
     loadList();
@@ -202,7 +201,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
                 nextId={list?.next_id}
                 chars={chars}
                 libs={libs}
-                onCreate={(body) => act(() => api.post<Project>("/api/projects", body))}
+                onCreate={(body) => act(() => projectsApi.create(body))}
               />
             </div>
           ) : project ? (

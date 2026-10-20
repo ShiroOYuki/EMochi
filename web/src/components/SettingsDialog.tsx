@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  api,
+  settingsApi,
+  type ConflictPolicy,
   type DirInfo,
   type DirKey,
   type PathCheck,
+  type SettingsChanges,
   type SettingsInfo,
   type SettingsPlan,
   type SettingsValues,
@@ -90,8 +92,8 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
     setDone("");
     setPlan(null);
     setInfo(null);
-    api
-      .get<SettingsInfo>("/api/settings")
+    settingsApi
+      .get()
       .then(reset)
       .catch((e) => setErr((e as Error).message));
   }, [open]);
@@ -120,8 +122,8 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
       clearTimeout(timers.current[key]);
       timers.current[key] = window.setTimeout(() => {
         const others = Object.fromEntries(Object.entries(next).filter(([k]) => k !== key));
-        api
-          .post<PathCheck>("/api/settings/check", { key, value, others })
+        settingsApi
+          .checkPath(key, value, others)
           .then((c) => setChecks((x) => ({ ...x, [key]: c })))
           .catch(() => {});
       }, 300);
@@ -131,26 +133,25 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   const pick = async (key: DirKey, current: string) => {
     try {
       // 桌面版用 Electron 的原生視窗；網頁版請伺服器跳 tkinter 視窗
-      const path = desktop
-        ? await desktop.pickFolder(current)
-        : (await api.post<{ path: string | null }>("/api/settings/pick-folder", { path: current })).path;
+      const path = desktop ? await desktop.pickFolder(current) : await settingsApi.pickFolder(current);
       if (path) setDir(key, path);
     } catch (e) {
       setErr((e as Error).message);
     }
   };
   const openFolder = (path: string) =>
-    api.post("/api/settings/open-folder", { path }).catch((e) => setErr((e as Error).message));
+    settingsApi.openFolder(path).catch((e) => setErr((e as Error).message));
 
-  const changes = () => ({
-    ...Object.fromEntries(changedDirs.map((x) => [x.key, dirs[x.key].trim()])),
-    ...changedVals,
-  });
+  const changes = () =>
+    ({
+      ...Object.fromEntries(changedDirs.map((x) => [x.key, dirs[x.key].trim()])),
+      ...changedVals,
+    }) as SettingsChanges;
   const save = async () => {
     setErr("");
     if (changedDirs.length) {
       try {
-        setPlan(await api.post<SettingsPlan>("/api/settings/plan", { changes: changes() }));
+        setPlan(await settingsApi.plan(changes()));
       } catch (e) {
         setErr((e as Error).message);
       }
@@ -158,11 +159,11 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
     }
     await commit(true, null);
   };
-  const commit = async (move: boolean, conflict: "keep" | "overwrite" | null) => {
+  const commit = async (move: boolean, conflict: ConflictPolicy) => {
     setSaving(true);
     setErr("");
     try {
-      const r = await api.put<SettingsInfo>("/api/settings", { changes: changes(), move, conflict });
+      const r = await settingsApi.apply(changes(), move, conflict);
       reset(r);
       setPlan(null);
       await reloadStickers(); // 設定檔資料夾換了，表情清單要重讀

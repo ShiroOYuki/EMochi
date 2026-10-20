@@ -1,4 +1,6 @@
-// 後端 API 型別與呼叫
+// 後端 API 的資料型別（網址與呼叫在同資料夾的 projects.ts、library.ts…）
+import { fileUrl } from "./client";
+export type Framing = "closeup" | "whole";
 
 /** 表情；name 是檔名用（建立後不變）；deleted＝軟刪除（只有 ?all=1 才拿得到） */
 export type Sticker = {
@@ -42,7 +44,7 @@ export type Project = {
   name: string;
   request: string;
   style_block: string;
-  framing: "closeup" | "whole";
+  framing: Framing;
   process: { square: number | null; margin: number; min_blob: number };
   notes_zh: string;
   status: ProjectStatus;
@@ -101,7 +103,7 @@ export type LibStyle = {
   name: string;
   request: string;
   style_block: string;
-  framing: "closeup" | "whole";
+  framing: Framing;
   process: { square: number | null; margin: number };
   notes_zh: string;
   images: CharImage[];
@@ -122,21 +124,6 @@ export type Importable = {
 };
 
 export type Upload = { name: string; data: string; role?: RefRole };
-/** 瀏覽器端把檔案讀成 data URL（後端再轉成 PNG） */
-export const readFiles = (files: Iterable<File>, role?: RefRole): Promise<Upload[]> =>
-  Promise.all(
-    [...files]
-      .filter((f) => f.type.startsWith("image/"))
-      .map(
-        (f) =>
-          new Promise<Upload>((ok, bad) => {
-            const r = new FileReader();
-            r.onload = () => ok({ name: f.name || "pasted.png", data: String(r.result), role });
-            r.onerror = () => bad(r.error);
-            r.readAsDataURL(f);
-          }),
-      ),
-  );
 export type ProjectSummary = Pick<Project, "id" | "name" | "status" | "updated" | "request"> & {
   character_id: string | null;
 };
@@ -164,29 +151,6 @@ export type SelectionInfo = {
   kind: string;
   tag: string | null;
 };
-
-async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const r = await fetch(url, {
-    method,
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((data as { detail?: string }).detail || `HTTP ${r.status}`);
-  return data as T;
-}
-
-export const api = {
-  get: <T>(url: string) => req<T>("GET", url),
-  post: <T>(url: string, body: unknown = {}) => req<T>("POST", url, body),
-  patch: <T>(url: string, body: unknown) => req<T>("PATCH", url, body),
-  put: <T>(url: string, body: unknown) => req<T>("PUT", url, body),
-  del: <T>(url: string) => req<T>("DELETE", url),
-};
-
-/** outputs/、exports/ 底下的檔案網址；v 用來避免瀏覽器快取舊圖 */
-export const fileUrl = (path: string, v?: string | number) =>
-  `/files/${path}${v ? `?v=${encodeURIComponent(String(v))}` : ""}`;
 
 export const BUSY: ProjectStatus[] = ["expanding", "previewing", "generating", "processing"];
 

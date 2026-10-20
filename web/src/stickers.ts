@@ -1,6 +1,6 @@
 // 表情清單與分組的共用狀態：「表情」分頁編輯、Gen 頁面挑選，兩邊看到的是同一份
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { api, type Sticker, type StickerGroup } from "./api";
+import { stickersApi, type Sticker, type StickerGroup } from "./api";
 
 type State = { all: Sticker[]; groups: StickerGroup[]; loaded: boolean };
 let state: State = { all: [], groups: [], loaded: false };
@@ -19,10 +19,7 @@ const subscribe = (f: () => void) => {
 let loading: Promise<void> | null = null;
 /** 重抓表情（含已刪除）與分組 */
 export function reloadStickers(): Promise<void> {
-  loading ??= Promise.all([
-    api.get<Sticker[]>("/api/stickers?all=1"),
-    api.get<StickerGroup[]>("/api/sticker-groups"),
-  ])
+  loading ??= Promise.all([stickersApi.listAll(), stickersApi.groups()])
     .then(([all, groups]) => set({ all, groups, loaded: true }))
     .finally(() => {
       loading = null;
@@ -37,7 +34,7 @@ export async function saveGroups(groups: StickerGroup[]): Promise<void> {
   const my = ++seq;
   set({ groups });
   try {
-    const saved = await api.put<StickerGroup[]>("/api/sticker-groups", groups);
+    const saved = await stickersApi.saveGroups(groups);
     if (my === seq) set({ groups: saved });
   } catch (e) {
     if (my === seq) set({ groups: prev });

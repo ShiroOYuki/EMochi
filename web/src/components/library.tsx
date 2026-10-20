@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, readFiles, type CharImage, type Upload } from "../api";
+import { readFiles, type CharImage, type RefLibraryApi, type Upload } from "../api";
 import { DropZone } from "./ui";
 import {
   copyText,
@@ -18,11 +18,12 @@ type Item = { id: string; updated: string; images: CharImage[]; error?: string }
 
 /** 清單、目前選取、act（執行後重新整理並切過去）、刪除流程 */
 export function useLibrary<T extends Item>({
-  endpoint,
+  api,
   active,
   deleteWarn,
 }: {
-  endpoint: string;
+  /** charactersApi 或 styleLibApi */
+  api: RefLibraryApi<T>;
   active: boolean;
   /** 刪除前要提醒的話（例如哪些專案用到這個角色）；沒有就回傳 undefined */
   deleteWarn?: (item: T) => Promise<ReactNode | undefined>;
@@ -35,10 +36,10 @@ export function useLibrary<T extends Item>({
   const [trashKey, setTrashKey] = useState(0);
 
   const load = useCallback(async () => {
-    const l = await api.get<T[]>(endpoint);
+    const l = await api.list();
     setList(l);
     return l;
-  }, [endpoint]);
+  }, [api]);
   useEffect(() => {
     if (!active) return;
     load().then((l) => setCurrent((c) => (c === null && l.length && newKey === 0 ? l[0].id : c)));
@@ -60,7 +61,7 @@ export function useLibrary<T extends Item>({
   const askDelete = async (x: T, title: string) =>
     setToDelete({ id: x.id, title, warn: await deleteWarn?.(x) });
   const doDelete = async (id: string) => {
-    await api.del(`${endpoint}/${id}`);
+    await api.remove(id);
     setTrashKey((k) => k + 1);
     const l = await load();
     if (current === id) setCurrent(l[0]?.id ?? null);
@@ -187,14 +188,16 @@ export function LibrarySidebar<T extends Item>({
 export function RefImageGrid<T>({
   images,
   url,
-  base,
+  api,
+  id,
   act,
   toggleTitle,
 }: {
   images: CharImage[];
   url: (file: string) => string;
-  /** 這一筆的 API 路徑，例如 /api/characters/c1；API 回傳更新後的整筆 */
-  base: string;
+  /** charactersApi 或 styleLibApi；每個操作都回傳更新後的整筆 */
+  api: RefLibraryApi<T>;
+  id: string;
   act: (fn: () => Promise<T>) => Promise<unknown>;
   toggleTitle: string;
 }) {
@@ -203,7 +206,7 @@ export function RefImageGrid<T>({
       {images.map((i) => (
         <div key={i.file} className="w-32">
           <button
-            onClick={() => act(() => api.patch<T>(base, { use: { [i.file]: !i.use } }))}
+            onClick={() => act(() => api.setImageUse(id, i.file, !i.use))}
             aria-pressed={i.use}
             title={toggleTitle}
             className={`checker block aspect-square w-full overflow-hidden rounded-xl border-[3px] transition ${i.use ? "border-pink" : "border-transparent opacity-50 hover:opacity-90"}`}
@@ -216,7 +219,7 @@ export function RefImageGrid<T>({
             </span>
             <button
               className="ml-auto shrink-0 hover:text-bad"
-              onClick={() => act(() => api.del<T>(`${base}/images/${encodeURIComponent(i.file)}`))}
+              onClick={() => act(() => api.removeImage(id, i.file))}
             >
               移除
             </button>
@@ -227,7 +230,7 @@ export function RefImageGrid<T>({
         className="size-32"
         onFiles={async (files) => {
           const u = await readFiles(files);
-          if (u.length) await act(() => api.post<T>(`${base}/images`, u));
+          if (u.length) await act(() => api.addImages(id, u));
         }}
       />
     </div>

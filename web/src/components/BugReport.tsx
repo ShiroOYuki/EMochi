@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { settingsApi, systemApi, type Diagnostics } from "../api";
 import { desktop } from "../desktop";
 import { copyText } from "./manage";
 
@@ -8,14 +8,9 @@ import { copyText } from "./manage";
 export const REPO_URL = "https://github.com/ShiroOYuki/EMochi";
 export const REPORT_EMAIL = "cielwork518@gmail.com";
 
-type Diag = { version: string; os: string; codex: string; mode: string; text: string };
+const fetchDiag = () => systemApi.diagnostics(desktop?.version);
 
-const fetchDiag = () =>
-  api.get<Diag>(
-    `/api/diagnostics?desktop=${desktop ? 1 : 0}${desktop ? `&app_version=${encodeURIComponent(desktop.version)}` : ""}`,
-  );
-
-export function issueUrl(d: Diag) {
+export function issueUrl(d: Diagnostics) {
   const q = new URLSearchParams({
     template: "bug_report.yml",
     version: `v${d.version}（${d.mode}）`,
@@ -25,7 +20,7 @@ export function issueUrl(d: Diag) {
   return `${REPO_URL}/issues/new?${q}`;
 }
 
-export function mailUrl(d: Diag) {
+export function mailUrl(d: Diagnostics) {
   const body = [
     "發生了什麼事：",
     "",
@@ -47,7 +42,7 @@ export function mailUrl(d: Diag) {
 }
 
 export function ReportSection() {
-  const [d, setD] = useState<Diag | null>(null);
+  const [d, setD] = useState<Diagnostics | null>(null);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
   const t = useRef(0);
@@ -104,8 +99,7 @@ export function ReportSection() {
   };
   const openCodexLogs = async () => {
     try {
-      const { path } = await api.get<{ path: string }>("/api/logs-dir");
-      await api.post("/api/settings/open-folder", { path });
+      await settingsApi.openFolder(await systemApi.logsDir());
     } catch (e) {
       flash((e as Error).message);
     }

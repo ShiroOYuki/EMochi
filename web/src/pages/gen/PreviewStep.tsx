@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, fileUrl, type Project, type Sticker } from "../../api";
+import { projectsApi, fileUrl, type Project, type Sticker } from "../../api";
 import { Elapsed, Modal, Section, Spinner } from "../../components/ui";
 import { type ViewProps, LogLink, FailedImage, TokenBadge } from "./shared";
 
@@ -44,8 +44,8 @@ export function PreviewStep({
           className="w-72"
           tokens={pv.tokens}
           rechecked={pv.rechecked}
-          onRecheck={() => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/preview`))}
-          onAccept={() => act(() => api.post<Project>(`/api/projects/${p.id}/accept/preview`))}
+          onRecheck={() => act(() => projectsApi.recheck(p.id, "preview"))}
+          onAccept={() => act(() => projectsApi.accept(p.id, "preview"))}
         />
       ) : pv ? (
         <div className="flex flex-wrap items-start gap-4">
@@ -75,10 +75,7 @@ export function PreviewStep({
         </div>
       ) : null}
       {pv?.status === "failed" && (
-        <button
-          className="btn mt-3"
-          onClick={() => act(() => api.post<Project>(`/api/projects/${p.id}/preview`))}
-        >
+        <button className="btn mt-3" onClick={() => act(() => projectsApi.preview(p.id))}>
           重新生成預覽
         </button>
       )}
