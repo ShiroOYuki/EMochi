@@ -3,6 +3,7 @@
 只在使用者按「複製診斷資訊」或「回報問題」時產生，不會自動送出。
 路徑裡的使用者家目錄換成 ~（避免把 Windows 帳號名稱貼到公開的 issue）。
 """
+
 import json
 import platform
 import sys
@@ -49,7 +50,9 @@ def collect(app_version: str | None = None, desktop: bool = False) -> dict:
         mode += "・原始碼執行"
     s = settings.load()
     try:
-        failed = [r for r in codex_status.usage_days()["recent"] if r["result"] in ("failed", "timeout", "unknown")][:RECENT_FAILED]
+        failed = [
+            r for r in codex_status.usage_days()["recent"] if r["result"] in ("failed", "timeout", "unknown")
+        ][:RECENT_FAILED]
     except Exception:  # noqa: BLE001  統計壞掉不影響回報
         failed = []
 
@@ -65,10 +68,15 @@ def collect(app_version: str | None = None, desktop: bool = False) -> dict:
     if failed:
         lines.append(f"最近失敗的 Codex 呼叫（近 7 天，最多 {RECENT_FAILED} 筆）：")
         for r in failed:
-            lines.append(f"  - {r['time']} {r['scope_label']}・{r['kind']} {r['name']}：{r['result']}（log：{mask(r['log'])}）")
+            lines.append(
+                f"  - {r['time']} {r['scope_label']}・{r['kind']} {r['name']}：{r['result']}（log：{mask(r['log'])}）"
+            )
     else:
         lines.append("最近失敗的 Codex 呼叫：近 7 天沒有")
     return {
-        "version": version, "os": os_name(), "codex": codex_full, "mode": mode,
+        "version": version,
+        "os": os_name(),
+        "codex": codex_full,
+        "mode": mode,
         "text": "\n".join(lines),
     }

@@ -1,4 +1,5 @@
 """設定頁：資料夾位置、生成參數、選／開資料夾"""
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -26,7 +27,7 @@ def check_setting_path(body: PathCheck):
 class SettingsChange(BaseModel):
     changes: dict
     move: bool = True
-    conflict: str | None = None    # keep＝保留新位置的同名檔、overwrite＝覆蓋
+    conflict: str | None = None  # keep＝保留新位置的同名檔、overwrite＝覆蓋
 
 
 @router.post("/api/settings/plan")

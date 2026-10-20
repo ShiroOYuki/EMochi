@@ -1,21 +1,35 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, readFiles, type CharImage, type Upload } from "../api";
 import { DropZone } from "./ui";
-import { copyText, DeleteConfirm, MenuIcons, SideDeleteIcon, TrashButton, useContextMenu, type DeleteTarget, type MenuItem } from "./manage";
+import {
+  copyText,
+  DeleteConfirm,
+  MenuIcons,
+  SideDeleteIcon,
+  TrashButton,
+  useContextMenu,
+  type DeleteTarget,
+  type MenuItem,
+} from "./manage";
 
 /** 角色庫、畫風庫兩頁共用：左側清單（新增鈕、右鍵選單、刪除確認、垃圾桶）、參考圖格、待上傳的圖 */
 
 type Item = { id: string; updated: string; images: CharImage[]; error?: string };
 
 /** 清單、目前選取、act（執行後重新整理並切過去）、刪除流程 */
-export function useLibrary<T extends Item>({ endpoint, active, deleteWarn }: {
-  endpoint: string; active: boolean;
+export function useLibrary<T extends Item>({
+  endpoint,
+  active,
+  deleteWarn,
+}: {
+  endpoint: string;
+  active: boolean;
   /** 刪除前要提醒的話（例如哪些專案用到這個角色）；沒有就回傳 undefined */
   deleteWarn?: (item: T) => Promise<ReactNode | undefined>;
 }) {
   const [list, setList] = useState<T[]>([]);
-  const [current, setCurrent] = useState<string | null>(null);   // null = 新增
-  const [newKey, setNewKey] = useState(0);                       // 每按一次「新增」+1，讓表單聚焦
+  const [current, setCurrent] = useState<string | null>(null); // null = 新增
+  const [newKey, setNewKey] = useState(0); // 每按一次「新增」+1，讓表單聚焦
   const [err, setErr] = useState("");
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
   const [trashKey, setTrashKey] = useState(0);
@@ -34,29 +48,66 @@ export function useLibrary<T extends Item>({ endpoint, active, deleteWarn }: {
   const act = async (fn: () => Promise<T>) => {
     setErr("");
     try {
-      const x = await fn(); await load(); setCurrent(x.id);
+      const x = await fn();
+      await load();
+      setCurrent(x.id);
       if (x.error) setErr(x.error);
       return x;
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) {
+      setErr((e as Error).message);
+    }
   };
-  const askDelete = async (x: T, title: string) => setToDelete({ id: x.id, title, warn: await deleteWarn?.(x) });
+  const askDelete = async (x: T, title: string) =>
+    setToDelete({ id: x.id, title, warn: await deleteWarn?.(x) });
   const doDelete = async (id: string) => {
     await api.del(`${endpoint}/${id}`);
     setTrashKey((k) => k + 1);
     const l = await load();
     if (current === id) setCurrent(l[0]?.id ?? null);
   };
-  const startNew = () => { setCurrent(null); setNewKey((k) => k + 1); };
+  const startNew = () => {
+    setCurrent(null);
+    setNewKey((k) => k + 1);
+  };
   const selected = list.find((x) => x.id === current) ?? null;
-  return { list, current, setCurrent, selected, newKey, startNew, err, act, load, askDelete, doDelete, toDelete, setToDelete, trashKey };
+  return {
+    list,
+    current,
+    setCurrent,
+    selected,
+    newKey,
+    startNew,
+    err,
+    act,
+    load,
+    askDelete,
+    doDelete,
+    toDelete,
+    setToDelete,
+    trashKey,
+  };
 }
 
 type Lib<T extends Item> = ReturnType<typeof useLibrary<T>>;
 
 /** 左側清單 */
-export function LibrarySidebar<T extends Item>({ lib, noun, newLabel, heading, empty, trashKind, active, row }: {
-  lib: Lib<T>; noun: string; newLabel: string; heading: string; empty?: ReactNode;
-  trashKind: "characters" | "styles"; active: boolean;
+export function LibrarySidebar<T extends Item>({
+  lib,
+  noun,
+  newLabel,
+  heading,
+  empty,
+  trashKind,
+  active,
+  row,
+}: {
+  lib: Lib<T>;
+  noun: string;
+  newLabel: string;
+  heading: string;
+  empty?: ReactNode;
+  trashKind: "characters" | "styles";
+  active: boolean;
   row: (x: T) => { title: string; sub: ReactNode; cover?: string };
 }) {
   const [menu, openMenu] = useContextMenu();
@@ -69,7 +120,12 @@ export function LibrarySidebar<T extends Item>({ lib, noun, newLabel, heading, e
   return (
     <aside className="flex w-64 shrink-0 flex-col">
       <div className="shrink-0 px-4 pt-4">
-        <button className={`btn mb-3 w-full ${lib.current === null ? "btn-primary" : ""}`} onClick={lib.startNew}>＋ {newLabel}</button>
+        <button
+          className={`btn mb-3 w-full ${lib.current === null ? "btn-primary" : ""}`}
+          onClick={lib.startNew}
+        >
+          ＋ {newLabel}
+        </button>
         <div className="mb-1 px-1 text-xs text-mute">{heading}</div>
       </div>
       <div className="side-list">
@@ -77,67 +133,139 @@ export function LibrarySidebar<T extends Item>({ lib, noun, newLabel, heading, e
         {lib.list.map((x) => {
           const r = row(x);
           return (
-            <div key={x.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(x, r.title))}>
-              <button onClick={() => lib.setCurrent(x.id)}
-                className={`flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-9 text-left transition ${lib.current === x.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}>
-                {r.cover
-                  ? <img src={r.cover} className="checker size-10 rounded-xl object-cover" alt="" />
-                  : <span className="flex size-10 items-center justify-center rounded-xl bg-panel2 text-mute">?</span>}
+            <div
+              key={x.id}
+              className="group relative mb-1.5"
+              onContextMenu={(e) => openMenu(e, menuFor(x, r.title))}
+            >
+              <button
+                onClick={() => lib.setCurrent(x.id)}
+                className={`flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-9 text-left transition ${lib.current === x.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}
+              >
+                {r.cover ? (
+                  <img src={r.cover} className="checker size-10 rounded-xl object-cover" alt="" />
+                ) : (
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-panel2 text-mute">
+                    ?
+                  </span>
+                )}
                 <span className="min-w-0">
                   <span className="block truncate">{r.title}</span>
                   <span className="text-[11px] text-mute">{r.sub}</span>
                 </span>
               </button>
-              <SideDeleteIcon onClick={() => lib.askDelete(x, r.title)} label={`刪除${noun} ${x.id}`} shown={lib.current === x.id} />
+              <SideDeleteIcon
+                onClick={() => lib.askDelete(x, r.title)}
+                label={`刪除${noun} ${x.id}`}
+                shown={lib.current === x.id}
+              />
             </div>
           );
         })}
       </div>
       {menu}
-      <DeleteConfirm target={lib.toDelete} noun={noun} onConfirm={lib.doDelete} onClose={() => lib.setToDelete(null)} />
-      <TrashButton kind={trashKind} active={active} refreshKey={lib.trashKey}
-        onRestored={(id) => { lib.load(); lib.setCurrent(id); }} />
+      <DeleteConfirm
+        target={lib.toDelete}
+        noun={noun}
+        onConfirm={lib.doDelete}
+        onClose={() => lib.setToDelete(null)}
+      />
+      <TrashButton
+        kind={trashKind}
+        active={active}
+        refreshKey={lib.trashKey}
+        onRestored={(id) => {
+          lib.load();
+          lib.setCurrent(id);
+        }}
+      />
     </aside>
   );
 }
 
 /** 已存的參考圖：點圖切換「預設附上」（粉框）、移除、拖曳加圖 */
-export function RefImageGrid<T>({ images, url, base, act, toggleTitle }: {
-  images: CharImage[]; url: (file: string) => string;
+export function RefImageGrid<T>({
+  images,
+  url,
+  base,
+  act,
+  toggleTitle,
+}: {
+  images: CharImage[];
+  url: (file: string) => string;
   /** 這一筆的 API 路徑，例如 /api/characters/c1；API 回傳更新後的整筆 */
-  base: string; act: (fn: () => Promise<T>) => Promise<unknown>; toggleTitle: string;
+  base: string;
+  act: (fn: () => Promise<T>) => Promise<unknown>;
+  toggleTitle: string;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
       {images.map((i) => (
         <div key={i.file} className="w-32">
-          <button onClick={() => act(() => api.patch<T>(base, { use: { [i.file]: !i.use } }))} aria-pressed={i.use} title={toggleTitle}
-            className={`checker block aspect-square w-full overflow-hidden rounded-xl border-[3px] transition ${i.use ? "border-pink" : "border-transparent opacity-50 hover:opacity-90"}`}>
+          <button
+            onClick={() => act(() => api.patch<T>(base, { use: { [i.file]: !i.use } }))}
+            aria-pressed={i.use}
+            title={toggleTitle}
+            className={`checker block aspect-square w-full overflow-hidden rounded-xl border-[3px] transition ${i.use ? "border-pink" : "border-transparent opacity-50 hover:opacity-90"}`}
+          >
             <img src={url(i.file)} className="size-full object-contain" alt={i.file} />
           </button>
           <div className="mt-1 flex items-center gap-1 text-[11px] text-mute">
-            <span className="truncate" title={i.source ? `原檔名：${i.source}` : undefined}>{i.file.replace(/\.png$/, "")}</span>
-            <button className="ml-auto shrink-0 hover:text-bad" onClick={() => act(() => api.del<T>(`${base}/images/${encodeURIComponent(i.file)}`))}>移除</button>
+            <span className="truncate" title={i.source ? `原檔名：${i.source}` : undefined}>
+              {i.file.replace(/\.png$/, "")}
+            </span>
+            <button
+              className="ml-auto shrink-0 hover:text-bad"
+              onClick={() => act(() => api.del<T>(`${base}/images/${encodeURIComponent(i.file)}`))}
+            >
+              移除
+            </button>
           </div>
         </div>
       ))}
-      <DropZone className="size-32" onFiles={async (files) => { const u = await readFiles(files); if (u.length) await act(() => api.post<T>(`${base}/images`, u)); }} />
+      <DropZone
+        className="size-32"
+        onFiles={async (files) => {
+          const u = await readFiles(files);
+          if (u.length) await act(() => api.post<T>(`${base}/images`, u));
+        }}
+      />
     </div>
   );
 }
 
 /** 建立前挑好、還沒上傳的圖 */
-export function PendingUploads({ images, setImages, disabled }: { images: Upload[]; setImages: (f: (x: Upload[]) => Upload[]) => void; disabled?: boolean }) {
+export function PendingUploads({
+  images,
+  setImages,
+  disabled,
+}: {
+  images: Upload[];
+  setImages: (f: (x: Upload[]) => Upload[]) => void;
+  disabled?: boolean;
+}) {
   return (
     <>
       {images.map((u, i) => (
         <div key={i} className="checker relative size-28 overflow-hidden rounded-xl">
           <img src={u.data} className="size-full object-contain" alt={u.name} />
-          <button onClick={() => setImages((x) => x.filter((_, j) => j !== i))} aria-label={`移除 ${u.name}`}
-            className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full bg-panel/90 text-xs shadow hover:text-bad">✕</button>
+          <button
+            onClick={() => setImages((x) => x.filter((_, j) => j !== i))}
+            aria-label={`移除 ${u.name}`}
+            className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full bg-panel/90 text-xs shadow hover:text-bad"
+          >
+            ✕
+          </button>
         </div>
       ))}
-      <DropZone className="size-28" disabled={disabled} onFiles={async (f) => { const u = await readFiles(f); setImages((x) => [...x, ...u]); }} />
+      <DropZone
+        className="size-28"
+        disabled={disabled}
+        onFiles={async (f) => {
+          const u = await readFiles(f);
+          setImages((x) => [...x, ...u]);
+        }}
+      />
     </>
   );
 }

@@ -7,15 +7,18 @@
   default=true 的分組，新專案的挑選步驟會預設勾起來。
   檔案還不存在時用 sticker_groups.example.json（預設 4 組），第一次儲存才寫檔。
 """
+
 import json
 
 from .paths import BUILTIN_CONFIG, _lock, config_dir, load_stickers, read_json, slugify, write_json
 
-GROUPS_EXAMPLE = BUILTIN_CONFIG / "sticker_groups.example.json"   # 預設 4 組（進版控）
+GROUPS_EXAMPLE = BUILTIN_CONFIG / "sticker_groups.example.json"  # 預設 4 組（進版控）
 
 
 def groups_file():
     return config_dir() / "sticker_groups.json"
+
+
 ALIGNS = (None, "bottom")
 EDITABLE = ("label", "zh", "prompt", "prompt_no_ears", "align")
 
@@ -90,12 +93,13 @@ def restore(sid: int) -> dict:
 
 # ---------- 分組 ----------
 
+
 def _load_groups(items: list[dict]) -> list[dict]:
     groups = read_json(groups_file())
     if groups is None:
         groups = read_json(GROUPS_EXAMPLE, []) or []
     alive = {s["id"] for s in active(items)}
-    for g in groups:   # 手動改過 stickers.json 的話，濾掉不存在／已刪除的
+    for g in groups:  # 手動改過 stickers.json 的話，濾掉不存在／已刪除的
         g["ids"] = [i for i in dict.fromkeys(g.get("ids", [])) if i in alive]
         g.setdefault("default", False)
     return groups
@@ -118,20 +122,32 @@ def save_groups(groups: list[dict]) -> list[dict]:
             if not name:
                 raise ValueError("分組名稱不能空白")
             gid = g.get("id")
-            if not isinstance(gid, int) or gid <= 0 or gid in seen:   # 前端新增的分組 id 送 0
+            if not isinstance(gid, int) or gid <= 0 or gid in seen:  # 前端新增的分組 id 送 0
                 gid, nxt = nxt, nxt + 1
             seen.add(gid)
             bad = [i for i in g.get("ids", []) if i not in alive]
             if bad:
                 raise ValueError(f"找不到表情 #{bad[0]}")
-            out.append({"id": gid, "name": name, "ids": list(dict.fromkeys(g.get("ids", []))),
-                        "default": bool(g.get("default"))})
+            out.append(
+                {
+                    "id": gid,
+                    "name": name,
+                    "ids": list(dict.fromkeys(g.get("ids", []))),
+                    "default": bool(g.get("default")),
+                }
+            )
         write_json(groups_file(), out)
         return out
 
 
-def add(label: str, zh: str, prompt: str, align: str | None = None, prompt_no_ears: str = "",
-        group_id: int | None = None) -> dict:
+def add(
+    label: str,
+    zh: str,
+    prompt: str,
+    align: str | None = None,
+    prompt_no_ears: str = "",
+    group_id: int | None = None,
+) -> dict:
     """新增表情（id 取所有表情含已刪除的最大值 +1，不重用）；group_id 有給就順便放進那個分組"""
     if align not in ALIGNS:
         raise ValueError(f"不支援的對齊方式 {align}")
@@ -142,8 +158,14 @@ def add(label: str, zh: str, prompt: str, align: str | None = None, prompt_no_ea
         name = slugify(label)
         while name in names:
             name += "_2"
-        item = {"id": new_id, "name": name, "label": label.strip(),
-                "zh": zh.strip(), "prompt": prompt.strip(), "custom": True}
+        item = {
+            "id": new_id,
+            "name": name,
+            "label": label.strip(),
+            "zh": zh.strip(),
+            "prompt": prompt.strip(),
+            "custom": True,
+        }
         if prompt_no_ears.strip():
             item["prompt_no_ears"] = prompt_no_ears.strip()
         if align:
@@ -162,7 +184,8 @@ def add(label: str, zh: str, prompt: str, align: str | None = None, prompt_no_ea
 # ---------- 讓 Codex 擴寫表情 ----------
 
 EXPAND_SCHEMA = {
-    "type": "object", "additionalProperties": False,
+    "type": "object",
+    "additionalProperties": False,
     "required": ["label", "zh", "prompt", "prompt_no_ears", "align"],
     "properties": {
         "label": {"type": "string"},
@@ -172,14 +195,14 @@ EXPAND_SCHEMA = {
         "align": {"type": "string", "enum": ["center", "bottom"]},
     },
 }
-EXAMPLES = 12   # 給 Codex 看的現有表情數量（風格參考）
+EXAMPLES = 12  # 給 Codex 看的現有表情數量（風格參考）
 
 
 def _examples(items: list[dict]) -> str:
     """挑幾個現有表情當範例：有 prompt_no_ears 的優先（示範什麼時候要填），其餘依編號"""
     act = active(items)
     pick = [s for s in act if s.get("prompt_no_ears")][:3]
-    pick += [s for s in act if s not in pick][:EXAMPLES - len(pick)]
+    pick += [s for s in act if s not in pick][: EXAMPLES - len(pick)]
     rows = []
     for s in sorted(pick, key=lambda s: s["id"]):
         row = {"label": s["label"], "zh": s.get("zh", ""), "prompt": s["prompt"]}
@@ -195,7 +218,8 @@ def expand_prompt(idea: str, current: dict | None = None) -> str:
     cur = ""
     if current and any((current.get(k) or "").strip() for k in ("label", "zh", "prompt")):
         cur = "\nCurrent draft (improve it, keep what already fits):\n" + json.dumps(
-            {k: current.get(k, "") for k in ("label", "zh", "prompt")}, ensure_ascii=False)
+            {k: current.get(k, "") for k in ("label", "zh", "prompt")}, ensure_ascii=False
+        )
     return f"""You write ONE new chat-emote entry for a sticker sheet (Twitch / Discord emotes of one chibi character).
 Do not run any tools and do not generate images. Answer only with the JSON required by the output schema.
 
@@ -217,16 +241,23 @@ Rules:
 
 def expand(idea: str, current: dict | None = None) -> dict:
     """同步等 Codex（實測約 10 秒）；只回傳建議，不存檔（前端填進表單讓使用者確認）"""
-    from . import codex   # codex 會 import paths；放這裡避免 import 循環
-    idea = (idea or "").strip() or " / ".join((current or {}).get(k, "") for k in ("zh", "label") if (current or {}).get(k))
+    from . import codex  # codex 會 import paths；放這裡避免 import 循環
+
+    idea = (idea or "").strip() or " / ".join(
+        (current or {}).get(k, "") for k in ("zh", "label") if (current or {}).get(k)
+    )
     if not idea.strip():
         raise ValueError("先寫一句想要的表情")
     schema = codex.logs_dir() / "stickers" / "expand_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(EXPAND_SCHEMA), encoding="utf-8")
-    data = json.loads(codex.run_text(expand_prompt(idea, current), schema, codex.log_path_for("stickers", "expand")))
+    data = json.loads(
+        codex.run_text(expand_prompt(idea, current), schema, codex.log_path_for("stickers", "expand"))
+    )
     return {
-        "label": data["label"].strip(), "zh": data["zh"].strip(), "prompt": data["prompt"].strip(),
+        "label": data["label"].strip(),
+        "zh": data["zh"].strip(),
+        "prompt": data["prompt"].strip(),
         "prompt_no_ears": (data.get("prompt_no_ears") or "").strip(),
         "align": "bottom" if data.get("align") == "bottom" else None,
     }

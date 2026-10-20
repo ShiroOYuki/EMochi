@@ -2,28 +2,54 @@ import { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, ty
 import type { GroupStatus, ProjectStatus } from "../api";
 import { STATUS_TEXT } from "../api";
 import { useReducedMotion } from "motion/react";
-import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from "@/components/animate-ui/primitives/radix/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/animate-ui/primitives/radix/dialog";
 import { cn } from "@/lib/utils";
 import { Select as SelectPrimitive } from "radix-ui";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Checkbox, CheckboxIndicator } from "@/components/animate-ui/primitives/radix/checkbox";
-import { Tooltip, TooltipContent, TooltipPortal, TooltipProvider, TooltipTrigger } from "@/components/animate-ui/primitives/radix/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipPortal,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/animate-ui/primitives/radix/tooltip";
 
 export function Spinner({ className = "" }: { className?: string }) {
-  return <span className={`inline-block size-4 animate-spin rounded-full border-2 border-mute border-t-transparent ${className}`} />;
+  return (
+    <span
+      className={`inline-block size-4 animate-spin rounded-full border-2 border-mute border-t-transparent ${className}`}
+    />
+  );
 }
 
 const tone: Record<string, string> = {
-  done: "bg-ok/20 text-ok", preview_ready: "bg-gold/20 text-gold-deep", review: "bg-warn/20 text-warn",
-  failed: "bg-bad/20 text-bad", draft: "bg-panel2 text-mute", pending: "bg-panel2 text-mute",
+  done: "bg-ok/20 text-ok",
+  preview_ready: "bg-gold/20 text-gold-deep",
+  review: "bg-warn/20 text-warn",
+  failed: "bg-bad/20 text-bad",
+  draft: "bg-panel2 text-mute",
+  pending: "bg-panel2 text-mute",
 };
 
 export function StatusBadge({ status }: { status: ProjectStatus | GroupStatus }) {
-  const text = (STATUS_TEXT as Record<string, string>)[status] ?? { pending: "等待中", running: "生成中", failed: "失敗" }[status as string] ?? status;
+  const text =
+    (STATUS_TEXT as Record<string, string>)[status] ??
+    { pending: "等待中", running: "生成中", failed: "失敗" }[status as string] ??
+    status;
   const busy = ["expanding", "previewing", "generating", "processing", "running"].includes(status);
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${tone[status] ?? "bg-acc/20 text-acc"}`}>
-      {busy && <Spinner className="size-3 border-acc border-t-transparent" />}{text}
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${tone[status] ?? "bg-acc/20 text-acc"}`}
+    >
+      {busy && <Spinner className="size-3 border-acc border-t-transparent" />}
+      {text}
     </span>
   );
 }
@@ -31,10 +57,17 @@ export function StatusBadge({ status }: { status: ProjectStatus | GroupStatus })
 /** 從 "YYYY-MM-DD HH:MM:SS" 開始經過的時間 */
 export function Elapsed({ since }: { since?: string }) {
   const [, tick] = useState(0);
-  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
   if (!since) return null;
   const s = Math.max(0, Math.floor((Date.now() - new Date(since.replace(" ", "T")).getTime()) / 1000));
-  return <span className="tabular-nums text-mute">{Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}</span>;
+  return (
+    <span className="tabular-nums text-mute">
+      {Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}
+    </span>
+  );
 }
 
 /** 全站共用的彈簧：快、幾乎不回彈（使用者要俐落；Animate UI 預設是 stiffness 150 / damping 25，偏慢） */
@@ -42,8 +75,18 @@ export const SPRING = { type: "spring", stiffness: 420, damping: 34, mass: 0.8 }
 
 /** 彈窗：Animate UI 的 Radix Dialog（焦點鎖定、Esc／點外面關閉、開關動畫）。
  *  介面跟舊版一樣：open / onClose / wide；label 給螢幕閱讀器用（畫面上不顯示） */
-export function Modal({ open, onClose, children, wide, label = "對話框" }: {
-  open: boolean; onClose: () => void; children: ReactNode; wide?: boolean; label?: string;
+export function Modal({
+  open,
+  onClose,
+  children,
+  wide,
+  label = "對話框",
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+  label?: string;
 }) {
   const reduce = useReducedMotion();
   // 關閉時呼叫端通常會把內容清掉（例如 target 變 null）；留住最後一次的內容，收起動畫期間框才不會先變空白
@@ -58,16 +101,40 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
   }
   wasOpen.current = open;
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogPortal>
-        <DialogOverlay className="no-drag fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]" transition={reduce ? { duration: 0 } : undefined} />
-        <DialogContent aria-describedby={undefined} from="top" transition={reduce ? { duration: 0 } : SPRING}
+        <DialogOverlay
+          className="no-drag fixed inset-0 z-50 bg-[#1d1b2e]/55 backdrop-blur-[2px]"
+          transition={reduce ? { duration: 0 } : undefined}
+        />
+        <DialogContent
+          aria-describedby={undefined}
+          from="top"
+          transition={reduce ? { duration: 0 } : SPRING}
           // 置中用 inset-0 + m-auto + h-fit（不用 translate -50%：寬高是奇數時會落在半像素上，文字發糊）
           // 打開時焦點放在框本身（仍鎖在框內），不要自動跳到第一顆按鈕上冒出焦點框；框裡有 autoFocus 的就交給它
-          onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; if (!el.contains(document.activeElement)) el.focus(); }}
-          onCloseAutoFocus={(e) => { const o = opener.current; if (o?.isConnected) { e.preventDefault(); o.focus({ preventScroll: true }); } }}
-          className={cn("no-drag scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
-            wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]")}>
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            const el = e.currentTarget as HTMLElement;
+            if (!el.contains(document.activeElement)) el.focus();
+          }}
+          onCloseAutoFocus={(e) => {
+            const o = opener.current;
+            if (o?.isConnected) {
+              e.preventDefault();
+              o.focus({ preventScroll: true });
+            }
+          }}
+          className={cn(
+            "no-drag scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
+            wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]",
+          )}
+        >
           <DialogTitle className="sr-only">{label}</DialogTitle>
           {open ? children : last.current}
         </DialogContent>
@@ -78,12 +145,27 @@ export function Modal({ open, onClose, children, wide, label = "對話框" }: {
 
 /** 勾選框：Animate UI 的 Radix Checkbox（勾勾用畫線方式出現），勾選後是耳內粉。
  *  放在 <label> 裡時，點文字也會切換（button 是可被 label 啟動的元素） */
-export function Check({ checked, onCheckedChange, className, label }: {
-  checked: boolean; onCheckedChange: (v: boolean) => void; className?: string; label?: string;
+export function Check({
+  checked,
+  onCheckedChange,
+  className,
+  label,
+}: {
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  className?: string;
+  label?: string;
 }) {
   return (
-    <Checkbox checked={checked} onCheckedChange={(v) => onCheckedChange(v === true)} aria-label={label}
-      className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-[5px] border-2 border-line bg-panel text-white outline-none transition-colors focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=checked]:border-pink data-[state=checked]:bg-pink", className)}>
+    <Checkbox
+      checked={checked}
+      onCheckedChange={(v) => onCheckedChange(v === true)}
+      aria-label={label}
+      className={cn(
+        "inline-flex size-4 shrink-0 items-center justify-center rounded-[5px] border-2 border-line bg-panel text-white outline-none transition-colors focus-visible:ring-3 focus-visible:ring-acc/40 data-[state=checked]:border-pink data-[state=checked]:bg-pink",
+        className,
+      )}
+    >
       <CheckboxIndicator className="size-3" />
     </Checkbox>
   );
@@ -101,15 +183,21 @@ export function TitleTooltips() {
     let cur: HTMLElement | null = null;
     const textOf = (el: HTMLElement) => {
       const t = el.getAttribute("title");
-      if (t !== null) {   // React 改了 title 會再寫回來，所以每次都先搬一次
+      if (t !== null) {
+        // React 改了 title 會再寫回來，所以每次都先搬一次
         el.dataset.tip = t;
         el.removeAttribute("title");
         if (!el.getAttribute("aria-label") && !el.textContent?.trim()) el.setAttribute("aria-label", t);
       }
       return el.dataset.tip ?? "";
     };
-    const find = (t: EventTarget | null) => (t instanceof Element ? t.closest<HTMLElement>("[title],[data-tip]") : null);
-    const hide = () => { clearTimeout(timer); cur = null; setOpen(false); };
+    const find = (t: EventTarget | null) =>
+      t instanceof Element ? t.closest<HTMLElement>("[title],[data-tip]") : null;
+    const hide = () => {
+      clearTimeout(timer);
+      cur = null;
+      setOpen(false);
+    };
     const show = (el: HTMLElement, delay: number) => {
       const text = textOf(el);
       clearTimeout(timer);
@@ -121,8 +209,15 @@ export function TitleTooltips() {
         setOpen(true);
       }, delay);
     };
-    const over = (e: Event) => { const el = find(e.target); if (el && el !== cur) show(el, 400); else if (!el && cur) hide(); };
-    const focus = (e: FocusEvent) => { const el = find(e.target); if (el && (e.target as HTMLElement).matches(":focus-visible")) show(el, 0); };
+    const over = (e: Event) => {
+      const el = find(e.target);
+      if (el && el !== cur) show(el, 400);
+      else if (!el && cur) hide();
+    };
+    const focus = (e: FocusEvent) => {
+      const el = find(e.target);
+      if (el && (e.target as HTMLElement).matches(":focus-visible")) show(el, 0);
+    };
     document.addEventListener("pointerover", over);
     document.addEventListener("focusin", focus);
     document.addEventListener("focusout", hide);
@@ -143,13 +238,27 @@ export function TitleTooltips() {
   const { rect } = tip;
   return (
     <TooltipProvider delayDuration={0}>
-      <Tooltip open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+      <Tooltip
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) setOpen(false);
+        }}
+      >
         <TooltipTrigger asChild>
-          <span aria-hidden className="pointer-events-none fixed" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} />
+          <span
+            aria-hidden
+            className="pointer-events-none fixed"
+            style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+          />
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" sideOffset={6} collisionPadding={8} transition={reduce ? { duration: 0 } : SPRING}
-            className="z-[70] max-w-xs whitespace-pre-line break-words rounded-xl bg-text px-2.5 py-1.5 text-xs text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]">
+          <TooltipContent
+            side="top"
+            sideOffset={6}
+            collisionPadding={8}
+            transition={reduce ? { duration: 0 } : SPRING}
+            className="z-[70] max-w-xs whitespace-pre-line break-words rounded-xl bg-text px-2.5 py-1.5 text-xs text-panel shadow-[0_8px_20px_-8px_rgb(0_0_0/0.45)]"
+          >
             {tip.text}
           </TooltipContent>
         </TooltipPortal>
@@ -161,14 +270,23 @@ export function TitleTooltips() {
 /** 單行橫向列：內容固定一行，放不下時可以橫向捲動，被截掉的那一側淡出提示還有內容。
  *  - 預設（標籤列這種矮的）：直向滾輪也能橫向捲動、文字不換行
  *  - arrows（圖庫並排比較這種卡片列）：兩側多左右箭頭翻頁；滾輪照常捲動頁面（觸控板左右滑、Shift＋滾輪可橫捲），卡片內文字照常換行 */
-export function ScrollRow({ children, className, arrows }: { children: ReactNode; className?: string; arrows?: boolean }) {
+export function ScrollRow({
+  children,
+  className,
+  arrows,
+}: {
+  children: ReactNode;
+  className?: string;
+  arrows?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const [edge, setEdge] = useState({ l: false, r: false });
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    const l = el.scrollLeft > 2,
+      r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
     setEdge((e) => (e.l === l && e.r === r ? e : { l, r }));
   }, []);
   useEffect(() => {
@@ -184,47 +302,101 @@ export function ScrollRow({ children, className, arrows }: { children: ReactNode
     ro.observe(el);
     el.addEventListener("scroll", update, { passive: true });
     if (!arrows) el.addEventListener("wheel", wheel, { passive: false });
-    return () => { ro.disconnect(); el.removeEventListener("scroll", update); el.removeEventListener("wheel", wheel); };
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", update);
+      el.removeEventListener("wheel", wheel);
+    };
   }, [update, arrows]);
-  useEffect(update);   // 內容數量變了（篩選、重新整理）也要重算
+  useEffect(update); // 內容數量變了（篩選、重新整理）也要重算
   const fade = arrows ? 48 : 24;
-  const mask = edge.l || edge.r
-    ? `linear-gradient(to right, ${edge.l ? `transparent, #000 ${fade}px` : "#000"}, ${edge.r ? `#000 calc(100% - ${fade}px), transparent` : "#000"})`
-    : undefined;
+  const mask =
+    edge.l || edge.r
+      ? `linear-gradient(to right, ${edge.l ? `transparent, #000 ${fade}px` : "#000"}, ${edge.r ? `#000 calc(100% - ${fade}px), transparent` : "#000"})`
+      : undefined;
   const row = (
-    <div ref={ref} className={cn("no-scrollbar flex min-w-0 flex-nowrap overflow-x-auto [&>*]:shrink-0", !arrows && "whitespace-nowrap", className)}
-      style={{ maskImage: mask, WebkitMaskImage: mask }}>
+    <div
+      ref={ref}
+      className={cn(
+        "no-scrollbar flex min-w-0 flex-nowrap overflow-x-auto [&>*]:shrink-0",
+        !arrows && "whitespace-nowrap",
+        className,
+      )}
+      style={{ maskImage: mask, WebkitMaskImage: mask }}
+    >
       {children}
     </div>
   );
   if (!arrows) return row;
   const page = (dir: 1 | -1) => {
     const el = ref.current;
-    if (el) el.scrollBy({ left: dir * Math.max(140, el.clientWidth - 160), behavior: reduce ? "auto" : "smooth" });
+    if (el)
+      el.scrollBy({ left: dir * Math.max(140, el.clientWidth - 160), behavior: reduce ? "auto" : "smooth" });
   };
-  const arrow = "row-arrow absolute top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-line bg-panel text-text shadow-[var(--shadow-soft)] transition hover:border-acc hover:text-acc active:scale-95";
+  const arrow =
+    "row-arrow absolute top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-line bg-panel text-text shadow-[var(--shadow-soft)] transition hover:border-acc hover:text-acc active:scale-95";
   return (
     <div className="relative">
       {row}
       {edge.l && (
         <button className={`${arrow} -left-2`} onClick={() => page(-1)} aria-label="往左看更多">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" /></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8.5 3 4.5 7l4 4" />
+          </svg>
         </button>
       )}
       {edge.r && (
         <button className={`${arrow} -right-2`} onClick={() => page(1)} aria-label="往右看更多">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5.5 3l4 4-4 4" /></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M5.5 3l4 4-4 4" />
+          </svg>
         </button>
       )}
     </div>
   );
 }
 
-export function Section({ title, step, right, children, dim }: { title: string; step?: number; right?: ReactNode; children: ReactNode; dim?: boolean }) {
+export function Section({
+  title,
+  step,
+  right,
+  children,
+  dim,
+}: {
+  title: string;
+  step?: number;
+  right?: ReactNode;
+  children: ReactNode;
+  dim?: boolean;
+}) {
   return (
     <section className={`card ${dim ? "opacity-50" : ""}`}>
       <div className="mb-3 flex items-center gap-2">
-        {step !== undefined && <span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm text-on-gold shadow-[0_2px_0_var(--c-gold-deep)]">{step}</span>}
+        {step !== undefined && (
+          <span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm text-on-gold shadow-[0_2px_0_var(--c-gold-deep)]">
+            {step}
+          </span>
+        )}
         <h2 className="text-base">{title}</h2>
         <div className="ml-auto">{right}</div>
       </div>
@@ -234,35 +406,76 @@ export function Section({ title, step, right, children, dim }: { title: string; 
 }
 
 /** 拖曳／點選／貼上（Ctrl+V 截圖）圖片 */
-export function DropZone({ onFiles, disabled, children, className = "" }: {
-  onFiles: (files: File[]) => void; disabled?: boolean; children?: ReactNode; className?: string;
+export function DropZone({
+  onFiles,
+  disabled,
+  children,
+  className = "",
+}: {
+  onFiles: (files: File[]) => void;
+  disabled?: boolean;
+  children?: ReactNode;
+  className?: string;
 }) {
   const [over, setOver] = useState(false);
   const pick = () => {
     const input = document.createElement("input");
-    input.type = "file"; input.accept = "image/*"; input.multiple = true;
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = true;
     input.onchange = () => input.files && onFiles([...input.files]);
     input.click();
   };
   return (
-    <div tabIndex={disabled ? -1 : 0} role="button" aria-disabled={disabled}
+    <div
+      tabIndex={disabled ? -1 : 0}
+      role="button"
+      aria-disabled={disabled}
       onClick={() => !disabled && pick()}
       onKeyDown={(e) => !disabled && (e.key === "Enter" || e.key === " ") && (e.preventDefault(), pick())}
-      onPaste={(e) => { if (disabled) return; const f = [...e.clipboardData.files]; if (f.length) { e.preventDefault(); onFiles(f); } }}
-      onDragOver={(e) => { if (disabled) return; e.preventDefault(); setOver(true); }}
+      onPaste={(e) => {
+        if (disabled) return;
+        const f = [...e.clipboardData.files];
+        if (f.length) {
+          e.preventDefault();
+          onFiles(f);
+        }
+      }}
+      onDragOver={(e) => {
+        if (disabled) return;
+        e.preventDefault();
+        setOver(true);
+      }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); if (!disabled) onFiles([...e.dataTransfer.files]); }}
-      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed p-3 text-center text-xs text-mute transition outline-none focus-visible:border-acc focus-visible:ring-4 focus-visible:ring-acc/20 ${over ? "border-pink bg-pink-soft text-text" : "border-line hover:border-acc hover:text-text"} ${disabled ? "pointer-events-none opacity-50" : ""} ${className}`}>
-      {children ?? <><span className="text-lg leading-none">＋</span><span>拖曳、點選，或點一下後 Ctrl+V 貼上圖片</span></>}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (!disabled) onFiles([...e.dataTransfer.files]);
+      }}
+      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed p-3 text-center text-xs text-mute transition outline-none focus-visible:border-acc focus-visible:ring-4 focus-visible:ring-acc/20 ${over ? "border-pink bg-pink-soft text-text" : "border-line hover:border-acc hover:text-text"} ${disabled ? "pointer-events-none opacity-50" : ""} ${className}`}
+    >
+      {children ?? (
+        <>
+          <span className="text-lg leading-none">＋</span>
+          <span>拖曳、點選，或點一下後 Ctrl+V 貼上圖片</span>
+        </>
+      )}
     </div>
   );
 }
 
 /** 畫面出錯時顯示錯誤，不要整頁變白；切換分頁或按「再試一次」就恢復 */
-export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: unknown }, { error: Error | null }> {
+export class ErrorBoundary extends Component<
+  { children: ReactNode; resetKey?: unknown },
+  { error: Error | null }
+> {
   state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error("[EMochi] 畫面錯誤", error, info.componentStack); }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[EMochi] 畫面錯誤", error, info.componentStack);
+  }
   componentDidUpdate(prev: { resetKey?: unknown }) {
     if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
@@ -271,11 +484,19 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: u
     return (
       <div className="mx-auto mt-10 max-w-xl rounded-[26px] bg-panel p-6 shadow-[var(--shadow-soft)]">
         <h2 className="mb-2 text-base text-bad">這個畫面出錯了</h2>
-        <p className="mb-3 text-sm text-mute">資料都還在伺服器上。可以先按「再試一次」；如果一直出現，把下面這段錯誤訊息貼給我。</p>
-        <pre className="mb-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs">{String(this.state.error.stack || this.state.error)}</pre>
+        <p className="mb-3 text-sm text-mute">
+          資料都還在伺服器上。可以先按「再試一次」；如果一直出現，把下面這段錯誤訊息貼給我。
+        </p>
+        <pre className="mb-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-panel2 p-3 text-xs">
+          {String(this.state.error.stack || this.state.error)}
+        </pre>
         <div className="flex gap-2">
-          <button className="btn btn-primary" onClick={() => this.setState({ error: null })}>再試一次</button>
-          <button className="btn" onClick={() => location.reload()}>重新載入頁面</button>
+          <button className="btn btn-primary" onClick={() => this.setState({ error: null })}>
+            再試一次
+          </button>
+          <button className="btn" onClick={() => location.reload()}>
+            重新載入頁面
+          </button>
         </div>
       </div>
     );
@@ -286,31 +507,68 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: u
  *  用 Radix Select：鍵盤上下選、字首跳選、Esc 關閉、碰到視窗邊緣自動翻到上方；外觀跟右鍵選單一致。
  *  value 可以是數字或字串（Radix 只吃字串，這裡自動轉換）；空字串的選項當成 placeholder 顯示 */
 export type SelectOption<T extends string | number> = { value: T; label: ReactNode };
-export function Select<T extends string | number>({ value, onChange, options, disabled, className, placeholder, label }: {
-  value: T; onChange: (v: T) => void; options: SelectOption<T>[];
-  disabled?: boolean; className?: string; placeholder?: ReactNode; label?: string;
+export function Select<T extends string | number>({
+  value,
+  onChange,
+  options,
+  disabled,
+  className,
+  placeholder,
+  label,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: SelectOption<T>[];
+  disabled?: boolean;
+  className?: string;
+  placeholder?: ReactNode;
+  label?: string;
 }) {
   const real = options.filter((o) => String(o.value) !== "");
   const empty = options.find((o) => String(o.value) === "");
   const cur = String(value);
   return (
-    <SelectPrimitive.Root value={cur === "" ? undefined : cur} disabled={disabled}
-      onValueChange={(v) => { const o = real.find((x) => String(x.value) === v); if (o) onChange(o.value); }}>
-      <SelectPrimitive.Trigger aria-label={label}
-        className={cn("input group flex cursor-pointer items-center justify-between gap-2 text-left hover:border-acc hover:bg-panel data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:bg-panel2", className)}>
-        <span className="min-w-0 flex-1 truncate"><SelectPrimitive.Value placeholder={placeholder ?? empty?.label ?? "請選擇"} /></span>
+    <SelectPrimitive.Root
+      value={cur === "" ? undefined : cur}
+      disabled={disabled}
+      onValueChange={(v) => {
+        const o = real.find((x) => String(x.value) === v);
+        if (o) onChange(o.value);
+      }}
+    >
+      <SelectPrimitive.Trigger
+        aria-label={label}
+        className={cn(
+          "input group flex cursor-pointer items-center justify-between gap-2 text-left hover:border-acc hover:bg-panel data-[placeholder]:text-mute data-[state=open]:border-acc data-[state=open]:bg-panel disabled:cursor-not-allowed disabled:hover:border-line disabled:hover:bg-panel2",
+          className,
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">
+          <SelectPrimitive.Value placeholder={placeholder ?? empty?.label ?? "請選擇"} />
+        </span>
         <SelectPrimitive.Icon asChild>
           <ChevronDownIcon className="size-4 shrink-0 text-mute transition-[transform,color] duration-200 group-hover:text-acc group-disabled:group-hover:text-mute group-data-[state=open]:rotate-180 group-data-[state=open]:text-acc" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <SelectPrimitive.Content position="popper" side="bottom" align="start" sideOffset={6} collisionPadding={8}
-          className="select-pop z-[60] min-w-(--radix-select-trigger-width) max-w-[min(32rem,calc(100vw-16px))] origin-(--radix-select-content-transform-origin) overflow-hidden rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+        <SelectPrimitive.Content
+          position="popper"
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={8}
+          className="select-pop z-[60] min-w-(--radix-select-trigger-width) max-w-[min(32rem,calc(100vw-16px))] origin-(--radix-select-content-transform-origin) overflow-hidden rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none"
+        >
           <SelectPrimitive.Viewport className="scroll-inset-sm max-h-[min(20rem,var(--radix-select-content-available-height))] overflow-y-auto">
             {real.map((o) => (
-              <SelectPrimitive.Item key={String(o.value)} value={String(o.value)}
-                className="relative flex cursor-pointer select-none items-center gap-2 rounded-xl py-1.5 pr-3 pl-8 outline-none transition-colors duration-100 data-[highlighted]:bg-panel2 data-[state=checked]:text-acc data-[disabled]:pointer-events-none data-[disabled]:opacity-40">
-                <SelectPrimitive.ItemIndicator className="absolute left-2.5 flex items-center"><CheckIcon className="size-3.5" strokeWidth={2.5} /></SelectPrimitive.ItemIndicator>
+              <SelectPrimitive.Item
+                key={String(o.value)}
+                value={String(o.value)}
+                className="relative flex cursor-pointer select-none items-center gap-2 rounded-xl py-1.5 pr-3 pl-8 outline-none transition-colors duration-100 data-[highlighted]:bg-panel2 data-[state=checked]:text-acc data-[disabled]:pointer-events-none data-[disabled]:opacity-40"
+              >
+                <SelectPrimitive.ItemIndicator className="absolute left-2.5 flex items-center">
+                  <CheckIcon className="size-3.5" strokeWidth={2.5} />
+                </SelectPrimitive.ItemIndicator>
                 <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
               </SelectPrimitive.Item>
             ))}

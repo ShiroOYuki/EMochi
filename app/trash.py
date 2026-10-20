@@ -7,15 +7,15 @@
 垃圾桶裡可以還原，或永久刪除。永久刪除過的 id 記在 _removed/_deleted_ids.json，
 連同垃圾桶裡的 id 一起保留，新建時不會再用到同一個編號（避免和舊紀錄混在一起）。
 """
+
 import os
 import shutil
 import stat
-import sys
 import threading
 from datetime import datetime
 from pathlib import Path
 
-from .paths import outputs_dir, characters_dir, read_json, style_lib_dir, url_path, write_json
+from .paths import characters_dir, outputs_dir, read_json, style_lib_dir, url_path, write_json
 
 # 種類 → (取得所在資料夾的函式, 中繼檔名)；角色庫、畫風庫的位置可以在設定頁改，所以每次重新取
 KINDS = {
@@ -94,14 +94,23 @@ def list_items(kind: str) -> list[dict]:
         if not m:
             continue
         iid = _id_of(d, m)
-        stamp = d.name[len(iid) + 1:] if d.name.startswith(iid + "_") else ""
+        stamp = d.name[len(iid) + 1 :] if d.name.startswith(iid + "_") else ""
         try:
             removed = datetime.strptime(stamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             removed = ""
-        out.append({"name": d.name, "id": iid, "title": m.get("name") or "", "status": m.get("status"),
-                    "removed": removed, "size": _size(d), "thumb": _thumb(kind, d, m),
-                    "restorable": not (root / iid).exists()})
+        out.append(
+            {
+                "name": d.name,
+                "id": iid,
+                "title": m.get("name") or "",
+                "status": m.get("status"),
+                "removed": removed,
+                "size": _size(d),
+                "thumb": _thumb(kind, d, m),
+                "restorable": not (root / iid).exists(),
+            }
+        )
     return sorted(out, key=lambda x: x["removed"], reverse=True)
 
 
@@ -118,13 +127,12 @@ def restore(kind: str, name: str) -> str:
 
 def _rmtree(d: Path) -> None:
     """Windows 上唯讀檔會讓 rmtree 失敗，先拿掉唯讀再刪"""
+
     def again(func, path, _exc):
         os.chmod(path, stat.S_IWRITE)
         func(path)
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(d, onexc=again)
-    else:
-        shutil.rmtree(d, onerror=again)
+
+    shutil.rmtree(d, onexc=again)
 
 
 def purge(kind: str, name: str | None = None) -> int:

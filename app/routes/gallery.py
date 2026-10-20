@@ -1,4 +1,5 @@
 """圖庫：匯出、總覽圖、勾選清單、匯出預設集"""
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -17,7 +18,7 @@ def gallery_styles():
 class ExportBody(BaseModel):
     keys: list[str]
     presets: list[str] = []
-    custom: dict | None = None      # 單次自訂（不存成預設集）
+    custom: dict | None = None  # 單次自訂（不存成預設集）
     formats: list[str] | None = None  # 舊版格式代號（t112、discord…），相容舊的呼叫
     tag: str = ""
 

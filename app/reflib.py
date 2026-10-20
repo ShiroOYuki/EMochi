@@ -7,11 +7,12 @@
 這樣已經記錄「用了 ref_02」的畫風專案不會在不知情下換成另一張圖。
 刪除整筆時移到垃圾桶（trash.py），還原前那個 id 不會被新的一筆拿走。
 """
+
 import re
 import threading
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 from .images import move_to_removed, save_png
 from .paths import read_json, write_json
@@ -71,6 +72,7 @@ class RefLibrary:
     def new_id(self) -> str:
         """下一個沒被用過的 id（資料夾裡、垃圾桶裡的都算用過）"""
         from .trash import reserved_ids
+
         used = reserved_ids(self.trash_kind)
         n = 1
         while (self.root() / f"{self.id_prefix}{n}").exists() or f"{self.id_prefix}{n}" in used:
@@ -92,8 +94,13 @@ class RefLibrary:
     def store(self, d: dict, files: list[tuple[str, bytes]], use: bool = True) -> None:
         """把上傳的圖存成標準檔名、記進 images（source＝原檔名）"""
         for fname, raw in files:
-            d["images"].append({"file": save_png(raw, self.refs_dir(d["id"]), fname, exact=self.take_name(d)),
-                                "use": use, "source": fname})
+            d["images"].append(
+                {
+                    "file": save_png(raw, self.refs_dir(d["id"]), fname, exact=self.take_name(d)),
+                    "use": use,
+                    "source": fname,
+                }
+            )
 
     @staticmethod
     def apply_use(d: dict, use: dict) -> None:
@@ -119,5 +126,6 @@ class RefLibrary:
     def delete(self, item_id: str) -> None:
         """整筆移到垃圾桶 <root>/_removed/（見 trash.py）"""
         from .trash import move_to_trash
+
         with self.lock:
             move_to_trash(self.trash_kind, item_id)

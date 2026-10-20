@@ -1,4 +1,5 @@
 """共用：介面偏好、健康檢查、Codex 狀態與登入、回報問題的診斷資訊"""
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -20,8 +21,12 @@ def get_ui_prefs():
     桌面版、不同 port、清快取都不會遺失。前端一載入就讀"""
     # stored：設定檔裡有沒有存過（沒有＝還是預設）。前端用來把舊版存在瀏覽器裡的選擇搬上來
     stored = "theme" in (read_json(settings.FILE, {}) or {})
-    return {"theme": settings.get("theme"), "stored": stored, "tour_done": settings.get("tour_done"),
-            "notify": settings.get("notify")}
+    return {
+        "theme": settings.get("theme"),
+        "stored": stored,
+        "tour_done": settings.get("tour_done"),
+        "notify": settings.get("notify"),
+    }
 
 
 @router.put("/api/ui-prefs")
@@ -39,8 +44,13 @@ def get_events(after: int = -1, boot: str | None = None):
 @router.get("/api/health")
 def health():
     """桌面版（Electron）用：啟動時等它回應才開視窗；關閉前看有沒有 Codex 在跑"""
-    return {"ok": True, "root": str(ROOT), "frozen": FROZEN, "codex_running": len(codex.ACTIVE),
-            "busy": settings_ops.busy()}
+    return {
+        "ok": True,
+        "root": str(ROOT),
+        "frozen": FROZEN,
+        "codex_running": len(codex.ACTIVE),
+        "busy": settings_ops.busy(),
+    }
 
 
 @router.get("/api/codex-usage")

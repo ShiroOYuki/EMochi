@@ -10,6 +10,7 @@ margin：四周再留的透明邊（px，含在輸出尺寸裡）；even：輸�
 naming：keep＝沿用原檔名（01_happy_s6.png）；index＝每個畫風依序 01.png、02.png…（LINE 上架要的檔名）
 group：分組（通常是平台名稱，例如 LINE）；匯出時的選單照分組排，空白歸到「其他」
 """
+
 import io
 import re
 import threading
@@ -89,10 +90,19 @@ def normalize(p: dict, *, strict: bool = False) -> dict:
     pid = _slug(p.get("id") or name) or "preset"
     folder = _slug(p.get("folder") or pid) or pid
     group = str(p.get("group") or "").strip()[:20]
-    return {"id": pid, "name": name or pid, "group": group, "folder": folder, "sizes": sizes, "mode": mode, "margin": margin,
-            "even": bool(p.get("even")), "max_kb": max_kb,
-            "naming": p.get("naming") if p.get("naming") in NAMINGS else "keep",
-            "note": str(p.get("note") or "").strip()[:200]}
+    return {
+        "id": pid,
+        "name": name or pid,
+        "group": group,
+        "folder": folder,
+        "sizes": sizes,
+        "mode": mode,
+        "margin": margin,
+        "even": bool(p.get("even")),
+        "max_kb": max_kb,
+        "naming": p.get("naming") if p.get("naming") in NAMINGS else "keep",
+        "note": str(p.get("note") or "").strip()[:200],
+    }
 
 
 def save(items: list[dict]) -> list[dict]:
@@ -126,6 +136,7 @@ def custom(raw: dict) -> dict:
 
 
 # ---------- 輸出 ----------
+
 
 def out_size(size: dict, mode: str, even: bool, src: tuple[int, int] = (512, 512)) -> tuple[int, int]:
     """這個尺寸實際輸出的寬高"""

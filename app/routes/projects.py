@@ -1,4 +1,5 @@
 """生成：畫風專案的建立、擴寫、預覽、批次生成、收尾，以及垃圾桶"""
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -11,9 +12,13 @@ router = APIRouter()
 
 @router.get("/api/projects")
 def projects():
-    return {"projects": jobs.list_projects(), "next_id": next_style_id(),
-            "preview_ids": prompts.template().get("preview_ids", []), "max_parallel": settings.get("max_parallel"),
-            "default_layout": settings.get("default_layout")}
+    return {
+        "projects": jobs.list_projects(),
+        "next_id": next_style_id(),
+        "preview_ids": prompts.template().get("preview_ids", []),
+        "max_parallel": settings.get("max_parallel"),
+        "default_layout": settings.get("default_layout"),
+    }
 
 
 @router.get("/api/projects/{style}")
@@ -64,7 +69,11 @@ class ExpandBody(BaseModel):
 
 @router.post("/api/projects")
 def create(body: CreateBody):
-    return jobs.view(jobs.create(body.request, body.character_id, body.character_images, _decode(body.temp_refs), body.style_lib_id))
+    return jobs.view(
+        jobs.create(
+            body.request, body.character_id, body.character_images, _decode(body.temp_refs), body.style_lib_id
+        )
+    )
 
 
 @router.post("/api/projects/{style}/refs")
@@ -109,7 +118,7 @@ def preview(style: str):
 
 class GenBody(BaseModel):
     ids: list[int]
-    layout: str = "4x2w"   # 4x2w（2:1 畫布、8 格，預設）或 3x2（3:2 畫布、6 格）
+    layout: str = "4x2w"  # 4x2w（2:1 畫布、8 格，預設）或 3x2（3:2 畫布、6 格）
 
 
 @router.post("/api/projects/{style}/generate")
@@ -146,7 +155,7 @@ def reopen(style: str):
 
 @router.get("/api/projects/{style}/log")
 def log(style: str, path: str):
-    p = (ROOT / path).resolve()   # 專案裡記的 log 路徑：相對資料根目錄或絕對路徑
+    p = (ROOT / path).resolve()  # 專案裡記的 log 路徑：相對資料根目錄或絕對路徑
     if logs_dir().resolve() not in p.parents or not p.is_file():
         raise HTTPException(404)
     return {"text": p.read_text(encoding="utf-8", errors="replace")[-20000:]}

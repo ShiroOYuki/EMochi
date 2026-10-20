@@ -1,4 +1,5 @@
 """角色庫 → 垃圾桶：刪除、列出、還原、永久刪除；刪過的編號不重用"""
+
 import base64
 import io
 
@@ -12,7 +13,9 @@ def _data_url() -> str:
 
 
 def _create(client, name):
-    r = client.post("/api/characters", json={"name": name, "images": [{"name": "a.png", "data": _data_url()}]})
+    r = client.post(
+        "/api/characters", json={"name": name, "images": [{"name": "a.png", "data": _data_url()}]}
+    )
     assert r.status_code == 200, r.text
     return r.json()["id"]
 

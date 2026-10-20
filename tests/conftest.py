@@ -3,6 +3,7 @@
 所有資料（outputs/、characters/、exports/…）都寫到暫存資料夾：
 在 import app 之前設好 EMOCHI_ROOT，app/paths.py 就會把資料根目錄指過去，不會動到真正的專案資料。
 """
+
 import os
 import shutil
 import tempfile
@@ -35,7 +36,9 @@ def make_grid(path: Path, cols: int = 3, rows: int = 2, cell: int = 512, empty=f
         r, c = divmod(i, cols)
         cx, cy = c * cell + cell // 2, r * cell + cell // 2
         rad = cell // 4 + i * 6
-        d.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=(240, 200, 220), outline=(60, 40, 70), width=6)
+        d.ellipse(
+            (cx - rad, cy - rad, cx + rad, cy + rad), fill=(240, 200, 220), outline=(60, 40, 70), width=6
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path)
     return path
@@ -51,6 +54,7 @@ def client():
     from fastapi.testclient import TestClient
 
     from app.server import app
+
     return TestClient(app)
 
 

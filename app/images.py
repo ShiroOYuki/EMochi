@@ -1,4 +1,5 @@
 """上傳圖片的共用處理：解析 data URL、正規化成 PNG、限制尺寸"""
+
 import base64
 import io
 import re
@@ -6,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-MAX_SIDE = 1536          # Codex 讀圖不需要更大，太大只會變慢、佔額度
+MAX_SIDE = 1536  # Codex 讀圖不需要更大，太大只會變慢、佔額度
 MAX_BYTES = 30 * 1024 * 1024
 
 

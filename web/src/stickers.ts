@@ -5,15 +5,28 @@ import { api, type Sticker, type StickerGroup } from "./api";
 type State = { all: Sticker[]; groups: StickerGroup[]; loaded: boolean };
 let state: State = { all: [], groups: [], loaded: false };
 const subs = new Set<() => void>();
-const set = (patch: Partial<State>) => { state = { ...state, ...patch }; subs.forEach((f) => f()); };
-const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f); }; };
+const set = (patch: Partial<State>) => {
+  state = { ...state, ...patch };
+  subs.forEach((f) => f());
+};
+const subscribe = (f: () => void) => {
+  subs.add(f);
+  return () => {
+    subs.delete(f);
+  };
+};
 
 let loading: Promise<void> | null = null;
 /** 重抓表情（含已刪除）與分組 */
 export function reloadStickers(): Promise<void> {
-  loading ??= Promise.all([api.get<Sticker[]>("/api/stickers?all=1"), api.get<StickerGroup[]>("/api/sticker-groups")])
+  loading ??= Promise.all([
+    api.get<Sticker[]>("/api/stickers?all=1"),
+    api.get<StickerGroup[]>("/api/sticker-groups"),
+  ])
     .then(([all, groups]) => set({ all, groups, loaded: true }))
-    .finally(() => { loading = null; });
+    .finally(() => {
+      loading = null;
+    });
   return loading;
 }
 
@@ -34,13 +47,17 @@ export async function saveGroups(groups: StickerGroup[]): Promise<void> {
 
 export function useStickers() {
   const s = useSyncExternalStore(subscribe, () => state);
-  useEffect(() => { if (!state.loaded) reloadStickers().catch(() => {}); }, []);
+  useEffect(() => {
+    if (!state.loaded) reloadStickers().catch(() => {});
+  }, []);
   return useMemo(() => {
     const active = s.all.filter((x) => !x.deleted);
     const byId = new Map(s.all.map((x) => [x.id, x]));
     const grouped = new Set(s.groups.flatMap((g) => g.ids));
     return {
-      ...s, active, byId,
+      ...s,
+      active,
+      byId,
       deleted: s.all.filter((x) => x.deleted),
       ungrouped: active.filter((x) => !grouped.has(x.id)),
       /** Gen 新專案預設勾選的表情（default 分組的聯集，依 id 排序） */

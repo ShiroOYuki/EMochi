@@ -1,4 +1,5 @@
 """specs.fit：平台尺寸、大小上限檢查與壓縮"""
+
 import io
 
 import numpy as np
@@ -36,7 +37,7 @@ def test_oversize_discord_gets_compressed_under_limit():
     out, notes = specs.fit(data, "discord")
     assert notes and "已" in notes[-1]
     assert len(out) <= specs.SPECS["discord"].max_bytes
-    Image.open(io.BytesIO(out)).load()   # 壓完還是合法 PNG
+    Image.open(io.BytesIO(out)).load()  # 壓完還是合法 PNG
 
 
 def test_incompressible_file_asks_for_manual_fix():

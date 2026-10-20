@@ -7,6 +7,7 @@
           move=False 只改設定，舊檔案留在原地
 有 Codex 在跑、或專案還在執行中時不能改（log 正在寫、參考圖正在用）。
 """
+
 import json
 import os
 import shutil
@@ -19,12 +20,17 @@ from pathlib import Path
 from . import codex, settings
 from .paths import APP_ROOT, ROOT, codex_path, outputs_dir, outside_root, read_json, write_json
 
-USER_CONFIG_FILES = ("stickers.json", "sticker_groups.json", "export_presets.json")   # config_dir 只搬使用者自己的檔案
+USER_CONFIG_FILES = (
+    "stickers.json",
+    "sticker_groups.json",
+    "export_presets.json",
+)  # config_dir 只搬使用者自己的檔案
 CONFLICT_LIST_MAX = 20
 _pick_lock = threading.Lock()
 
 
 # ---------- 現況 ----------
+
 
 def _files(key: str, d: Path) -> list[Path]:
     """這個設定管的檔案（相對 d）；設定檔資料夾只算使用者的兩個檔"""
@@ -43,6 +49,7 @@ def _stat(key: str, d: Path) -> dict:
 def busy() -> str | None:
     """不能改資料夾的原因；可以改就回傳 None"""
     from . import jobs
+
     if codex.ACTIVE:
         return f"有 {len(codex.ACTIVE)} 個 Codex 正在執行"
     for f in outputs_dir().glob("*/project.json"):
@@ -55,22 +62,37 @@ def busy() -> str | None:
 def info() -> dict:
     cur = settings.load()
     dirs = []
-    for key, (default, label, desc) in settings.DIRS.items():
+    for key, (_default, label, desc) in settings.DIRS.items():
         d = settings.resolve(cur[key])
-        dirs.append({"key": key, "label": label, "desc": desc, "value": str(d), "default": str(settings.default_dir(key)),
-                     "path": str(d), "exists": d.exists(), **_stat(key, d)})
+        dirs.append(
+            {
+                "key": key,
+                "label": label,
+                "desc": desc,
+                "value": str(d),
+                "default": str(settings.default_dir(key)),
+                "path": str(d),
+                "exists": d.exists(),
+                **_stat(key, d),
+            }
+        )
     return {
         "dirs": dirs,
         "values": {k: cur[k] for k in settings.DEFAULTS if k not in settings.DIRS},
         # 設定頁顯示用（含固定加上的沙盒參數；outputs 在資料根目錄外時的 --add-dir）
         "codex_command": ["codex", *cur["codex_args"], *codex.SANDBOX_ARGS, *codex.add_dir_args()],
         "defaults": {k: v for k, v in settings.DEFAULTS.items() if k not in settings.DIRS},
-        "limits": settings.LIMITS, "layouts": list(settings.LAYOUTS), "themes": list(settings.THEMES),
-        "settings_file": str(settings.FILE), "root": str(ROOT), "busy": busy(),
+        "limits": settings.LIMITS,
+        "layouts": list(settings.LAYOUTS),
+        "themes": list(settings.THEMES),
+        "settings_file": str(settings.FILE),
+        "root": str(ROOT),
+        "busy": busy(),
     }
 
 
 # ---------- 檢查 ----------
+
 
 def _inside(a: Path, b: Path) -> bool:
     """a 和 b 相同，或其中一個在另一個裡面"""
@@ -83,13 +105,33 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
         raise KeyError(key)
     value = str(value or "").strip()
     if not value or not Path(value).is_absolute():
-        return {"key": key, "value": value, "path": value, "exists": False, "files": 0, "size": 0, "warn": None,
-                "error": f"請填完整路徑，例如 D:\\EMochiData\\{settings.DIRS[key][0]}"}
+        return {
+            "key": key,
+            "value": value,
+            "path": value,
+            "exists": False,
+            "files": 0,
+            "size": 0,
+            "warn": None,
+            "error": f"請填完整路徑，例如 D:\\EMochiData\\{settings.DIRS[key][0]}",
+        }
     d = settings.resolve(value)
-    out = {"key": key, "value": value, "path": str(d), "exists": d.exists(), "error": None, "warn": None, **_stat(key, d)}
+    out = {
+        "key": key,
+        "value": value,
+        "path": str(d),
+        "exists": d.exists(),
+        "error": None,
+        "warn": None,
+        **_stat(key, d),
+    }
     cur = {**settings.load(), **(others or {})}
-    forbidden = [(ROOT, "資料根目錄本身"), (APP_ROOT / "app", "程式資料夾 app"), (APP_ROOT / "web", "程式資料夾 web")]
-    if APP_ROOT != ROOT:   # 桌面版：程式安裝的資料夾（更新、解除安裝時會整個換掉）
+    forbidden = [
+        (ROOT, "資料根目錄本身"),
+        (APP_ROOT / "app", "程式資料夾 app"),
+        (APP_ROOT / "web", "程式資料夾 web"),
+    ]
+    if APP_ROOT != ROOT:  # 桌面版：程式安裝的資料夾（更新、解除安裝時會整個換掉）
         forbidden.append((APP_ROOT, "程式安裝資料夾"))
     if key != "outputs_dir":
         # 資料根目錄下的 outputs/ 這個名字保留給專案輸出：project.json 裡的 outputs/... 一律指 outputs 資料夾
@@ -132,6 +174,7 @@ def check(key: str, value: str, others: dict | None = None) -> dict:
 
 # ---------- 改位置 ----------
 
+
 def plan(changes: dict) -> dict:
     """changes 只看資料夾設定；回傳每個有變的資料夾要搬什麼、有沒有衝突"""
     cur = settings.load()
@@ -147,9 +190,18 @@ def plan(changes: dict) -> dict:
             errors.append(f"{settings.DIRS[key][1]}：{c['error']}")
         files = _files(key, src)
         conflicts = [f.as_posix() for f in files if (dst / f).exists()]
-        items.append({"key": key, "label": settings.DIRS[key][1], "from": str(src), "to": str(dst),
-                      "files": len(files), "size": sum((src / f).stat().st_size for f in files),
-                      "conflicts": conflicts[:CONFLICT_LIST_MAX], "conflict_count": len(conflicts)})
+        items.append(
+            {
+                "key": key,
+                "label": settings.DIRS[key][1],
+                "from": str(src),
+                "to": str(dst),
+                "files": len(files),
+                "size": sum((src / f).stat().st_size for f in files),
+                "conflicts": conflicts[:CONFLICT_LIST_MAX],
+                "conflict_count": len(conflicts),
+            }
+        )
     return {"dirs": items, "errors": errors, "busy": busy()}
 
 
@@ -177,7 +229,7 @@ def _move_files(key: str, src: Path, dst: Path, conflict: str) -> dict:
         b.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(a), str(b))
         moved += 1
-    if key != "config_dir":   # 清掉舊位置變空的子資料夾（設定檔資料夾是程式內建 config/，不動）
+    if key != "config_dir":  # 清掉舊位置變空的子資料夾（設定檔資料夾是程式內建 config/，不動）
         for d in sorted((p for p in src.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
             try:
                 d.rmdir()
@@ -194,20 +246,26 @@ def _rewrite_projects(mapping: list[tuple[str, str]], roots: list[Path]) -> int:
     """project.json 裡記的路徑（參考圖、log）：舊資料夾開頭的換成新資料夾。
     roots：要改哪些 outputs 資料夾裡的專案（outputs 本身也在搬時，舊、新位置都看）。
     outputs 底下的檔案記的是邏輯路徑 outputs/...，不受 outputs 搬家影響，不用改"""
+
     def fix(v):
         if isinstance(v, str):
             for old, new in mapping:
                 if v == old or v.startswith(old + "/"):
-                    return new + v[len(old):]
+                    return new + v[len(old) :]
             return v
         if isinstance(v, list):
             return [fix(x) for x in v]
         if isinstance(v, dict):
             return {k: fix(x) for k, x in v.items()}
         return v
+
     n = 0
     seen = set()
-    for f in [f for r in dict.fromkeys(roots) for f in (*r.glob("*/project.json"), *r.glob("_removed/*/project.json"))]:
+    for f in [
+        f
+        for r in dict.fromkeys(roots)
+        for f in (*r.glob("*/project.json"), *r.glob("_removed/*/project.json"))
+    ]:
         if f.resolve() in seen:
             continue
         seen.add(f.resolve())
@@ -244,13 +302,18 @@ def apply(changes: dict, move: bool = True, conflict: str | None = None) -> dict
             else:
                 dst.mkdir(parents=True, exist_ok=True)
         if mapping:
-            new_out = settings.resolve(dir_changes["outputs_dir"]) if "outputs_dir" in dir_changes else outputs_dir()
+            new_out = (
+                settings.resolve(dir_changes["outputs_dir"])
+                if "outputs_dir" in dir_changes
+                else outputs_dir()
+            )
             report["projects_updated"] = _rewrite_projects(mapping, [outputs_dir(), new_out])
     settings.save(vals)
     return {**info(), "report": report}
 
 
 # ---------- 選資料夾、開啟資料夾 ----------
+
 
 def pick_folder(initial: str | None = None) -> str | None:
     """在這台電腦上跳出資料夾選擇視窗（伺服器就跑在使用者的電腦上）。
@@ -265,7 +328,7 @@ def pick_folder(initial: str | None = None) -> str | None:
             raise ValueError("這個環境沒有資料夾選擇視窗，請直接貼上完整路徑") from None
         root = tkinter.Tk()
         root.withdraw()
-        root.attributes("-topmost", True)   # 不然常被瀏覽器蓋住
+        root.attributes("-topmost", True)  # 不然常被瀏覽器蓋住
         root.update()
         start = initial if initial and Path(initial).exists() else str(ROOT)
         path = filedialog.askdirectory(parent=root, initialdir=start, title="選擇資料夾", mustexist=False)
@@ -286,4 +349,3 @@ def open_folder(path: str) -> str:
     else:
         subprocess.Popen(["xdg-open", str(p)])
     return str(p)
-

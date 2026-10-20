@@ -1,4 +1,5 @@
 """FastAPI：/api/* 給前端用（路由依領域分在 app/routes/），其餘路徑回傳 React build（app/static）"""
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -17,7 +18,7 @@ log = logging.getLogger("emochi")
 async def _lifespan(_app):
     characters.normalize_names()
     jobs.recover_interrupted()
-    style_lib.seed_defaults()   # 全新安裝才會放進內建範例畫風
+    style_lib.seed_defaults()  # 全新安裝才會放進內建範例畫風
     yield
 
 

@@ -5,7 +5,10 @@ import { api, type ExportPreset, type PresetSize } from "./api";
 type State = { presets: ExportPreset[]; custom: boolean; loaded: boolean };
 let state: State = { presets: [], custom: false, loaded: false };
 const subs = new Set<() => void>();
-const set = (s: Omit<State, "loaded">) => { state = { ...s, loaded: true }; subs.forEach((f) => f()); };
+const set = (s: Omit<State, "loaded">) => {
+  state = { ...s, loaded: true };
+  subs.forEach((f) => f());
+};
 
 export async function reloadPresets() {
   set(await api.get<Omit<State, "loaded">>("/api/export-presets"));
@@ -21,8 +24,18 @@ export async function resetPresets() {
 }
 
 export function usePresets() {
-  const s = useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f); }; }, () => state);
-  useEffect(() => { if (!state.loaded) reloadPresets().catch(() => {}); }, []);
+  const s = useSyncExternalStore(
+    (f) => {
+      subs.add(f);
+      return () => {
+        subs.delete(f);
+      };
+    },
+    () => state,
+  );
+  useEffect(() => {
+    if (!state.loaded) reloadPresets().catch(() => {});
+  }, []);
   return s;
 }
 
@@ -44,13 +57,17 @@ export const sizeText = (s: PresetSize) => (s.w === s.h ? `${s.w}` : `${s.w}×${
 
 /** 「256, 300x200」→ [{256,256}, {300,200}]；格式不對回傳 null */
 export function parseSizes(text: string): PresetSize[] | null {
-  const parts = text.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
+  const parts = text
+    .split(/[,，、\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
   if (!parts.length) return null;
   const out: PresetSize[] = [];
   for (const p of parts) {
     const m = p.match(/^(\d{1,4})(?:\s*[x×*]\s*(\d{1,4}))?$/i);
     if (!m) return null;
-    const w = +m[1], h = m[2] ? +m[2] : w;
+    const w = +m[1],
+      h = m[2] ? +m[2] : w;
     if (w < 8 || h < 8 || w > 2048 || h > 2048) return null;
     out.push({ w, h });
   }
@@ -59,6 +76,12 @@ export function parseSizes(text: string): PresetSize[] | null {
 
 /** 舊版匯出格式代號（存在舊的勾選清單、localStorage）→ 預設集 id */
 export function legacyToPresets(fmts: string[]): string[] {
-  const map: Record<string, string> = { t112: "twitch", t56: "twitch", t28: "twitch", discord: "discord", master: "master" };
+  const map: Record<string, string> = {
+    t112: "twitch",
+    t56: "twitch",
+    t28: "twitch",
+    discord: "discord",
+    master: "master",
+  };
   return [...new Set(fmts.map((f) => map[f]).filter(Boolean))];
 }

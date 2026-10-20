@@ -13,13 +13,14 @@ style.json
 內建範例：config/style_lib.example/<id>/（目前是 st1 暖柔奶油萌繪）。全新安裝第一次啟動、畫風庫資料夾還不存在時
 seed_defaults() 複製過去；之後使用者刪掉、修改都不會被覆蓋，也不會再長回來（資料夾已經存在就不動）。
 """
+
 import json
 import re
 import shutil
 from pathlib import Path
 
 from . import codex, prompts
-from .paths import BUILTIN_CONFIG, outputs_dir, codex_path, data_path, read_json, style_lib_dir
+from .paths import BUILTIN_CONFIG, codex_path, data_path, outputs_dir, read_json, style_lib_dir
 from .reflib import RefLibrary, now
 
 # lambda：每次用到才查模組裡的 *_dir（設定改路徑、測試 monkeypatch 都會跟著變）
@@ -48,9 +49,19 @@ def seed_defaults() -> list[str]:
 
 
 def _blank(name: str, request: str = "") -> dict:
-    return {"id": _lib.new_id(), "name": name.strip(), "request": request.strip(), "style_block": "", "framing": "closeup",
-            "process": dict(PROCESS["closeup"]), "notes_zh": "", "images": [], "source_project": None,
-            "next_index": 1, "created": now()}
+    return {
+        "id": _lib.new_id(),
+        "name": name.strip(),
+        "request": request.strip(),
+        "style_block": "",
+        "framing": "closeup",
+        "process": dict(PROCESS["closeup"]),
+        "notes_zh": "",
+        "images": [],
+        "source_project": None,
+        "next_index": 1,
+        "created": now(),
+    }
 
 
 def create(name: str, files: list[tuple[str, bytes]], request: str = "") -> dict:
@@ -72,7 +83,7 @@ def update(sid: str, fields: dict) -> dict:
             s["framing"] = fields["framing"]
         if isinstance(fields.get("process"), dict):
             s["process"].update({k: v for k, v in fields["process"].items() if k in ("square", "margin")})
-        if "use" in fields:   # {file: bool}
+        if "use" in fields:  # {file: bool}
             _lib.apply_use(s, fields["use"])
         return _save(s)
 
@@ -83,6 +94,7 @@ def rel_paths(sid: str, used_only: bool = True) -> list[str]:
 
 
 # ---------- 讓 Codex 看範例貼圖寫畫風描述 ----------
+
 
 def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
     """同步執行（30~90 秒）。request 有給就先存起來，當作文字補充"""
@@ -97,18 +109,31 @@ def analyze(sid: str, examples: list[str], request: str | None = None) -> dict:
     schema = codex.logs_dir() / "style_lib" / f"{sid}_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     prompts.write_schema(schema)
-    answer = codex.run_text(prompts.expand_request_prompt(s.get("request", ""), examples, imgs),
-                            schema, codex.log_path_for("style_lib", f"{sid}_analyze"), images=imgs)
+    answer = codex.run_text(
+        prompts.expand_request_prompt(s.get("request", ""), examples, imgs),
+        schema,
+        codex.log_path_for("style_lib", f"{sid}_analyze"),
+        images=imgs,
+    )
     data = json.loads(answer)
     framing = data["framing"] if data.get("framing") in PROCESS else "closeup"
-    return update(sid, {
-        "name": s["name"] or data["name"], "style_block": data["style_block"], "framing": framing,
-        "notes_zh": data.get("notes_zh", ""),
-        "process": {"square": data.get("square", PROCESS[framing]["square"]), "margin": data.get("margin", PROCESS[framing]["margin"])},
-    })
+    return update(
+        sid,
+        {
+            "name": s["name"] or data["name"],
+            "style_block": data["style_block"],
+            "framing": framing,
+            "notes_zh": data.get("notes_zh", ""),
+            "process": {
+                "square": data.get("square", PROCESS[framing]["square"]),
+                "margin": data.get("margin", PROCESS[framing]["margin"]),
+            },
+        },
+    )
 
 
 # ---------- 從既有畫風專案匯入 ----------
+
 
 def _sample(p: dict) -> str | None:
     """專案自己生出來、最能代表畫風的圖：預覽圖，沒有的話（s1～s5 舊流程沒做預覽）用第 1 組網格"""
@@ -149,8 +174,12 @@ def import_project(style: str, extra_refs: list[str] | None = None) -> dict:
         raise ValueError(f"{style} 沒有描述也沒有圖可以匯入")
     with _lock:
         s = _blank(name or style, request)
-        s.update(style_block=block, framing=framing if framing in PROCESS else "closeup", notes_zh=notes,
-                 source_project=style,
-                 process={"square": process.get("square", 0.5), "margin": process.get("margin", 0)})
+        s.update(
+            style_block=block,
+            framing=framing if framing in PROCESS else "closeup",
+            notes_zh=notes,
+            source_project=style,
+            process={"square": process.get("square", 0.5), "margin": process.get("margin", 0)},
+        )
         _lib.store(s, files)
         return _save(s)
