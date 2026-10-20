@@ -16,7 +16,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 LINE, WHITE, PINK = (52, 49, 90, 255), (255, 255, 255, 255), (255, 141, 179, 255)
-EARS = [[(2.5, 28), (8.5, 4), (16.5, 20)], [(29.5, 28), (23.5, 4), (15.5, 20)]]
+# 兩隻耳朵共用底部內側的頂點 (16, 20)：原本 16.5／15.5 交叉，圓角外框會在中間凸出一塊（看起來像線穿過去）
+EARS = [[(2.5, 28), (8.5, 4), (16, 20)], [(29.5, 28), (23.5, 4), (16, 20)]]
 INNER = [[(7.6, 20), (9.4, 10.2), (13.6, 18.2)], [(24.4, 20), (22.6, 10.2), (18.4, 18.2)]]
 SIZES = [16, 24, 32, 48, 64, 128, 256]
 SS = 8                          # 超取樣倍數：先畫 8 倍大再縮，邊緣平滑
@@ -46,13 +47,16 @@ def scale_poly(poly, k):
 
 
 def stroke(d: ImageDraw.ImageDraw, pts, width, color):
-    """置中、圓角的外框：每條邊畫粗線，每個頂點補一個圓"""
+    """置中、圓角的外框：用圓形筆刷沿每條邊蓋章。
+    （PIL 的粗斜線實際會比 width 細一點，用「粗線＋頂點補圓」的話，轉角會凸出小圓點）"""
     r = width / 2
+    step = max(1.0, r / 12)
     for i in range(len(pts)):
-        a, b = pts[i], pts[(i + 1) % len(pts)]
-        d.line([a, b], fill=color, width=round(width))
-    for x, y in pts:
-        d.ellipse([x - r, y - r, x + r, y + r], fill=color)
+        (ax, ay), (bx, by) = pts[i], pts[(i + 1) % len(pts)]
+        n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / step))
+        for j in range(n + 1):
+            x, y = ax + (bx - ax) * j / n, ay + (by - ay) * j / n
+            d.ellipse([x - r, y - r, x + r, y + r], fill=color)
 
 
 def render(px: int, variant: str) -> Image.Image:
