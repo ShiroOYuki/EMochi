@@ -44,6 +44,7 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
         <ScrollRow className="min-w-0 flex-1 items-center gap-2">
           <span>第 {g.index} 組</span><span className="text-xs text-mute">{g.layout}，{g.ids.length} 張</span>
           <StatusBadge status={g.status} />{g.status === "running" && <Elapsed since={g.started} />}
+          {g.status === "done" && g.accepted && <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] text-warn" title={g.message}>手動通過</span>}
           {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
           {g.status !== "running" && <TokenBadge tokens={g.tokens} />}
         </ScrollRow>
@@ -62,7 +63,9 @@ function GroupCard({ p, g, byId, act }: { p: Project; g: Group; byId: Map<number
         </>
       ) : g.status === "failed" ? (
         <FailedImage path={g.image} v={g.finished} message={g.message} className="w-full"
-          onRecheck={canRegen ? () => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/${g.index}`)) : undefined} />
+          rechecked={g.rechecked}
+          onRecheck={canRegen ? () => act(() => api.post<Project>(`/api/projects/${p.id}/recheck/${g.index}`)) : undefined}
+          onAccept={canRegen ? () => act(() => api.post<Project>(`/api/projects/${p.id}/accept/${g.index}`)) : undefined} />
       ) : (
         <div className="flex aspect-[3/2] items-center justify-center rounded-md bg-panel text-sm text-mute">
           {g.status === "running" ? <span className="flex items-center gap-2"><Spinner />生成中</span> : "排隊中"}

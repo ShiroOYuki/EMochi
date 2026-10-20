@@ -128,6 +128,12 @@ def recheck(style: str, target: str):
     return jobs.view(jobs.recheck(style, target))
 
 
+@router.post("/api/projects/{style}/accept/{target}")
+def accept(style: str, target: str):
+    """target = preview 或組別編號；使用者判斷圖沒問題，手動當成成功（不呼叫 Codex）"""
+    return jobs.view(jobs.accept(style, target))
+
+
 @router.post("/api/projects/{style}/finalize")
 def finalize(style: str):
     return jobs.view(jobs.start_finalize(style))

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, fileUrl, type Character, type Project, type Sticker } from "../../api";
-import { Modal } from "../../components/ui";
+import { Modal, Spinner } from "../../components/ui";
 
 export type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
@@ -21,20 +21,39 @@ export function LogLink({ path, style }: { path: string; style: string }) {
   );
 }
 
-/** 檢查沒過的圖：圖還在的話照樣顯示，讓人自己判斷；被誤判時可以「重新檢查」而不用花額度重生 */
-export function FailedImage({ path, v, message, className, onRecheck, tokens }: {
-  path: string; v?: string; message: string; className: string; onRecheck?: () => void; tokens?: number | null;
+/** 檢查沒過的圖：圖還在的話照樣顯示，讓人自己判斷。
+ *  - 重新檢查：用目前的規則再檢查一次（被誤判、或規則改過時）；還是沒過會顯示檢查時間，看得出有按到
+ *  - 仍然使用這張：人看過覺得沒問題，直接當成成功（自動檢查門檻是估的，貼邊的構圖常被誤判）
+ *  兩個都不會重新生成、不花額度 */
+export function FailedImage({ path, v, message, className, onRecheck, onAccept, rechecked, tokens }: {
+  path: string; v?: string; message: string; className: string; tokens?: number | null;
+  onRecheck?: () => Promise<unknown>; onAccept?: () => Promise<unknown>; rechecked?: string;
 }) {
   const [exists, setExists] = useState(true);
+  const [busy, setBusy] = useState<"" | "recheck" | "accept">("");
+  const run = async (kind: "recheck" | "accept", fn: () => Promise<unknown>) => {
+    setBusy(kind);
+    try { await fn(); } finally { setBusy(""); }
+  };
+  const accept = () => {
+    if (!onAccept) return;
+    if (!confirm("確定要使用這張圖嗎？\n\n自動檢查覺得背景不夠乾淨；如果真的有問題，切割、去背的結果可能會不好（之後還是可以重生）。")) return;
+    run("accept", onAccept);
+  };
   return (
     <div className="space-y-2">
       <p className="flex flex-wrap items-center gap-2 text-sm text-bad">{message}<TokenBadge tokens={tokens} /></p>
       {exists && <>
         <img src={fileUrl(path, v)} onError={() => setExists(false)} className={`${className} rounded-lg opacity-90 ring-2 ring-bad/40`} />
-        {onRecheck && <div className="flex items-center gap-2 text-xs text-mute">
-          <button className="btn btn-sm" onClick={onRecheck}>圖看起來沒問題？重新檢查</button>
+        {(onRecheck || onAccept) && <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
+          <span>圖看起來沒問題？</span>
+          {onRecheck && <button className="btn btn-sm" disabled={!!busy} onClick={() => run("recheck", onRecheck)}>
+            {busy === "recheck" ? <><Spinner className="size-3" />檢查中…</> : "重新檢查"}</button>}
+          {onAccept && <button className="btn btn-sm" disabled={!!busy} onClick={accept}>
+            {busy === "accept" ? <><Spinner className="size-3" />處理中…</> : "仍然使用這張"}</button>}
           <span>不會重新生成，不花額度</span>
         </div>}
+        {rechecked && <p className="text-xs text-warn" role="status">{rechecked.slice(5, 16)} 重新檢查過，還是沒通過；確定圖沒問題的話可以按「仍然使用這張」</p>}
       </>}
     </div>
   );

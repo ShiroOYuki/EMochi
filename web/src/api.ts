@@ -12,13 +12,15 @@ export type GroupStatus = "pending" | "running" | "done" | "failed";
 export type Group = {
   index: number; ids: number[]; layout: string; prompt: string; image: string;
   status: GroupStatus; message: string; attempts: number; log?: string; tokens?: number | null; started?: string; finished?: string;
+  /** rechecked：最後一次「重新檢查」的時間；accepted：使用者手動通過 */
+  rechecked?: string; accepted?: boolean;
 };
 export type ProjectStatus = "expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done";
 export type Project = {
   id: string; name: string; request: string; style_block: string; framing: "closeup" | "whole";
   process: { square: number | null; margin: number; min_blob: number }; notes_zh: string;
   status: ProjectStatus; error: string | null; created: string; updated: string;
-  preview: null | { image: string; ids: number[]; prompt: string; layout: string; status: GroupStatus; message: string; log?: string; started?: string; tokens?: number | null };
+  preview: null | { image: string; ids: number[]; prompt: string; layout: string; status: GroupStatus; message: string; log?: string; started?: string; tokens?: number | null; rechecked?: string; accepted?: boolean };
   sticker_ids: number[]; groups: Group[]; finished_ids?: number[];
   refs: ProjectRefs; ref_paths: { character: string[]; style: string[]; identity: string };
   style_lib_id?: string | null;
