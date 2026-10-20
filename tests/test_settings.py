@@ -138,8 +138,8 @@ def test_config_dir_and_busy(client, data_root, clean, ext):
 
 def test_ui_prefs_theme(client, clean):
     """主題偏好存在設定檔（不靠瀏覽器 localStorage）"""
-    assert client.get("/api/ui-prefs").json() == {"theme": "system", "stored": False, "tour_done": False}
-    assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {"theme": "dark", "stored": True, "tour_done": False}
+    assert client.get("/api/ui-prefs").json() == {"theme": "system", "stored": False, "tour_done": False, "notify": True}
+    assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {"theme": "dark", "stored": True, "tour_done": False, "notify": True}
     from app import settings
     assert settings.get("theme") == "dark"
     assert client.get("/api/settings").json()["values"]["theme"] == "dark"

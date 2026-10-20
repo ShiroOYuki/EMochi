@@ -16,6 +16,10 @@ export type DesktopBridge = {
   setTheme?: (pref: "system" | "light" | "dark") => void;
   /** 打開桌面程式的 log 資料夾，回傳路徑（舊版殼沒有） */
   openLogs?: () => Promise<string>;
+  /** 系統通知（舊版殼沒有，改用瀏覽器的 Notification）；回傳 false＝這台電腦不支援 */
+  notify?: (n: { title: string; body?: string; project?: string }) => Promise<boolean>;
+  /** 使用者點了通知（視窗已被叫到前面）；回傳取消訂閱的函式 */
+  onNotifyClick?: (cb: (project: string) => void) => () => void;
   /** 自動更新（舊版殼沒有） */
   updates?: {
     get: () => Promise<UpdateState>;

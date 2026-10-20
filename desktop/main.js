@@ -1,7 +1,7 @@
 // EMochi 桌面版：啟動 Python 後端（FastAPI）→ 等它回應 → 開視窗載入同一套 React 前端
 //   開發：npm run dev   → uv run python -m app（資料根目錄＝原始碼資料夾，和網頁版共用資料）
 //   打包：resources/server/emochi-server.exe（資料根目錄＝%LOCALAPPDATA%\EMochi，可在設定頁改各資料夾）
-const { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, Notification, shell } = require("electron");
 const { spawn, execFile } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
@@ -24,6 +24,10 @@ if (DEV) {
   app.setPath("userData", devData);
   app.setAppLogsPath(path.join(devData, "logs"));
 }
+
+// Windows 的通知要有 AppUserModelID，而且要和開始功能表捷徑上的一致（NSIS 安裝時用 build.appId）。
+// 開發模式沒有捷徑，設了反而通知不會出來，維持 Electron 預設
+if (!DEV && process.platform === "win32") app.setAppUserModelId("com.ciel.emochi");
 
 let server = null;        // 後端子程序
 let baseUrl = "";
@@ -243,6 +247,29 @@ ipcMain.on("win", (_e, action) => {
   if (action === "minimize") win.minimize();
   else if (action === "toggle-maximize") win.isMaximized() ? win.unmaximize() : win.maximize();
   else if (action === "close") win.close();   // 走 close 事件：Codex 執行中會先詢問
+});
+// 桌面通知（生圖完成／失敗）：前端決定要不要發（視窗在前景就不發），這裡負責顯示和點擊
+const notes = new Set();   // 留著參考：Notification 被回收後，點擊事件就收不到了
+function showWindow() {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+ipcMain.handle("notify", (_e, n) => {
+  if (!Notification.isSupported()) return false;
+  const note = new Notification({ title: String(n?.title || "EMochi"), body: String(n?.body || ""), icon: path.join(__dirname, "assets", "icon.png") });
+  notes.add(note);
+  const drop = () => notes.delete(note);
+  note.on("click", () => {
+    drop();
+    showWindow();
+    if (n?.project) win?.webContents.send("notify-click", String(n.project));
+  });
+  note.on("close", drop);
+  note.on("failed", drop);
+  note.show();
+  return true;
 });
 ipcMain.handle("pick-folder", async (_e, initial) => {
   const r = await dialog.showOpenDialog(win, {
