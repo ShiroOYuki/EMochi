@@ -29,8 +29,46 @@ SANDBOX_ARGS = ["--enable", "prefer_mxc"]
 KEY_COLORS = {"#00FF00": (0, 255, 0), "#FF00FF": (255, 0, 255)}
 
 
+def _registry_path() -> list[str]:
+    """Windows 登錄檔裡目前的 PATH（系統＋使用者）。程序的 PATH 是啟動那一刻繼承的，
+    App 開著時才裝 Codex（安裝程式改的是登錄檔），不重讀就要重開 App 才找得到"""
+    if sys.platform != "win32":
+        return []
+    import winreg
+    out: list[str] = []
+    for root, key in ((winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+                      (winreg.HKEY_CURRENT_USER, "Environment")):
+        try:
+            with winreg.OpenKey(root, key) as k:
+                v, _ = winreg.QueryValueEx(k, "Path")
+        except OSError:
+            continue
+        out += [os.path.expandvars(x) for x in str(v).split(os.pathsep) if x.strip()]
+    return out
+
+
+def _norm(p: str) -> str:
+    return os.path.normcase(p.strip().rstrip("\\/"))
+
+
+def refresh_path(extra: list[str] | None = None) -> bool:
+    """把登錄檔裡新出現的 PATH 項目補到這個程序的 PATH 後面（之後啟動的 Codex 也吃得到）；有新增回傳 True"""
+    cur = [x for x in os.environ.get("PATH", "").split(os.pathsep) if x]
+    seen = {_norm(x) for x in cur}
+    add = []
+    for x in (extra if extra is not None else _registry_path()):
+        if _norm(x) not in seen:
+            seen.add(_norm(x))
+            add.append(x)
+    if add:
+        os.environ["PATH"] = os.pathsep.join(cur + add)
+    return bool(add)
+
+
 def codex_bin() -> str:
     exe = shutil.which("codex")
+    if not exe and refresh_path():
+        exe = shutil.which("codex")
     if not exe:
         raise RuntimeError("找不到 codex 指令，請確認 Codex CLI 已安裝並在 PATH 中")
     return exe

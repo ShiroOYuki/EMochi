@@ -74,6 +74,12 @@ def get_codex_status(refresh: bool = False):
     return codex_status.status(force=refresh)
 
 
+@app.get("/api/codex-check")
+def get_codex_check(refresh: bool = False):
+    """只查 CLI 與登入（不統計用量）：啟動時的 Codex 準備視窗用；refresh＝跳過 60 秒快取重查"""
+    return codex_status.check(force=refresh)
+
+
 @app.post("/api/codex-login")
 def codex_login():
     try:

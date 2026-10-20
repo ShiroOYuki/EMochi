@@ -14,17 +14,16 @@ EMochi（Emote ＋ Mochi）是給實況主、創作者用的 **AI 貼圖生成�
 
 ### 1. 準備 Codex CLI
 
-EMochi 用 [Codex CLI](https://github.com/openai/codex) 生圖，**生圖用的是你自己 ChatGPT 帳號的 Codex 額度**，所以要先裝好並登入：
+EMochi 用 [Codex CLI](https://github.com/openai/codex) 生圖，**生圖用的是你自己 ChatGPT 帳號的 Codex 額度**（Plus、Pro、Business、Edu、Enterprise 等方案），所以要先裝好並登入：
 
-1. 安裝 [Node.js](https://nodejs.org/)（LTS 版）
-2. 開「命令提示字元」，執行：
-   ```cmd
-   npm install -g @openai/codex
-   codex login
+1. 開 PowerShell，執行官方安裝指令（不需要 Node.js）：
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
    ```
-   照畫面指示用 ChatGPT 帳號登入。帳號需要有 Codex 的使用權，詳見 [Codex 說明](https://github.com/openai/codex)。
+   已經有 [Node.js](https://nodejs.org/) 的話，也可以改用 `npm install -g @openai/codex`。
+2. 登入：執行 `codex login`，在跳出的瀏覽器選 **Sign in with ChatGPT**。
 
-裝好後在命令提示字元打 `codex --version` 有顯示版本就沒問題。
+裝好後打 `codex --version` 有顯示版本就沒問題。EMochi 啟動時也會檢查，找不到 Codex 或還沒登入會跳出說明視窗，可以直接在視窗裡登入；沙盒設定（`--enable prefer_mxc`）EMochi 會自動帶，不用另外設定。
 
 ### 2. 安裝 EMochi
 
