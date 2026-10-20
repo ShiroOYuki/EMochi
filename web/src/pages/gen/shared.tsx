@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { projectsApi, fileUrl, type Character, type Project, type Sticker } from "../../api";
 import { Modal, Spinner } from "../../components/ui";
-import { useConfirm } from "../../components/manage";
+import { useConfirm } from "../../components/confirm";
 
 export type ViewProps = {
   p: Project;

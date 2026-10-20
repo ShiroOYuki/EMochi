@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { stickersApi, type Sticker, type StickerBody } from "../api";
 import { reloadStickers, useStickers } from "../stickers";
 import { Check, Modal, Select, Spinner } from "./ui";
-import { DeleteButton } from "./manage";
+import { DeleteButton } from "./DeleteButton";
 
 type Form = {
   label: string;

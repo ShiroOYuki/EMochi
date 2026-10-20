@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { charactersApi, charImageUrl, projectsApi, type Character, type Upload } from "../api";
 import { Section, Spinner } from "../components/ui";
-import { DeleteButton, useConfirm } from "../components/manage";
+import { DeleteButton } from "../components/DeleteButton";
+import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 角色庫：每個角色是一個資料夾（characters/<id>/refs/ + character.json） */

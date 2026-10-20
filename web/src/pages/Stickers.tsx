@@ -3,7 +3,8 @@ import { motion, useReducedMotion } from "motion/react";
 import { stickersApi, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
 import { Check, Modal, SPRING, Spinner } from "../components/ui";
-import { MenuIcons, TrashIcon, useContextMenu, type MenuItem } from "../components/manage";
+import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
+import { TrashIcon } from "../components/icons";
 import StickerEditor from "../components/StickerEditor";
 
 /** 拖曳中的表情：from＝來源分組 id，null＝從左邊「所有表情」拖出來 */

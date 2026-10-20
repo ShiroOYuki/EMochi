@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { BUSY } from "../../api";
 import { StatusBadge } from "../../components/ui";
-import { DeleteButton } from "../../components/manage";
+import { DeleteButton } from "../../components/DeleteButton";
 import { StyleStep } from "./StyleStep";
 import { PreviewStep } from "./PreviewStep";
 import { PickStep } from "./PickStep";

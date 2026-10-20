@@ -10,7 +10,8 @@ import {
   type Upload,
 } from "../api";
 import { Section, Select, Spinner } from "../components/ui";
-import { DeleteButton, useConfirm } from "../components/manage";
+import { DeleteButton } from "../components/DeleteButton";
+import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */

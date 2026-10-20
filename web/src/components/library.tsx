@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { readFiles, type CharImage, type RefLibraryApi, type Upload } from "../api";
 import { DropZone } from "./ui";
-import {
-  copyText,
-  DeleteConfirm,
-  MenuIcons,
-  SideDeleteIcon,
-  TrashButton,
-  useContextMenu,
-  type DeleteTarget,
-  type MenuItem,
-} from "./manage";
+import { MenuIcons, useContextMenu, type MenuItem } from "./ContextMenu";
+import { SideDeleteIcon } from "./DeleteButton";
+import { TrashButton } from "./Trash";
+import { DeleteConfirm, type DeleteTarget } from "./confirm";
+import { copyText } from "../lib/clipboard";
 
 /** 角色庫、畫風庫兩頁共用：左側清單（新增鈕、右鍵選單、刪除確認、垃圾桶）、參考圖格、待上傳的圖 */
 

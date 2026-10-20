@@ -12,16 +12,11 @@ import {
 } from "../api";
 import { Spinner, StatusBadge } from "../components/ui";
 import { useStickers } from "../stickers";
-import {
-  copyText,
-  DeleteConfirm,
-  MenuIcons,
-  SideDeleteIcon,
-  TrashButton,
-  useContextMenu,
-  type DeleteTarget,
-  type MenuItem,
-} from "../components/manage";
+import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
+import { SideDeleteIcon } from "../components/DeleteButton";
+import { TrashButton } from "../components/Trash";
+import { DeleteConfirm, type DeleteTarget } from "../components/confirm";
+import { copyText } from "../lib/clipboard";
 import { onOpenProject } from "../notify";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";

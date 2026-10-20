@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { settingsApi, systemApi, type Diagnostics } from "../api";
 import { desktop } from "../desktop";
-import { copyText } from "./manage";
+import { copyText } from "../lib/clipboard";
 
 /** 回報問題：GitHub Issues 或 Email 兩個管道。按下時先把診斷資訊複製到剪貼簿，
  *  網址只帶版本、系統、Codex 狀態（不帶 log、不帶路徑）；不會自動上傳任何檔案 */

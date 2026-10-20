@@ -3,7 +3,7 @@ import { Popover } from "radix-ui";
 import type { ExportPreset } from "../api";
 import { groupPresets, OTHER_GROUP, resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { TrashIcon } from "./manage";
+import { TrashIcon } from "./icons";
 import { Check, Modal } from "./ui";
 
 const blank = (n: number, group = ""): ExportPreset => ({

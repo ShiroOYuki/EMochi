@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { codexApi, type CodexCheck } from "../api";
 import { Modal, Spinner } from "./ui";
-import { copyText } from "./manage";
+import { copyText } from "../lib/clipboard";
 
 const PS_INSTALL = `powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"`;
 const NPM_INSTALL = "npm install -g @openai/codex";

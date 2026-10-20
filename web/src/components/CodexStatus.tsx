@@ -16,7 +16,7 @@ import {
   type RateWindow,
 } from "../api";
 import { Modal, SPRING, Spinner } from "./ui";
-import { copyText } from "./manage";
+import { copyText } from "../lib/clipboard";
 import { openCodexSetup } from "./CodexSetup";
 
 const POLL_MS = 5_000; // 對話框開著時：執行中的工作、用量要跟著動
