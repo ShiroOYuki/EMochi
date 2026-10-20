@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { api, type CodexRun, type CodexRunResult, type CodexStatus, type CodexTally, type RateWindow } from "../api";
 import { Modal, SPRING, Spinner } from "./ui";
 import { copyText } from "./manage";
+import { openCodexSetup } from "./CodexSetup";
 
 const POLL_MS = 5_000;   // 對話框開著時：執行中的工作、用量要跟著動
 const fmtTok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
@@ -66,6 +67,9 @@ export default function CodexStatusDialog({ open, onClose, onReconnected }: { op
               <Row k="CLI" v={d.cli.found ? (d.cli.version ?? "版本不明") : "找不到"} tone={d.cli.found ? "" : "text-bad"} tip={d.cli.path ?? d.cli.error} />
               <Row k="登入" v={d.login.ok ? d.login.text : (d.login.text || "未登入")} tone={d.login.ok ? "" : "text-warn"} />
               <Row k="Session 記錄" v={d.sessions_found ? "有" : "找不到"} tip={d.sessions_dir} tone={d.sessions_found ? "" : "text-warn"} />
+              {(!d.cli.found || !d.login.ok) && (
+                <button className="btn btn-sm mt-2 mr-2" onClick={() => { onClose(); openCodexSetup(); }}>{d.cli.found ? "登入說明" : "安裝說明"}</button>
+              )}
               {d.cli.found && !d.login.ok && (
                 <button className="btn btn-sm mt-2" onClick={login} disabled={d.login.pending}>{d.login.pending ? "等待瀏覽器登入…" : "重新登入"}</button>
               )}

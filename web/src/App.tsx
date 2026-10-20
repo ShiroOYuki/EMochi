@@ -4,6 +4,7 @@ import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
 import { UpdateBadge } from "./components/Updates";
+import CodexSetup from "./components/CodexSetup";
 import { desktop } from "./desktop";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
@@ -79,6 +80,7 @@ export default function App() {
         <div className={tab === "characters" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><CharactersPage active={tab === "characters"} /></ErrorBoundary></div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}><ErrorBoundary resetKey={tab}><GalleryPage active={tab === "gallery"} /></ErrorBoundary></div>
       </main>
+      <CodexSetup />
       <TitleTooltips />
     </div>
   );
