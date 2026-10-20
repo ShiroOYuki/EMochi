@@ -33,7 +33,8 @@ def _err(e: Exception):
 # ---------- 共用 ----------
 
 class UiPrefs(BaseModel):
-    theme: str
+    theme: str | None = None
+    tour_done: bool | None = None
 
 
 @app.get("/api/ui-prefs")
@@ -42,13 +43,13 @@ def get_ui_prefs():
     桌面版、不同 port、清快取都不會遺失。前端一載入就讀"""
     # stored：設定檔裡有沒有存過（沒有＝還是預設）。前端用來把舊版存在瀏覽器裡的選擇搬上來
     stored = "theme" in (read_json(settings.FILE, {}) or {})
-    return {"theme": settings.get("theme"), "stored": stored}
+    return {"theme": settings.get("theme"), "stored": stored, "tour_done": settings.get("tour_done")}
 
 
 @app.put("/api/ui-prefs")
 def put_ui_prefs(body: UiPrefs):
     try:
-        settings.save(settings.validate({"theme": body.theme}))
+        settings.save(settings.validate(body.model_dump(exclude_none=True)))
     except Exception as e:  # noqa: BLE001
         _err(e)
     return get_ui_prefs()
