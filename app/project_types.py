@@ -110,6 +110,7 @@ class Project(TypedDict):
     finished_ids: NotRequired[list[int]]
     finished: NotRequired[str]
     style_lib_id: NotRequired[str]
+    schema_version: NotRequired[int]  # app/migrations.py；讀檔時一定會補成最新版
 
 
 def require_status(p: Project, allowed: frozenset[Status] | set[Status], action: str) -> None:

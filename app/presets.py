@@ -18,6 +18,7 @@ import threading
 from PIL import Image
 
 from .errors import Invalid
+from .migrations import migrate_presets
 from .paths import BUILTIN_CONFIG, config_dir, read_json, write_json
 
 EXAMPLE = BUILTIN_CONFIG / "export_presets.example.json"
@@ -43,9 +44,7 @@ def load() -> list[dict]:
     items = read_json(file())
     if items is None:
         items = builtin
-    # 舊版存的檔案沒有 group：跟內建同 id 的補上內建的分組（其他的留空＝「其他」）
-    groups = {b["id"]: b.get("group", "") for b in builtin}
-    return [normalize(p if "group" in p else {**p, "group": groups.get(p.get("id"), "")}) for p in items]
+    return [normalize(p) for p in migrate_presets(items, builtin)]
 
 
 def get(pid: str) -> dict | None:

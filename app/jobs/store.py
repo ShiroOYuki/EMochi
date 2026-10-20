@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..errors import Conflict, NotFound
+from ..migrations import migrate_project
 from ..paths import (
     outputs_dir,
     read_json,
@@ -37,7 +38,8 @@ def project_path(style: str) -> Path:
 
 
 def load(style: str) -> Project | None:
-    return read_json(project_path(style))
+    """讀 project.json 並升到最新格式（見 app/migrations.py）"""
+    return migrate_project(read_json(project_path(style)))
 
 
 def save(proj: Project) -> Project:
@@ -59,10 +61,10 @@ def mutate(style: str, fn: Callable[[Project], None]) -> Project:
 def list_projects() -> list[dict]:
     out = []
     for f in sorted(outputs_dir().glob("*/project.json")):
-        proj = read_json(f)
+        proj = migrate_project(read_json(f))
         if proj:
             item = {k: proj.get(k) for k in ("id", "name", "status", "updated", "request")}
-            item["character_id"] = (proj.get("refs") or {}).get("character_id")
+            item["character_id"] = proj["refs"]["character_id"]
             out.append(item)
     return sorted(out, key=lambda x: x.get("updated") or "", reverse=True)
 

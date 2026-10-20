@@ -5,6 +5,7 @@ from pathlib import Path
 from .. import characters, codex, prompts, style_lib
 from ..errors import Conflict, Invalid, NotFound
 from ..images import save_png
+from ..migrations import PROJECT_VERSION
 from ..paths import (
     data_path,
     next_style_id,
@@ -58,6 +59,7 @@ def create(
         "created": now(),
         "preview": None,
         "sticker_ids": [],
+        "schema_version": PROJECT_VERSION,
         "groups": [],
     }
     if lib:
