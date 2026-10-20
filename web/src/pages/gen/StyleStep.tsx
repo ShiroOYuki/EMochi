@@ -219,7 +219,7 @@ function ProjectRefs({
 }) {
   const base = `/api/projects/${p.id}`;
   const refs = p.refs ?? { character_id: null, character_images: null, temp: [] };
-  const paths = p.ref_paths ?? { character: [], style: [], identity: "" };
+  const paths = p.ref_paths ?? { character: [], style: [], identity: "", ears: true };
   const temp: TempRef[] = refs.temp.map((t) => ({
     key: t.file,
     name: t.file,

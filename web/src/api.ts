@@ -15,6 +15,7 @@ export type Sticker = {
 /** 表情分組（config/sticker_groups.json）：一個表情可以在好幾組；default＝Gen 新專案預設勾選 */
 export type StickerGroup = { id: number; name: string; ids: number[]; default: boolean };
 
+/** 對應後端 app/project_types.py 的 ItemStatus */
 export type GroupStatus = "pending" | "running" | "done" | "failed";
 export type Group = {
   index: number;
@@ -33,6 +34,7 @@ export type Group = {
   rechecked?: string;
   accepted?: boolean;
 };
+/** 對應後端 app/project_types.py 的 Status */
 export type ProjectStatus =
   "expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done";
 export type Project = {
@@ -64,7 +66,8 @@ export type Project = {
   groups: Group[];
   finished_ids?: number[];
   refs: ProjectRefs;
-  ref_paths: { character: string[]; style: string[]; identity: string };
+  /** 後端 jobs.ref_paths()（RefPaths）：ears＝角色有沒有獸耳 */
+  ref_paths: { character: string[]; style: string[]; identity: string; ears: boolean };
   style_lib_id?: string | null;
 };
 export type RefRole = "character" | "style";

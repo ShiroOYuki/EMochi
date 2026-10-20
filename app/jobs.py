@@ -10,6 +10,7 @@ draft ──(預覽)──> previewing ──> preview_ready ──(確認風格
 import json
 import shutil
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime
@@ -28,9 +29,18 @@ from .paths import (
     stored_path,
     write_json,
 )
-
-BUSY = {"expanding", "previewing", "generating", "processing"}
-EDITABLE = {"draft", "preview_ready", "error"}
+from .project_types import (
+    BUSY,
+    EDITABLE,
+    GridItem,
+    Group,
+    ItemStatus,
+    Project,
+    RefPaths,
+    Refs,
+    Status,
+    require_status,
+)
 
 _locks: dict[str, threading.Lock] = {}
 _pool = ThreadPoolExecutor(max_workers=8)  # 生圖組數另外由 _gen_slot() 限制；多出來的給擴寫、後處理
@@ -67,17 +77,17 @@ def project_path(style: str) -> Path:
     return outputs_dir() / style / "project.json"
 
 
-def load(style: str) -> dict | None:
+def load(style: str) -> Project | None:
     return read_json(project_path(style))
 
 
-def save(p: dict) -> dict:
+def save(p: Project) -> Project:
     p["updated"] = now()
     write_json(project_path(p["id"]), p)
     return p
 
 
-def mutate(style: str, fn) -> dict:
+def mutate(style: str, fn: Callable[[Project], None]) -> Project:
     """在鎖內讀 → 改 → 存，避免背景執行緒互相覆蓋"""
     with _lock(style):
         p = load(style)
@@ -118,11 +128,11 @@ def recover_interrupted() -> None:
         if not p or p.get("status") not in BUSY:
             continue
         for g in p.get("groups", []):
-            if g.get("status") == "running":
-                g.update(status="failed", message="伺服器重啟，執行被中斷")
-        if (p.get("preview") or {}).get("status") == "running":  # 舊專案（s1～s5）的 preview 是 null
-            p["preview"].update(status="failed", message="伺服器重啟，執行被中斷")
-        p["status"] = "review" if p.get("groups") else "draft"
+            if g.get("status") == ItemStatus.RUNNING:
+                g.update(status=ItemStatus.FAILED, message="伺服器重啟，執行被中斷")
+        if (p.get("preview") or {}).get("status") == ItemStatus.RUNNING:  # 舊專案（s1～s5）的 preview 是 null
+            p["preview"].update(status=ItemStatus.FAILED, message="伺服器重啟，執行被中斷")
+        p["status"] = Status.REVIEW if p.get("groups") else Status.DRAFT
         p["error"] = "上次執行被中斷，請重新操作"
         save(p)
 
@@ -150,7 +160,7 @@ def create(
     character_images: list[str] | None = None,
     temp: list[tuple[str, bytes, str]] | None = None,
     style_lib_id: str | None = None,
-) -> dict:
+) -> Project:
     """temp = [(檔名, 圖片 bytes, role)]，role 是 "character" 或 "style"
 
     style_lib_id：直接套用畫風庫的畫風 → 不擴寫，描述照抄、勾選的範例圖當畫風參考圖，直接進入 draft"""
@@ -173,7 +183,7 @@ def create(
         "process": {"square": 0.5, "margin": 0, "min_blob": 0.0003},
         "notes_zh": "",
         "refs": {"character_id": character_id, "character_images": character_images, "temp": []},
-        "status": "expanding",
+        "status": Status.EXPANDING,
         "error": None,
         "created": now(),
         "preview": None,
@@ -187,7 +197,7 @@ def create(
             style_block=lib["style_block"],
             framing=lib["framing"],
             notes_zh=lib.get("notes_zh", ""),
-            status="draft",
+            status=Status.DRAFT,
             style_lib_id=lib["id"],
         )
         p["process"].update(square=lib["process"].get("square"), margin=lib["process"].get("margin", 0))
@@ -208,11 +218,10 @@ def create(
     return p
 
 
-def reexpand(style: str, request: str) -> dict:
+def reexpand(style: str, request: str) -> Project:
     def fn(p):
-        if p["status"] not in EDITABLE:
-            raise ValueError(f"目前狀態 {p['status']} 不能重新擴寫")
-        p.update(request=request.strip(), status="expanding", error=None)
+        require_status(p, EDITABLE, "重新擴寫")
+        p.update(request=request.strip(), status=Status.EXPANDING, error=None)
 
     p = mutate(style, fn)
     _pool.submit(_expand, style)
@@ -256,7 +265,7 @@ def _expand(style: str) -> None:
                 style_block=data["style_block"],
                 framing=data["framing"],
                 notes_zh=data.get("notes_zh", ""),
-                status="draft",
+                status=Status.DRAFT,
                 error=None,
             )
             p["process"].update(square=data.get("square"), margin=data.get("margin", 0))
@@ -264,15 +273,14 @@ def _expand(style: str) -> None:
         mutate(style, fn)
     except Exception as e:  # noqa: BLE001
         err = f"擴寫失敗：{e}"  # e 離開 except 就被刪掉，先存成字串再給 lambda
-        mutate(style, lambda p: p.update(status="draft", error=err))
+        mutate(style, lambda p: p.update(status=Status.DRAFT, error=err))
 
 
-def update(style: str, fields: dict) -> dict:
+def update(style: str, fields: dict) -> Project:
     allowed = {"name", "style_block", "framing", "request"}
 
     def fn(p):
-        if p["status"] not in EDITABLE:
-            raise ValueError(f"目前狀態 {p['status']} 不能修改")
+        require_status(p, EDITABLE, "修改")
         for k in allowed & fields.keys():
             p[k] = fields[k]
         if "process" in fields:
@@ -306,7 +314,7 @@ def temp_dir(style: str) -> Path:
     return outputs_dir() / style / "refs"
 
 
-def refs_of(p: dict) -> dict:
+def refs_of(p: Project) -> Refs:
     r = p.get("refs") or {}
     return {
         "character_id": r.get("character_id"),
@@ -315,7 +323,7 @@ def refs_of(p: dict) -> dict:
     }
 
 
-def view(p: dict) -> dict:
+def view(p: Project) -> dict:
     """給前端的專案資料：補上整理過的參考圖資訊。所有回傳專案的 API 都要經過這裡，
     否則前端拿到的欄位會時有時無（之前白畫面就是這樣來的）"""
     out = {**p, "refs": refs_of(p), "ref_paths": ref_paths(p)}
@@ -331,8 +339,8 @@ def _with_tokens(item: dict) -> dict:
     return {**item, "tokens": usage.tokens_from_log(ROOT / log) if log else None}
 
 
-def ref_paths(p: dict) -> dict:
-    """{"character": [...], "style": [...], "identity": str|None}，路徑相對於專案根目錄（Codex 的 cwd）"""
+def ref_paths(p: Project) -> RefPaths:
+    """要附給 Codex 的參考圖與角色資訊，路徑相對於專案根目錄（Codex 的 cwd）"""
     r = refs_of(p)
     char, identity, ears = [], "", True  # 角色特徵句只來自角色庫；沒選角色就靠附圖，不塞原角色的特徵
     if r["character_id"]:
@@ -346,10 +354,9 @@ def ref_paths(p: dict) -> dict:
     return {"character": char + tmp["character"], "style": tmp["style"], "identity": identity, "ears": ears}
 
 
-def add_temp_refs(style: str, files: list[tuple[str, bytes, str]]) -> dict:
+def add_temp_refs(style: str, files: list[tuple[str, bytes, str]]) -> Project:
     def fn(p):
-        if p["status"] not in EDITABLE:
-            raise ValueError(f"目前狀態 {p['status']} 不能改參考圖")
+        require_status(p, EDITABLE, "改參考圖")
         r = refs_of(p)
         for name, raw, role in files:
             r["temp"].append({"file": save_png(raw, temp_dir(style), name), "role": _role(role)})
@@ -358,10 +365,9 @@ def add_temp_refs(style: str, files: list[tuple[str, bytes, str]]) -> dict:
     return mutate(style, fn)
 
 
-def update_temp_ref(style: str, file: str, role: str | None = None, remove: bool = False) -> dict:
+def update_temp_ref(style: str, file: str, role: str | None = None, remove: bool = False) -> Project:
     def fn(p):
-        if p["status"] not in EDITABLE:
-            raise ValueError(f"目前狀態 {p['status']} 不能改參考圖")
+        require_status(p, EDITABLE, "改參考圖")
         r = refs_of(p)
         if remove:
             move_to_removed(temp_dir(style) / Path(file).name)
@@ -388,7 +394,7 @@ def cells_for(ids: list[int], ears: bool = True) -> list[str]:
     ]
 
 
-def preview_prompt(p: dict) -> tuple[str, list[int], str, list[str]]:
+def preview_prompt(p: Project) -> tuple[str, list[int], str, list[str]]:
     """回傳 (prompt, 預覽用的貼圖 id, 輸出路徑, 要附給 Codex 的圖)"""
     ids = prompts.template().get("preview_ids", [1, 3, 4, 9])
     out = f"outputs/{p['id']}/grids/{p['id']}_preview.png"
@@ -406,7 +412,7 @@ def preview_prompt(p: dict) -> tuple[str, list[int], str, list[str]]:
 
 
 def group_prompt(
-    p: dict, index: int, ids: list[int], layout: str | None = None
+    p: Project, index: int, ids: list[int], layout: str | None = None
 ) -> tuple[str, str, list[str]]:
     out = f"outputs/{p['id']}/grids/{p['id']}_group{index}.png"
     rp = ref_paths(p)
@@ -428,10 +434,9 @@ def group_prompt(
 # ---------- 2. 風格預覽圖 ----------
 
 
-def start_preview(style: str) -> dict:
+def start_preview(style: str) -> Project:
     def fn(p):
-        if p["status"] not in EDITABLE:
-            raise ValueError(f"目前狀態 {p['status']} 不能預覽")
+        require_status(p, EDITABLE, "預覽")
         if not p["style_block"].strip():
             raise ValueError("畫風描述是空的")
         text, ids, out, refs = preview_prompt(p)
@@ -441,11 +446,11 @@ def start_preview(style: str) -> dict:
             "prompt": text,
             "refs": refs,
             "layout": prompts.layout_for(len(ids)),
-            "status": "running",
+            "status": ItemStatus.RUNNING,
             "message": "",
             "started": now(),
         }
-        p.update(status="previewing", error=None)
+        p.update(status=Status.PREVIEWING, error=None)
 
     p = mutate(style, fn)
     _pool.submit(_run_preview, style)
@@ -463,8 +468,10 @@ def _run_preview(style: str) -> None:
         ok, msg = False, str(e)
 
     def fn(p):
-        p["preview"].update(status="done" if ok else "failed", message=msg, log=rel(log), finished=now())
-        p["status"] = "preview_ready" if ok else "draft"
+        p["preview"].update(
+            status=ItemStatus.DONE if ok else ItemStatus.FAILED, message=msg, log=rel(log), finished=now()
+        )
+        p["status"] = Status.PREVIEW_READY if ok else Status.DRAFT
         p["error"] = None if ok else f"預覽失敗：{msg}"
 
     p = mutate(style, fn)
@@ -480,7 +487,7 @@ def _run_preview(style: str) -> None:
 # ---------- 3. 確認風格 → 批次生成 ----------
 
 
-def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
+def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> Project:
     if layout not in prompts.GROUP_LAYOUTS:
         raise ValueError(f"不支援的版型 {layout}")
     meta = sticker_map()
@@ -490,7 +497,7 @@ def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
         raise ValueError("請至少選一張貼圖")
 
     def fn(p):
-        if p["status"] != "preview_ready":
+        if p["status"] != Status.PREVIEW_READY:
             raise ValueError("請先產生並確認風格預覽圖")
         groups = []
         for n, chunk in enumerate(prompts.chunk(ids, prompts.GROUP_LAYOUTS[layout]), 1):
@@ -504,12 +511,12 @@ def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
                     "prompt": text,
                     "refs": refs,
                     "image": out,
-                    "status": "pending",
+                    "status": ItemStatus.PENDING,
                     "message": "",
                     "attempts": 0,
                 }
             )
-        p.update(sticker_ids=ids, groups=groups, group_layout=layout, status="generating", error=None)
+        p.update(sticker_ids=ids, groups=groups, group_layout=layout, status=Status.GENERATING, error=None)
 
     p = mutate(style, fn)
     for g in p["groups"]:
@@ -517,24 +524,23 @@ def start_generate(style: str, ids: list[int], layout: str = "4x2w") -> dict:
     return p
 
 
-def regenerate_group(style: str, index: int) -> dict:
+def regenerate_group(style: str, index: int) -> Project:
     def fn(p):
-        if p["status"] not in ("review", "generating"):
-            raise ValueError(f"目前狀態 {p['status']} 不能重生")
+        require_status(p, {Status.REVIEW, Status.GENERATING}, "重生")
         g = _group(p, index)
-        if g["status"] in ("pending", "running"):
+        if g["status"] in (ItemStatus.PENDING, ItemStatus.RUNNING):
             raise ValueError("這組還在執行中")
-        g.update(status="pending", message="")
+        g.update(status=ItemStatus.PENDING, message="")
         g.pop("accepted", None)
         g.pop("rechecked", None)
-        p["status"] = "generating"
+        p["status"] = Status.GENERATING
 
     p = mutate(style, fn)
     _pool.submit(_run_group, style, index)
     return p
 
 
-def _group(p: dict, index: int) -> dict:
+def _group(p: Project, index: int) -> Group:
     for g in p["groups"]:
         if g["index"] == index:
             return g
@@ -546,7 +552,7 @@ def _run_group(style: str, index: int) -> None:
 
         def start(p):
             gg = _group(p, index)
-            gg.update(status="running", started=now(), attempts=gg.get("attempts", 0) + 1)
+            gg.update(status=ItemStatus.RUNNING, started=now(), attempts=gg.get("attempts", 0) + 1)
 
         p = mutate(style, start)
         g = _group(p, index)
@@ -561,24 +567,26 @@ def _run_group(style: str, index: int) -> None:
 
     def fn(p):
         gg = _group(p, index)
-        gg.update(status="done" if ok else "failed", message=msg, log=rel(log), finished=now())
-        if all(x["status"] in ("done", "failed") for x in p["groups"]):
-            if p["status"] != "review":
+        gg.update(
+            status=ItemStatus.DONE if ok else ItemStatus.FAILED, message=msg, log=rel(log), finished=now()
+        )
+        if all(x["status"] in (ItemStatus.DONE, ItemStatus.FAILED) for x in p["groups"]):
+            if p["status"] != Status.REVIEW:
                 finished.append(True)
-            p["status"] = "review"
+            p["status"] = Status.REVIEW
 
     p = mutate(style, fn)
     if finished:
         _notify_batch(p)
 
 
-def _label(p: dict) -> str:
+def _label(p: Project) -> str:
     return f"{p.get('name') or '未命名'}（{p['id']}）"
 
 
-def _notify_batch(p: dict) -> None:
+def _notify_batch(p: Project) -> None:
     gs = p["groups"]
-    bad = [g["index"] for g in gs if g["status"] == "failed"]
+    bad = [g["index"] for g in gs if g["status"] == ItemStatus.FAILED]
     if not bad:
         events.emit("batch", p["id"], "生成完成", f"{_label(p)}：{len(gs)} 組全部成功，可以檢查後收尾", True)
     elif len(bad) == len(gs):
@@ -596,13 +604,13 @@ def _notify_batch(p: dict) -> None:
 # ---------- 4. 全部確認 → 後處理 → 進 Gallery ----------
 
 
-def start_finalize(style: str) -> dict:
+def start_finalize(style: str) -> Project:
     def fn(p):
-        if p["status"] != "review":
+        if p["status"] != Status.REVIEW:
             raise ValueError("還有組別在生成中")
-        if not any(g["status"] == "done" for g in p["groups"]):
+        if not any(g["status"] == ItemStatus.DONE for g in p["groups"]):
             raise ValueError("沒有成功的組別可以處理")
-        p.update(status="processing", error=None)
+        p.update(status=Status.PROCESSING, error=None)
 
     p = mutate(style, fn)
     _pool.submit(_finalize, style)
@@ -614,37 +622,37 @@ def _finalize(style: str) -> None:
         p = load(style)
         made = []
         for g in p["groups"]:
-            if g["status"] == "done":
+            if g["status"] == ItemStatus.DONE:
                 made += pipeline.process_grid(
                     style, data_path(g["image"]), g["layout"], g["ids"], p["process"]
                 )
         pipeline.build_previews(style)
-        mutate(style, lambda p: p.update(status="done", finished_ids=made, error=None, finished=now()))
+        mutate(style, lambda p: p.update(status=Status.DONE, finished_ids=made, error=None, finished=now()))
     except Exception as e:  # noqa: BLE001
         err = f"後處理失敗：{e}"
-        mutate(style, lambda p: p.update(status="review", error=err))
+        mutate(style, lambda p: p.update(status=Status.REVIEW, error=err))
 
 
-def _failed_item(p: dict, target: str) -> dict:
+def _failed_item(p: Project, target: str) -> GridItem:
     """target = "preview" 或組別編號；只接受目前是失敗的"""
     if target == "preview":
         item = p.get("preview")
-        if not item or item.get("status") != "failed":
+        if not item or item.get("status") != ItemStatus.FAILED:
             raise ValueError("預覽圖沒有失敗，不需要處理")
     else:
         item = _group(p, int(target))
-        if item["status"] != "failed":
+        if item["status"] != ItemStatus.FAILED:
             raise ValueError("這組沒有失敗，不需要處理")
     return item
 
 
-def _mark_done(p: dict, target: str, item: dict, msg: str) -> None:
-    item.update(status="done", message=msg)
+def _mark_done(p: Project, target: str, item: GridItem, msg: str) -> None:
+    item.update(status=ItemStatus.DONE, message=msg)
     if target == "preview" and p["status"] in EDITABLE:
-        p.update(status="preview_ready", error=None)
+        p.update(status=Status.PREVIEW_READY, error=None)
 
 
-def recheck(style: str, target: str) -> dict:
+def recheck(style: str, target: str) -> Project:
     """不重新生成，只用目前的檢查規則重新檢查已經存在的圖（例如規則改過、或被誤判失敗）。
     還是沒過時訊息不變，記下 rechecked 時間，前端才看得出有檢查過"""
 
@@ -662,7 +670,7 @@ def recheck(style: str, target: str) -> dict:
     return mutate(style, fn)
 
 
-def accept(style: str, target: str) -> dict:
+def accept(style: str, target: str) -> Project:
     """使用者看過圖、判斷沒問題：不管自動檢查的結果，直接當成成功（accepted＝手動通過）。
     圖檔一定要在、打得開；之後收尾照常切割、去背，重生會清掉這個標記"""
 
@@ -684,12 +692,12 @@ def accept(style: str, target: str) -> dict:
     return mutate(style, fn)
 
 
-def reopen(style: str) -> dict:
+def reopen(style: str) -> Project:
     """已完成的專案回到審核階段（例如想再重生某組）"""
 
     def fn(p):
-        if p["status"] != "done":
+        if p["status"] != Status.DONE:
             raise ValueError("只有已完成的專案可以重新開啟")
-        p["status"] = "review"
+        p["status"] = Status.REVIEW
 
     return mutate(style, fn)
