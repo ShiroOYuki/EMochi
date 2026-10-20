@@ -4,6 +4,8 @@ import { stickersApi, type Sticker, type StickerGroup } from "./api";
 
 type State = { all: Sticker[]; groups: StickerGroup[]; loaded: boolean };
 let state: State = { all: [], groups: [], loaded: false };
+/** 目前的狀態快照（元件請用 useStickers；這個給測試和非 React 程式碼） */
+export const getStickerState = () => state;
 const subs = new Set<() => void>();
 const set = (patch: Partial<State>) => {
   state = { ...state, ...patch };
@@ -47,18 +49,20 @@ export function useStickers() {
   useEffect(() => {
     if (!state.loaded) reloadStickers().catch(() => {});
   }, []);
-  return useMemo(() => {
-    const active = s.all.filter((x) => !x.deleted);
-    const byId = new Map(s.all.map((x) => [x.id, x]));
-    const grouped = new Set(s.groups.flatMap((g) => g.ids));
-    return {
-      ...s,
-      active,
-      byId,
-      deleted: s.all.filter((x) => x.deleted),
-      ungrouped: active.filter((x) => !grouped.has(x.id)),
-      /** Gen 新專案預設勾選的表情（default 分組的聯集，依 id 排序） */
-      defaults: [...new Set(s.groups.filter((g) => g.default).flatMap((g) => g.ids))].sort((a, b) => a - b),
-    };
-  }, [s]);
+  return useMemo(() => ({ ...s, ...deriveStickers(s.all, s.groups) }), [s]);
+}
+
+/** 從表情清單與分組算出各頁要用的衍生資料（純函式，stickers.test.ts 有測） */
+export function deriveStickers(all: Sticker[], groups: StickerGroup[]) {
+  const active = all.filter((x) => !x.deleted);
+  const grouped = new Set(groups.flatMap((g) => g.ids));
+  return {
+    active,
+    byId: new Map(all.map((x) => [x.id, x])),
+    deleted: all.filter((x) => x.deleted),
+    /** 沒有在任何分組裡的（不含已刪除） */
+    ungrouped: active.filter((x) => !grouped.has(x.id)),
+    /** Gen 新專案預設勾選的表情（default 分組的聯集，依 id 排序） */
+    defaults: [...new Set(groups.filter((g) => g.default).flatMap((g) => g.ids))].sort((a, b) => a - b),
+  };
 }

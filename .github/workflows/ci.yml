@@ -32,10 +32,11 @@ jobs:
       - name: 後端測試
         run: uv run pytest -q
 
-      - name: 前端 lint／格式＋build
+      - name: 前端 lint／格式／測試＋build
         working-directory: web
         run: |
           npm ci
           npm run lint
           npm run format:check
+          npm test
           npm run build
