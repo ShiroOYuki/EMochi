@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, fileUrl, libCover, libImageUrl, type Importable, type LibStyle, type Upload } from "../api";
 import { Section, Select, Spinner } from "../components/ui";
-import { DeleteButton } from "../components/manage";
+import { DeleteButton, useConfirm } from "../components/manage";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
@@ -106,8 +106,9 @@ function StyleView({ s, act, onRemove }: { s: LibStyle; act: (fn: () => Promise<
   const body = () => ({ name: f.name, request: f.request, framing: f.framing, style_block: f.style_block, process: { square: f.square, margin: f.margin } });
   const setFraming = (framing: "closeup" | "whole") =>
     setF({ ...f, framing, square: framing === "closeup" ? 0.5 : null, margin: framing === "closeup" ? 0 : 0.04 });
+  const [confirmDialog, ask] = useConfirm();
   const analyze = async () => {
-    if (s.style_block && !confirm("Codex 寫的描述會蓋掉目前的畫風描述，要繼續嗎？")) return;
+    if (s.style_block && !(await ask({ title: "讓 Codex 重新分析畫風？", body: "Codex 寫的描述會蓋掉目前的畫風描述。", ok: "重新分析" }))) return;
     setAnalyzing(true);
     try { await act(() => api.post<LibStyle>(`${base}/analyze`, { request: f.request })); } finally { setAnalyzing(false); }
   };
@@ -143,6 +144,7 @@ function StyleView({ s, act, onRemove }: { s: LibStyle; act: (fn: () => Promise<
 
       <div className="flex items-center gap-3">
         <DeleteButton onClick={onRemove} title="移到垃圾桶" />
+        {confirmDialog}
         <span className="ml-auto text-xs text-mute">{s.style_block ? "到「生成」分頁新增貼圖時就能選這個畫風" : "分析完才能在「生成」使用"}</span>
         <button className="btn btn-primary" disabled={!dirty} onClick={() => act(() => api.patch<LibStyle>(base, body()))}>儲存修改</button>
       </div>

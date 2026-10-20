@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, fileUrl, type Character, type Project, type Sticker } from "../../api";
 import { Modal, Spinner } from "../../components/ui";
+import { useConfirm } from "../../components/manage";
 
 export type ViewProps = {
   p: Project; stickers: Sticker[]; act: (fn: () => Promise<Project>) => Promise<void>;
@@ -35,10 +36,15 @@ export function FailedImage({ path, v, message, className, onRecheck, onAccept, 
     setBusy(kind);
     try { await fn(); } finally { setBusy(""); }
   };
-  const accept = () => {
+  const [confirmDialog, ask] = useConfirm();
+  const accept = async () => {
     if (!onAccept) return;
-    if (!confirm("確定要使用這張圖嗎？\n\n自動檢查覺得背景不夠乾淨；如果真的有問題，切割、去背的結果可能會不好（之後還是可以重生）。")) return;
-    run("accept", onAccept);
+    const ok = await ask({
+      title: "仍然使用這張圖？",
+      body: <>自動檢查覺得背景不夠乾淨。如果真的有問題，切割、去背的結果可能不好；之後還是可以按「重生」重新生成。</>,
+      ok: "使用這張",
+    });
+    if (ok) run("accept", onAccept);
   };
   return (
     <div className="space-y-2">
@@ -53,6 +59,7 @@ export function FailedImage({ path, v, message, className, onRecheck, onAccept, 
             {busy === "accept" ? <><Spinner className="size-3" />處理中…</> : "仍然使用這張"}</button>}
           <span>不會重新生成，不花額度</span>
         </div>}
+        {confirmDialog}
         {rechecked && <p className="text-xs text-warn" role="status">{rechecked.slice(5, 16)} 重新檢查過，還是沒通過；確定圖沒問題的話可以按「仍然使用這張」</p>}
       </>}
     </div>
