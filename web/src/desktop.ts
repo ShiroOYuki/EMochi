@@ -14,6 +14,8 @@ export type DesktopBridge = {
   pickFolder: (initial?: string) => Promise<string | null>;
   /** 讓視窗底色、原生對話框跟著介面主題（舊版殼沒有這個） */
   setTheme?: (pref: "system" | "light" | "dark") => void;
+  /** 打開桌面程式的 log 資料夾，回傳路徑（舊版殼沒有） */
+  openLogs?: () => Promise<string>;
   /** 自動更新（舊版殼沒有） */
   updates?: {
     get: () => Promise<UpdateState>;

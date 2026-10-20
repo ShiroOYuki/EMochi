@@ -1,0 +1,21 @@
+name: 功能建議
+description: 想要新功能、或覺得哪裡可以更好用
+title: "[建議] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: 想要什麼
+      description: 想做到什麼事？現在哪裡不方便？
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想像中的做法（選填）
+      description: 介面長怎樣、怎麼操作都可以，有草圖或參考更好
+  - type: input
+    id: version
+    attributes:
+      label: EMochi 版本（選填）

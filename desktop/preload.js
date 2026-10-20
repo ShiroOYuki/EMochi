@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld("emochi", {
   version: ipcRenderer.sendSync("app-version"),
   pickFolder: (initial) => ipcRenderer.invoke("pick-folder", initial),
   setTheme: (pref) => ipcRenderer.send("set-theme", pref),
+  /** 打開桌面程式的 log 資料夾（%APPDATA%\\EMochi\\logs：server.log、updater.log） */
+  openLogs: () => ipcRenderer.invoke("open-logs"),
   updates: {
     get: () => ipcRenderer.invoke("update-get"),
     check: () => ipcRenderer.invoke("update-check"),

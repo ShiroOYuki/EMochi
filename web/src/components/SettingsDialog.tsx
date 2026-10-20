@@ -4,6 +4,7 @@ import { desktop } from "../desktop";
 import { setThemePref, useThemePref, type ThemePref } from "../theme";
 import { AboutUpdates } from "./Updates";
 import { startTour } from "./Tour";
+import { ReportSection } from "./BugReport";
 import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
@@ -152,8 +153,11 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           </Group>
 
           <Group title="說明">
-            <Field label="新手導覽" hint="依序介紹角色、畫風、表情、生成、圖庫等主要功能">
+            <Field label="新手導覽" hint="依序介紹生成、表情、畫風、角色、圖庫等主要功能">
               <button className="btn btn-sm" onClick={() => { onClose(); startTour(); }}>重看導覽</button>
+            </Field>
+            <Field top label="回報問題" hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊">
+              <ReportSection />
             </Field>
           </Group>
 
@@ -198,9 +202,10 @@ function Group({ title, note, children }: { title: string; note?: string; childr
     </section>
   );
 }
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+/** top：右邊內容較高（多行按鈕、可展開）時，左邊標題靠上對齊 */
+function Field({ label, hint, children, top }: { label: string; hint?: string; children: ReactNode; top?: boolean }) {
   return (
-    <div className="grid items-center gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr]">
+    <div className={`grid gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr] ${top ? "items-start" : "items-center"}`}>
       <div><div className="text-sm">{label}</div>{hint && <div className="text-[11px] leading-snug text-mute">{hint}</div>}</div>
       <div>{children}</div>
     </div>
