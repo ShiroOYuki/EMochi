@@ -29,6 +29,7 @@ DEFAULTS: dict = {
     "default_layout": "4x2w",      # Gen 挑選步驟預設的網格版型
     "image_timeout_min": 20,       # 單組生圖逾時（分鐘）
     "text_timeout_min": 5,         # 文字任務（擴寫、看圖寫特徵、分析畫風）逾時（分鐘）
+    "tour_done": False,            # 新手導覽看過（略過也算）；設定頁「說明」可以重看
     "theme": "system",             # 介面主題：system（跟隨系統）／light／dark；Navbar 切換或設定頁改，立即存檔
     # codex exec 的參數（生圖用）；設定頁只顯示不給改，改錯會讓 Codex 沒辦法寫入
     "codex_args": ["exec", "--skip-git-repo-check", "-s", "workspace-write"],
@@ -100,6 +101,8 @@ def validate(changes: dict) -> dict:
             raise ValueError(f"不支援的版型 {v}")
         elif k == "theme" and v not in THEMES:
             raise ValueError(f"不支援的主題 {v}")
+        elif k == "tour_done":
+            v = bool(v)
         out[k] = v
     return out
 

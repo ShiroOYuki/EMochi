@@ -96,11 +96,11 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
           onRestored={(id) => { loadList(); setCurrent(id); }} />
       </aside>
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-5">
+      <div className="min-w-0 flex-1 overflow-y-auto p-5" data-tour="gen-main">
         <div className="mx-auto max-w-6xl space-y-4">
           {err && <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
           {current === null
-            ? <NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} libs={libs} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} />
+            ? <div data-tour="gen-new"><NewProject focusKey={newKey} nextId={list?.next_id} chars={chars} libs={libs} onCreate={(body) => act(() => api.post<Project>("/api/projects", body))} /></div>
             : project
               ? <ProjectView p={project} stickers={stickers} act={act} chars={chars}
                   previewIds={list?.preview_ids ?? []} maxParallel={list?.max_parallel ?? 3} defaultLayout={list?.default_layout ?? "4x2w"} onOpenGallery={onOpenGallery}

@@ -138,11 +138,22 @@ def test_config_dir_and_busy(client, data_root, clean, ext):
 
 def test_ui_prefs_theme(client, clean):
     """主題偏好存在設定檔（不靠瀏覽器 localStorage）"""
-    assert client.get("/api/ui-prefs").json() == {"theme": "system", "stored": False}
-    assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {"theme": "dark", "stored": True}
+    assert client.get("/api/ui-prefs").json() == {"theme": "system", "stored": False, "tour_done": False}
+    assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {"theme": "dark", "stored": True, "tour_done": False}
     from app import settings
     assert settings.get("theme") == "dark"
     assert client.get("/api/settings").json()["values"]["theme"] == "dark"
     assert client.put("/api/ui-prefs", json={"theme": "neon"}).status_code == 400
     client.put("/api/ui-prefs", json={"theme": "system"})
     assert "theme" not in (settings.read_json(settings.FILE, {}) or {})   # 和預設一樣不寫進檔案
+
+
+def test_ui_prefs_tour_done(client, clean):
+    """新手導覽看過就記在設定檔；只送 tour_done 不會動到主題"""
+    assert client.get("/api/ui-prefs").json()["tour_done"] is False
+    r = client.put("/api/ui-prefs", json={"tour_done": True}).json()
+    assert r["tour_done"] is True and r["theme"] == "system"
+    from app import settings
+    assert settings.get("tour_done") is True
+    client.put("/api/ui-prefs", json={"tour_done": False})
+    assert "tour_done" not in (settings.read_json(settings.FILE, {}) or {})
