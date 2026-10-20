@@ -81,6 +81,19 @@ def get_codex_check(refresh: bool = False):
     return codex_status.check(force=refresh)
 
 
+@app.get("/api/diagnostics")
+def get_diagnostics(app_version: str | None = None, desktop: bool = False):
+    """回報問題用的診斷資訊（版本、系統、Codex、設定摘要、最近失敗的呼叫）；家目錄換成 ~"""
+    from . import diagnostics
+    return diagnostics.collect(app_version, desktop)
+
+
+@app.get("/api/logs-dir")
+def get_logs_dir():
+    from .paths import logs_dir
+    return {"path": str(logs_dir())}
+
+
 @app.post("/api/codex-login")
 def codex_login():
     try:

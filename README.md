@@ -65,8 +65,11 @@ EMochi 用 [Codex CLI](https://github.com/openai/codex) 生圖，**生圖用的�
 ## 遇到問題
 
 1. 先確認右上角 Codex 狀態：顯示找不到或未登入時，回到[安裝第 1 步](#1-準備-codex-cli)檢查
-2. 程式記錄檔在 `%APPDATA%\EMochi\logs\`（`server.log` 是後端、`updater.log` 是更新）
-3. 到 [GitHub Issues](https://github.com/ShiroOYuki/EMochi/issues) 回報，附上 EMochi 版本（設定頁「關於」）、你做了什麼、發生什麼事，以及記錄檔。記錄檔裡可能有你的電腦路徑，貼上前可以先看一下
+2. 到 App 的「**設定 → 說明 → 回報問題**」：
+   - **在 GitHub 回報**：開啟 [GitHub Issues](https://github.com/ShiroOYuki/EMochi/issues/new/choose) 的回報表單，版本、系統、Codex 欄位會自動填好（需要 GitHub 帳號）
+   - **用 Email 回報**：用預設郵件程式開新信寄到 cielwork518@gmail.com，信裡已附上診斷資訊
+   - 兩種方式都會先把診斷資訊（版本、系統、Codex 狀態、設定摘要、最近失敗的 Codex 呼叫）複製到剪貼簿，路徑裡的使用者名稱會換成 `~`
+3. 需要附 log 的話，同一區可以開啟 log 資料夾：Codex 的呼叫紀錄在 EMochi 資料夾（預設 `%LOCALAPPDATA%\EMochi`）的 `logs\`，桌面程式本身的 log 在 `%APPDATA%\EMochi\logs\`（`server.log` 是後端、`updater.log` 是更新）。log 裡可能有你的電腦路徑，附上前可以先看一下。EMochi 不會自動上傳任何檔案
 
 ## 從原始碼執行、開發
 

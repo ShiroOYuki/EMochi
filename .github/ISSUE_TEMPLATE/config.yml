@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 用 Email 回報
+    url: mailto:cielwork518@gmail.com
+    about: 沒有 GitHub 帳號的話，可以直接寄信（App 的「設定 → 說明 → 用 Email 回報」會自動帶入診斷資訊）
