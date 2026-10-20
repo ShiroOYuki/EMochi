@@ -91,10 +91,12 @@ scripts\release.bat 0.2.0 --push    :: 改 desktop/package.json 版號 → commi
 
 ```
 app/                後端（FastAPI）
-  server.py         API 路由；codex.py 執行 Codex；jobs.py Gen 流程狀態機
-  pipeline.py       網格 → 成品；gallery.py 匯出、組合；specs.py 平台規格檢查；prompts.py 組 prompt
+  server.py         建立 FastAPI、統一錯誤處理（KeyError → 404、其他 → 400）、掛上前端
+  routes/           API 路由，依領域分檔：system、settings、stickers、files、projects、library、gallery
+  codex.py          執行 Codex；jobs.py Gen 流程狀態機
+  pipeline.py       網格 → 成品（去背核心在 keying.py）；gallery.py 匯出、組合；specs.py 平台規格檢查；prompts.py 組 prompt
   presets.py        匯出預設集；stickers.py 表情與分組；settings.py 設定
-  characters.py     角色庫；style_lib.py 畫風庫；trash.py 垃圾桶；usage.py Codex 額度
+  characters.py     角色庫；style_lib.py 畫風庫（共用 reflib.py）；trash.py 垃圾桶；usage.py Codex 額度
   static/           前端 build 結果（由 web/ 產生）
 web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI）
 tests/              pytest
