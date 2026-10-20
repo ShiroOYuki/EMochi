@@ -13,7 +13,17 @@ const REPO = path.resolve(__dirname, "..");
 const DATA_ROOT = DEV ? REPO : path.join(process.env.LOCALAPPDATA || app.getPath("appData"), "EMochi");
 const HEALTH_TIMEOUT_MS = 60_000;
 // 固定用這個 port（被占用才隨機找）：網址的 origin 不變，前端存在 localStorage 的東西（Gallery 勾選、版面等）才不會每次開都不見
-const PREFERRED_PORT = 38765;
+// 開發模式用另一個 port，和安裝版的 localStorage 分開
+const PREFERRED_PORT = DEV ? 38766 : 38765;
+
+// 開發模式和安裝版都叫 EMochi，預設會共用 %APPDATA%\EMochi（單一實例鎖、window.json、logs、瀏覽器資料）：
+// 安裝版開著時開發版會直接被擋掉。開發模式改用 %APPDATA%\EMochi-dev，兩個可以同時開。
+// 一定要在 requestSingleInstanceLock() 之前設定（鎖跟著 userData 走）
+if (DEV) {
+  const devData = path.join(app.getPath("appData"), "EMochi-dev");
+  app.setPath("userData", devData);
+  app.setAppLogsPath(path.join(devData, "logs"));
+}
 
 let server = null;        // 後端子程序
 let baseUrl = "";
