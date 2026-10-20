@@ -112,7 +112,6 @@ style_lib/          畫風庫                                                   
 docs/
   DEVELOPMENT.md    本文件
   GUIDE.md          prompt 撰寫說明（早期手寫 prompt 時的參考）
-  HANDOFF.md        開發交接
 tools/
   postprocess.py    切割、去背、縮放的核心（app/pipeline.py 使用）
 scripts/app.bat     啟動網頁版
