@@ -209,3 +209,36 @@ def test_ui_prefs_tour_done(client, clean):
     assert settings.get("tour_done") is True
     client.put("/api/ui-prefs", json={"tour_done": False})
     assert "tour_done" not in (settings.read_json(settings.FILE, {}) or {})
+
+
+def test_model_rules_and_bad_file_values(data_root):
+    """Settings model：預設值、範圍、版型／主題；檔案裡壞掉的值退回預設、不認得的鍵忽略"""
+    import pytest
+
+    from app import settings
+    from app.errors import Invalid
+
+    assert settings.LIMITS == {
+        "max_parallel": (1, 3),
+        "image_timeout_min": (3, 120),
+        "text_timeout_min": (1, 30),
+    }
+    assert settings.LAYOUTS == ("4x2w", "3x2") and settings.THEMES == ("system", "light", "dark")
+    assert settings.validate({"max_parallel": "2", "theme": "dark"}) == {"max_parallel": 2, "theme": "dark"}
+    for bad in (
+        {"max_parallel": 9},
+        {"image_timeout_min": "abc"},
+        {"default_layout": "5x5"},
+        {"theme": "pink"},
+    ):
+        with pytest.raises(Invalid):
+            settings.validate(bad)
+
+    f = data_root / "settings.local.json"
+    f.write_text(json.dumps({"max_parallel": 99, "theme": "dark", "old_key": 1}), encoding="utf-8")
+    try:
+        cur = settings.load()
+        assert cur["max_parallel"] == settings.DEFAULTS["max_parallel"]  # 壞值退回預設
+        assert cur["theme"] == "dark" and "old_key" not in cur
+    finally:
+        f.unlink()
