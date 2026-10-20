@@ -12,7 +12,7 @@ from .errors import Conflict
 
 
 class Status(StrEnum):
-    """專案狀態（流程圖見 jobs.py 開頭）"""
+    """專案狀態（流程圖見 jobs/__init__.py）"""
 
     EXPANDING = "expanding"  # Codex 擴寫需求中
     DRAFT = "draft"  # 可編輯描述、參考圖，可以預覽
