@@ -10,12 +10,12 @@ import { useCodexGate } from "./CodexSetup";
 type Step = { target?: string[]; tab?: string; title: string; body: string };
 const STEPS: Step[] = [
   { title: "歡迎使用 EMochi", body: "EMochi 幫你把角色做成一整套表情貼圖：準備角色和畫風 → 生成 → 挑選 → 匯出各平台尺寸。花一分鐘帶你認識介面。" },
-  { target: ["tab-characters"], tab: "characters", title: "角色", body: "上傳角色的參考圖，Codex 會看圖幫你寫角色特徵。存好之後，每次生成直接選。" },
-  { target: ["tab-styles"], tab: "styles", title: "畫風", body: "存放畫風的範例圖和描述。已經內建一組範例畫風 st1，可以先拿來試。" },
-  { target: ["tab-stickers"], tab: "stickers", title: "表情", body: "要畫哪些表情：內建 #1～32，可以自己新增、修改，也能分組。" },
   { target: ["gen-new", "gen-main"], tab: "gen", title: "生成", body: "選角色和畫風，用中文描述想要的感覺。Codex 會先擴寫成畫風描述、出一張 2×2 風格預覽，確認後再挑表情批次生成（預設 4×2，每組 8 張），自動切割、去背。" },
+  { target: ["tab-stickers"], tab: "stickers", title: "表情", body: "要畫哪些表情：內建 #1～32，可以自己新增、修改，也能分組。" },
+  { target: ["tab-styles"], tab: "styles", title: "畫風", body: "存放畫風的範例圖和描述。已經內建一組範例畫風 st1，可以先拿來試。" },
+  { target: ["tab-characters"], tab: "characters", title: "角色", body: "上傳角色的參考圖，Codex 會看圖幫你寫角色特徵。存好之後，每次生成直接選。" },
   { target: ["tab-gallery"], tab: "gallery", title: "圖庫", body: "勾選滿意的貼圖，用匯出預設集一次輸出 Twitch、Discord、LINE 等平台尺寸的 ZIP。" },
-  { target: ["codex"], tab: "gen", title: "Codex 額度", body: "生圖用的是你 ChatGPT 帳號的 Codex 額度，每張網格大約 35K tokens。點這裡看連線狀態、額度和近 7 天用量。" },
+  { target: ["codex"], title: "Codex 額度", body: "生圖用的是你 ChatGPT 帳號的 Codex 額度，每張網格大約 35K tokens。點這裡看連線狀態、額度和近 7 天用量。" },
   { target: ["settings"], title: "設定", body: "資料夾位置、同時生圖組數、匯出預設集都在這裡；想再看一次導覽也在這裡。" },
 ];
 const PAD = 6;
