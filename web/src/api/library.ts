@@ -8,6 +8,8 @@ const enc = encodeURIComponent;
 export function refLibraryApi<T>(endpoint: string) {
   const one = (id: string) => `${endpoint}/${id}`;
   return {
+    /** TanStack Query 的 key（api/queries.ts） */
+    key: [endpoint] as const,
     list: () => http.get<T[]>(endpoint),
     /** 移到垃圾桶 */
     remove: (id: string) => http.del(one(id)),

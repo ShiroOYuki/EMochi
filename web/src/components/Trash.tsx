@@ -1,6 +1,6 @@
 /** 側欄左下角的「垃圾桶」：專案／畫風／角色共用一個清單（還原／永久刪除／清空） */
-import { useCallback, useEffect, useState } from "react";
-import { fileUrl, trashApi, type TrashItem, type TrashKind } from "../api";
+import { useEffect, useState } from "react";
+import { fileUrl, invalidate, keys, trashApi, useTrash, type TrashItem, type TrashKind } from "../api";
 import { SPRING, Modal, StatusBadge } from "./ui";
 import { useReducedMotion } from "motion/react";
 import {
@@ -23,33 +23,20 @@ const KINDS: { kind: TrashKind; noun: string; tab: string }[] = [
 ];
 
 /** 側欄左下角的「垃圾桶」：專案、畫風、角色放在同一個垃圾桶（分頁籤），預設打開目前這一頁的種類。
- *  放在 aside（flex flex-col，清單包在 .side-list 裡自己捲動）的最後面，固定在左下角，清單不會從它底下穿過去。refreshKey 改變或分頁切回來時重抓數量。
+ *  放在 aside（flex flex-col，清單包在 .side-list 裡自己捲動）的最後面，固定在左下角，清單不會從它底下穿過去。刪除、還原後呼叫 invalidate(keys.trashAll) 就會重抓數量。
  *  onRestored：還原的是這一頁的種類就交給頁面選取；其他種類會切到那個分頁 */
-export function TrashButton({
-  kind,
-  active,
-  refreshKey,
-  onRestored,
-}: {
-  kind: TrashKind;
-  active: boolean;
-  refreshKey: number;
-  onRestored: (id: string) => void;
-}) {
-  const [items, setItems] = useState<Record<TrashKind, TrashItem[]>>({
-    projects: [],
-    styles: [],
-    characters: [],
-  });
+export function TrashButton({ kind, onRestored }: { kind: TrashKind; onRestored: (id: string) => void }) {
+  const projects = useTrash("projects");
+  const styles = useTrash("styles");
+  const characters = useTrash("characters");
+  const items: Record<TrashKind, TrashItem[]> = {
+    projects: projects.data ?? [],
+    styles: styles.data ?? [],
+    characters: characters.data ?? [],
+  };
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TrashKind>(kind);
-  const load = useCallback(async () => {
-    const lists = await Promise.all(KINDS.map((k) => trashApi.list(k.kind).catch(() => [] as TrashItem[])));
-    setItems({ projects: lists[0], styles: lists[1], characters: lists[2] });
-  }, []);
-  useEffect(() => {
-    if (active) load();
-  }, [active, refreshKey, load]);
+  const load = () => invalidate(keys.trashAll);
   const total = items.projects.length + items.styles.length + items.characters.length;
   return (
     <div className="shrink-0 border-t border-line/60 px-4 pt-2 pb-4">

@@ -3,6 +3,7 @@ export { ApiError, fileUrl, readFiles } from "./client";
 export * from "./gallery";
 export * from "./library";
 export * from "./projects";
+export * from "./queries";
 export * from "./settings";
 export * from "./stickers";
 export * from "./system";

@@ -9,6 +9,8 @@ import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
+import { invalidateAll } from "./api";
+import { reloadStickers } from "./stickers";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import {
@@ -70,6 +72,12 @@ export default function App() {
   const go = (t: Tab) => {
     location.hash = `#/${t}`;
   };
+  // 切分頁時重抓伺服器資料：可能剛在別的分頁改過（新增角色、從垃圾桶還原…）。
+  // 頁面都保留在 DOM 裡，所以不用各頁自己判斷「是不是切回來了」
+  useEffect(() => {
+    invalidateAll();
+    reloadStickers().catch(() => {});
+  }, [tab]);
 
   return (
     <div className="flex h-full flex-col">
@@ -116,27 +124,27 @@ export default function App() {
         {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
         <div className={tab === "gen" ? "h-full" : "hidden"}>
           <ErrorBoundary resetKey={tab}>
-            <GenPage onOpenGallery={() => go("gallery")} active={tab === "gen"} />
+            <GenPage onOpenGallery={() => go("gallery")} />
           </ErrorBoundary>
         </div>
         <div className={tab === "stickers" ? "h-full" : "hidden"}>
           <ErrorBoundary resetKey={tab}>
-            <StickersPage active={tab === "stickers"} />
+            <StickersPage />
           </ErrorBoundary>
         </div>
         <div className={tab === "styles" ? "h-full" : "hidden"}>
           <ErrorBoundary resetKey={tab}>
-            <StylesPage active={tab === "styles"} />
+            <StylesPage />
           </ErrorBoundary>
         </div>
         <div className={tab === "characters" ? "h-full" : "hidden"}>
           <ErrorBoundary resetKey={tab}>
-            <CharactersPage active={tab === "characters"} />
+            <CharactersPage />
           </ErrorBoundary>
         </div>
         <div className={tab === "gallery" ? "h-full" : "hidden"}>
           <ErrorBoundary resetKey={tab}>
-            <GalleryPage active={tab === "gallery"} />
+            <GalleryPage />
           </ErrorBoundary>
         </div>
       </main>

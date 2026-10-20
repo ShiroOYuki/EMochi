@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fileUrl,
+  invalidate,
+  keys,
   libCover,
   libImageUrl,
   styleLibApi,
-  type Importable,
+  useImportable,
   type LibStyle,
   type NewLibStyleBody,
   type Upload,
@@ -15,8 +17,8 @@ import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
-export default function StylesPage({ active }: { active: boolean }) {
-  const lib = useLibrary<LibStyle>({ api: styleLibApi, active });
+export default function StylesPage() {
+  const lib = useLibrary<LibStyle>({ api: styleLibApi });
   const style = lib.current === null ? null : lib.selected;
 
   return (
@@ -27,7 +29,6 @@ export default function StylesPage({ active }: { active: boolean }) {
         newLabel="新增畫風"
         heading="畫風庫"
         trashKind="styles"
-        active={active}
         empty="還沒有畫風。上傳範例貼圖讓 Codex 分析，或從現有的畫風專案匯入。"
         row={(s) => {
           const cover = libCover(s);
@@ -56,8 +57,12 @@ export default function StylesPage({ active }: { active: boolean }) {
             <>
               <NewStyle focusKey={lib.newKey} onCreate={(body) => lib.act(() => styleLibApi.create(body))} />
               <ImportSection
-                active={active && lib.current === null}
-                onImport={(project) => lib.act(() => styleLibApi.importProject(project))}
+                enabled={lib.current === null}
+                onImport={async (project) => {
+                  const s = await lib.act(() => styleLibApi.importProject(project));
+                  invalidate(keys.importable); // 匯入過的會標成「已匯入」
+                  return s;
+                }}
               />
             </>
           ) : (
@@ -157,20 +162,13 @@ function NewStyle({
 }
 
 function ImportSection({
-  active,
+  enabled,
   onImport,
 }: {
-  active: boolean;
+  enabled: boolean;
   onImport: (project: string) => Promise<LibStyle | undefined>;
 }) {
-  const [items, setItems] = useState<Importable[]>([]);
-  useEffect(() => {
-    if (active)
-      styleLibApi
-        .importable()
-        .then(setItems)
-        .catch(() => {});
-  }, [active]);
+  const { data: items = [] } = useImportable(enabled);
   if (!items.length) return null;
   return (
     <Section title="從現有的畫風專案匯入">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fileUrl, projectsApi, readFiles, type Character, type Project } from "../../api";
+import { fileUrl, invalidate, keys, projectsApi, readFiles, type Character, type Project } from "../../api";
 import { Modal, Section, Select, Spinner } from "../../components/ui";
 import RefPicker, { type TempRef } from "../../components/RefPicker";
 import { type ViewProps } from "./shared";
@@ -67,6 +67,7 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
     setSaveErr("");
     try {
       setSaved((await projectsApi.toLibrary(p.id)).id);
+      invalidate(keys.styleLib);
     } catch (e) {
       setSaveErr(`存到畫風庫失敗：${(e as Error).message}`);
     } finally {

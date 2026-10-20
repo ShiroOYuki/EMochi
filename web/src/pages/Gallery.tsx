@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { fileUrl, galleryApi, type GalleryStyle } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import { fileUrl, useGallery, type GalleryStyle } from "../api";
 import { Modal, ScrollRow, Select } from "../components/ui";
 import { useStored } from "../hooks/useStored";
 import { useViewTransition } from "../hooks/useViewTransition";
@@ -15,8 +15,10 @@ import {
 } from "./gallery/useGalleryFilters";
 
 /** 圖庫：上方篩選（角色、畫風、組別），中間卡片（並排比較時依表情分組），右側勾選／匯出面板 */
-export default function GalleryPage({ active }: { active: boolean }) {
-  const [allStyles, setStyles] = useState<GalleryStyle[]>([]);
+const NO_STYLES: GalleryStyle[] = []; // 固定同一個陣列，useMemo 才不會每次重算
+
+export default function GalleryPage() {
+  const { data: allStyles = NO_STYLES, refetch } = useGallery();
   const {
     mode,
     setMode,
@@ -38,10 +40,7 @@ export default function GalleryPage({ active }: { active: boolean }) {
   const [open, setOpen] = useState<number | null>(null);
   const { withTransition, vtName } = useViewTransition();
 
-  const reload = useCallback(async () => setStyles(await galleryApi.list()), []);
-  useEffect(() => {
-    if (active) reload();
-  }, [active, reload]);
+  const reload = () => refetch();
 
   const select = (keys: string[], on: boolean) => {
     const next = new Set(selectedKeys);

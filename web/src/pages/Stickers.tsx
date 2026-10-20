@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { stickersApi, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
@@ -13,7 +13,7 @@ type Drag = { id: number; from: number | null };
 type Over = { gid: number; index: number } | { pool: true } | null;
 
 /** 表情分頁：左邊是所有表情，右邊是分組；把小卡拖進分組，Gen 的挑選步驟就能一次勾一組 */
-export default function StickersPage({ active }: { active: boolean }) {
+export default function StickersPage() {
   const { active: list, groups, deleted, loaded } = useStickers();
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
@@ -25,10 +25,6 @@ export default function StickersPage({ active }: { active: boolean }) {
   const drag = useRef<Drag | null>(null);
   const [over, setOver] = useState<Over>(null);
   const [menu, openMenu] = useContextMenu();
-  // 切回這頁就重抓（可能剛在 Gen 新增過表情）
-  useEffect(() => {
-    if (active) reloadStickers().catch(() => {});
-  }, [active]);
 
   const save = (next: StickerGroup[]) => {
     setErr("");

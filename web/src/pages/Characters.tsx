@@ -6,7 +6,7 @@ import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
 
 /** 角色庫：每個角色是一個資料夾（characters/<id>/refs/ + character.json） */
-export default function CharactersPage({ active }: { active: boolean }) {
+export default function CharactersPage() {
   // 刪除前先查有哪些專案用到這個角色，提醒一下
   const deleteWarn = useCallback(async (c: Character) => {
     const used = await projectsApi
@@ -17,7 +17,7 @@ export default function CharactersPage({ active }: { active: boolean }) {
       ? `${used.join("、")} 用到這個角色；刪除後這些專案重新生成時會找不到角色圖（還原後就恢復）。`
       : undefined;
   }, []);
-  const lib = useLibrary<Character>({ api: charactersApi, active, deleteWarn });
+  const lib = useLibrary<Character>({ api: charactersApi, deleteWarn });
   const char = lib.current === null ? null : lib.selected;
 
   return (
@@ -28,7 +28,6 @@ export default function CharactersPage({ active }: { active: boolean }) {
         newLabel="新增角色"
         heading="角色"
         trashKind="characters"
-        active={active}
         row={(c) => {
           const cover = c.images.find((i) => i.use)?.file ?? c.images[0]?.file;
           return {

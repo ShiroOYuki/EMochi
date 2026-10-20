@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { readFiles, type CharImage, type RefLibraryApi, type Upload } from "../api";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  invalidate,
+  keys,
+  readFiles,
+  useRefLibrary,
+  type CharImage,
+  type RefLibraryApi,
+  type Upload,
+} from "../api";
 import { DropZone } from "./ui";
 import { MenuIcons, useContextMenu, type MenuItem } from "./ContextMenu";
 import { SideDeleteIcon } from "./DeleteButton";
@@ -14,31 +22,25 @@ type Item = { id: string; updated: string; images: CharImage[]; error?: string }
 /** 清單、目前選取、act（執行後重新整理並切過去）、刪除流程 */
 export function useLibrary<T extends Item>({
   api,
-  active,
   deleteWarn,
 }: {
   /** charactersApi 或 styleLibApi */
   api: RefLibraryApi<T>;
-  active: boolean;
   /** 刪除前要提醒的話（例如哪些專案用到這個角色）；沒有就回傳 undefined */
   deleteWarn?: (item: T) => Promise<ReactNode | undefined>;
 }) {
-  const [list, setList] = useState<T[]>([]);
+  const { data: list = [] } = useRefLibrary(api);
   const [current, setCurrent] = useState<string | null>(null); // null = 新增
   const [newKey, setNewKey] = useState(0); // 每按一次「新增」+1，讓表單聚焦
   const [err, setErr] = useState("");
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
-  const [trashKey, setTrashKey] = useState(0);
+  const load = () => invalidate(api.key);
 
-  const load = useCallback(async () => {
-    const l = await api.list();
-    setList(l);
-    return l;
-  }, [api]);
+  // 第一次載入：還沒選任何一筆、也沒按過「新增」→ 選第一筆
+  const firstId = list[0]?.id;
   useEffect(() => {
-    if (!active) return;
-    load().then((l) => setCurrent((c) => (c === null && l.length && newKey === 0 ? l[0].id : c)));
-  }, [active, load, newKey]);
+    if (firstId && newKey === 0) setCurrent((c) => c ?? firstId);
+  }, [firstId, newKey]);
 
   /** 執行後重新整理清單並切到回傳的那筆；回傳帶 error（例如分析失敗）時仍切過去並顯示錯誤 */
   const act = async (fn: () => Promise<T>) => {
@@ -57,9 +59,8 @@ export function useLibrary<T extends Item>({
     setToDelete({ id: x.id, title, warn: await deleteWarn?.(x) });
   const doDelete = async (id: string) => {
     await api.remove(id);
-    setTrashKey((k) => k + 1);
-    const l = await load();
-    if (current === id) setCurrent(l[0]?.id ?? null);
+    await invalidate(api.key, keys.trashAll);
+    if (current === id) setCurrent(list.find((x) => x.id !== id)?.id ?? null);
   };
   const startNew = () => {
     setCurrent(null);
@@ -80,7 +81,6 @@ export function useLibrary<T extends Item>({
     doDelete,
     toDelete,
     setToDelete,
-    trashKey,
   };
 }
 
@@ -94,7 +94,6 @@ export function LibrarySidebar<T extends Item>({
   heading,
   empty,
   trashKind,
-  active,
   row,
 }: {
   lib: Lib<T>;
@@ -103,7 +102,6 @@ export function LibrarySidebar<T extends Item>({
   heading: string;
   empty?: ReactNode;
   trashKind: "characters" | "styles";
-  active: boolean;
   row: (x: T) => { title: string; sub: ReactNode; cover?: string };
 }) {
   const [menu, openMenu] = useContextMenu();
@@ -168,8 +166,6 @@ export function LibrarySidebar<T extends Item>({
       />
       <TrashButton
         kind={trashKind}
-        active={active}
-        refreshKey={lib.trashKey}
         onRestored={(id) => {
           lib.load();
           lib.setCurrent(id);

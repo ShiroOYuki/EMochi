@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BUSY,
-  charactersApi,
+  invalidate,
+  keys,
   projectsApi,
-  styleLibApi,
-  type Character,
-  type LibStyle,
+  queryClient,
+  useCharacters,
+  useProject,
+  useProjects,
+  useStyleLib,
   type Project,
-  type ProjectList,
   type ProjectSummary,
 } from "../api";
 import { Spinner, StatusBadge } from "../components/ui";
@@ -21,72 +23,41 @@ import { onOpenProject } from "../notify";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
 
-export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () => void; active: boolean }) {
-  const [list, setList] = useState<ProjectList | null>(null);
+export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }) {
   const [current, setCurrent] = useState<string | null>(null); // null = 新增貼圖
-  const [project, setProject] = useState<Project | null>(null);
+  const { data: project = null } = useProject(current); // 執行中會自動輪詢
+  const busy = !!project && BUSY.includes(project.status);
+  const { data: list } = useProjects(busy);
+  const { data: chars = [] } = useCharacters();
+  const { data: libs = [] } = useStyleLib();
   const { all: stickers } = useStickers(); // 含已刪除的（舊專案的組別還要顯示名稱）
   const [err, setErr] = useState("");
   const [newKey, setNewKey] = useState(0); // 每按一次「新增貼圖」+1，讓表單聚焦並閃一下
-  const [chars, setChars] = useState<Character[]>([]);
-  // 切回這頁就重抓角色（可能剛在「角色」分頁新增或改過）
-  const [libs, setLibs] = useState<LibStyle[]>([]);
-  // 切回這頁就重抓角色和畫風庫（可能剛在其他分頁新增或改過）
-  useEffect(() => {
-    if (!active) return;
-    charactersApi
-      .list()
-      .then(setChars)
-      .catch(() => {});
-    styleLibApi
-      .list()
-      .then(setLibs)
-      .catch(() => {});
-  }, [active]);
 
-  const [trashKey, setTrashKey] = useState(0); // 刪除後 +1，讓右下角垃圾桶重抓數量
-  const loadList = useCallback(async () => setList(await projectsApi.list()), []);
-  const loadProject = useCallback(async (id: string) => setProject(await projectsApi.get(id)), []);
-
-  // 切回這頁就重抓專案清單（可能剛在別的分頁從垃圾桶還原）
-  useEffect(() => {
-    if (active) loadList();
-  }, [active, loadList]);
-  useEffect(() => {
-    setProject(null);
-    setErr("");
-    if (current) loadProject(current);
-  }, [current, loadProject]);
+  useEffect(() => setErr(""), [current]);
   // 點桌面通知：打開那個專案（已經開著就重抓一次，馬上看到最新狀態）
   useEffect(
     () =>
       onOpenProject((id) => {
         setCurrent(id);
-        loadProject(id).catch(() => {});
-        loadList();
+        invalidate(keys.project(id), keys.projects);
       }),
-    [loadProject, loadList],
+    [],
   );
-
-  // 執行中時輪詢
-  const busy = project && BUSY.includes(project.status);
+  // 收尾完成（變成 done）→ 圖庫、畫風庫的「可匯入」清單多了東西
+  const status = project?.status;
   useEffect(() => {
-    if (!busy || !current) return;
-    const t = setInterval(() => {
-      loadProject(current);
-      loadList();
-    }, 2500);
-    return () => clearInterval(t);
-  }, [busy, current, loadProject, loadList]);
+    if (status === "done") invalidate(keys.gallery, keys.importable);
+  }, [status]);
 
-  /** 呼叫會改變專案狀態的 API，成功後更新畫面 */
+  /** 呼叫會改變專案狀態的 API：成功後把回傳的專案放進快取（畫面立刻更新），清單重抓 */
   const act = async (fn: () => Promise<Project>) => {
     setErr("");
     try {
       const p = await fn();
-      setProject(p);
+      queryClient.setQueryData(keys.project(p.id), p);
       setCurrent(p.id);
-      loadList();
+      invalidate(keys.projects);
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -103,8 +74,7 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
   const doDelete = async (id: string) => {
     await projectsApi.remove(id);
     if (current === id) setCurrent(null);
-    setTrashKey((k) => k + 1);
-    loadList();
+    invalidate(keys.projects, keys.trashAll, keys.gallery);
   };
   const [menu, openMenu] = useContextMenu();
   const menuFor = (p: ProjectSummary): MenuItem[] => [
@@ -175,10 +145,8 @@ export default function GenPage({ onOpenGallery, active }: { onOpenGallery: () =
         <DeleteConfirm target={toDelete} noun="專案" onConfirm={doDelete} onClose={() => setToDelete(null)} />
         <TrashButton
           kind="projects"
-          active={active}
-          refreshKey={trashKey}
           onRestored={(id) => {
-            loadList();
+            invalidate(keys.projects, keys.gallery);
             setCurrent(id);
           }}
         />
