@@ -109,7 +109,7 @@ def recover_interrupted() -> None:
         for g in p.get("groups", []):
             if g.get("status") == "running":
                 g.update(status="failed", message="伺服器重啟，執行被中斷")
-        if p.get("preview", {}).get("status") == "running":
+        if (p.get("preview") or {}).get("status") == "running":   # 舊專案（s1～s5）的 preview 是 null
             p["preview"].update(status="failed", message="伺服器重啟，執行被中斷")
         p["status"] = "review" if p.get("groups") else "draft"
         p["error"] = "上次執行被中斷，請重新操作"
@@ -414,6 +414,8 @@ def regenerate_group(style: str, index: int) -> dict:
         if g["status"] in ("pending", "running"):
             raise ValueError("這組還在執行中")
         g.update(status="pending", message="")
+        g.pop("accepted", None)
+        g.pop("rechecked", None)
         p["status"] = "generating"
     p = mutate(style, fn)
     _pool.submit(_run_group, style, index)
@@ -476,26 +478,57 @@ def _finalize(style: str) -> None:
         mutate(style, lambda p: p.update(status="review", error=f"後處理失敗：{e}"))
 
 
+def _failed_item(p: dict, target: str) -> dict:
+    """target = "preview" 或組別編號；只接受目前是失敗的"""
+    if target == "preview":
+        item = p.get("preview")
+        if not item or item.get("status") != "failed":
+            raise ValueError("預覽圖沒有失敗，不需要處理")
+    else:
+        item = _group(p, int(target))
+        if item["status"] != "failed":
+            raise ValueError("這組沒有失敗，不需要處理")
+    return item
+
+
+def _mark_done(p: dict, target: str, item: dict, msg: str) -> None:
+    item.update(status="done", message=msg)
+    if target == "preview" and p["status"] in EDITABLE:
+        p.update(status="preview_ready", error=None)
+
+
 def recheck(style: str, target: str) -> dict:
     """不重新生成，只用目前的檢查規則重新檢查已經存在的圖（例如規則改過、或被誤判失敗）。
-    target = "preview" 或組別編號"""
+    還是沒過時訊息不變，記下 rechecked 時間，前端才看得出有檢查過"""
     def fn(p):
-        if target == "preview":
-            pv = p.get("preview")
-            if not pv or pv.get("status") != "failed":
-                raise ValueError("預覽圖沒有失敗，不需要重新檢查")
-            ok, msg = codex.check_image(data_path(pv["image"]), None, pv["layout"])
-            pv.update(status="done" if ok else "failed", message=msg)
-            if ok and p["status"] in EDITABLE:
-                p.update(status="preview_ready", error=None)
-            elif not ok:
-                p["error"] = f"預覽失敗：{msg}"
+        item = _failed_item(p, target)
+        ok, msg = codex.check_image(data_path(item["image"]), None, item["layout"])
+        item["rechecked"] = now()
+        if ok:
+            _mark_done(p, target, item, msg)
         else:
-            g = _group(p, int(target))
-            if g["status"] != "failed":
-                raise ValueError("這組沒有失敗，不需要重新檢查")
-            ok, msg = codex.check_image(data_path(g["image"]), None, g["layout"])
-            g.update(status="done" if ok else "failed", message=msg)
+            item["message"] = msg
+            if target == "preview":
+                p["error"] = f"預覽失敗：{msg}"
+    return mutate(style, fn)
+
+
+def accept(style: str, target: str) -> dict:
+    """使用者看過圖、判斷沒問題：不管自動檢查的結果，直接當成成功（accepted＝手動通過）。
+    圖檔一定要在、打得開；之後收尾照常切割、去背，重生會清掉這個標記"""
+    def fn(p):
+        item = _failed_item(p, target)
+        path = data_path(item["image"])
+        if not path.exists():
+            raise ValueError("圖檔不存在，只能重新生成")
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                im.load()
+        except Exception as e:  # noqa: BLE001
+            raise ValueError(f"圖檔打不開，只能重新生成：{e}") from None
+        item["accepted"] = True
+        _mark_done(p, target, item, f"手動通過（自動檢查：{item.get('message') or '未通過'}）")
     return mutate(style, fn)
 
 
