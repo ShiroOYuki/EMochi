@@ -10,12 +10,15 @@ margin：四周再留的透明邊（px，含在輸出尺寸裡）；even：輸�
 naming：keep＝沿用原檔名（01_happy_s6.png）；index＝每個畫風依序 01.png、02.png…（LINE 上架要的檔名）
 group：分組（通常是平台名稱，例如 LINE）；匯出時的選單照分組排，空白歸到「其他」
 """
+
 import io
 import re
 import threading
 
 from PIL import Image
 
+from .errors import Invalid
+from .migrations import migrate_presets
 from .paths import BUILTIN_CONFIG, config_dir, read_json, write_json
 
 EXAMPLE = BUILTIN_CONFIG / "export_presets.example.json"
@@ -41,9 +44,7 @@ def load() -> list[dict]:
     items = read_json(file())
     if items is None:
         items = builtin
-    # 舊版存的檔案沒有 group：跟內建同 id 的補上內建的分組（其他的留空＝「其他」）
-    groups = {b["id"]: b.get("group", "") for b in builtin}
-    return [normalize(p if "group" in p else {**p, "group": groups.get(p.get("id"), "")}) for p in items]
+    return [normalize(p) for p in migrate_presets(items, builtin)]
 
 
 def get(pid: str) -> dict | None:
@@ -58,9 +59,9 @@ def _int(v, lo, hi, what) -> int:
     try:
         n = int(v)
     except (TypeError, ValueError):
-        raise ValueError(f"{what}要填整數") from None
+        raise Invalid(f"{what}要填整數") from None
     if not lo <= n <= hi:
-        raise ValueError(f"{what}要在 {lo}～{hi} 之間")
+        raise Invalid(f"{what}要在 {lo}～{hi} 之間")
     return n
 
 
@@ -68,7 +69,7 @@ def normalize(p: dict, *, strict: bool = False) -> dict:
     """整理一組預設集；strict＝畫面送來的，欄位不對就丟 ValueError（讀檔時盡量容錯）"""
     name = str(p.get("name") or "").strip()[:40]
     if strict and not name:
-        raise ValueError("預設集要有名稱")
+        raise Invalid("預設集要有名稱")
     sizes = []
     for s in p.get("sizes") or []:
         w = _int(s.get("w"), MIN_PX, MAX_PX, "寬度")
@@ -77,10 +78,10 @@ def normalize(p: dict, *, strict: bool = False) -> dict:
             sizes.append({"w": w, "h": h})
     if not sizes:
         if strict:
-            raise ValueError(f"「{name or '預設集'}」至少要有一個尺寸")
+            raise Invalid(f"「{name or '預設集'}」至少要有一個尺寸")
         sizes = [{"w": 128, "h": 128}]
     if len(sizes) > MAX_SIZES:
-        raise ValueError(f"一組最多 {MAX_SIZES} 個尺寸")
+        raise Invalid(f"一組最多 {MAX_SIZES} 個尺寸")
     mode = p.get("mode") if p.get("mode") in MODES else "fit"
     smallest = min(min(s["w"], s["h"]) for s in sizes)
     margin = _int(p.get("margin") or 0, 0, max(0, smallest // 4), "邊距")
@@ -89,10 +90,19 @@ def normalize(p: dict, *, strict: bool = False) -> dict:
     pid = _slug(p.get("id") or name) or "preset"
     folder = _slug(p.get("folder") or pid) or pid
     group = str(p.get("group") or "").strip()[:20]
-    return {"id": pid, "name": name or pid, "group": group, "folder": folder, "sizes": sizes, "mode": mode, "margin": margin,
-            "even": bool(p.get("even")), "max_kb": max_kb,
-            "naming": p.get("naming") if p.get("naming") in NAMINGS else "keep",
-            "note": str(p.get("note") or "").strip()[:200]}
+    return {
+        "id": pid,
+        "name": name or pid,
+        "group": group,
+        "folder": folder,
+        "sizes": sizes,
+        "mode": mode,
+        "margin": margin,
+        "even": bool(p.get("even")),
+        "max_kb": max_kb,
+        "naming": p.get("naming") if p.get("naming") in NAMINGS else "keep",
+        "note": str(p.get("note") or "").strip()[:200],
+    }
 
 
 def save(items: list[dict]) -> list[dict]:
@@ -100,9 +110,9 @@ def save(items: list[dict]) -> list[dict]:
     for raw in items:
         p = normalize(raw, strict=True)
         if p["id"] in seen_id:
-            raise ValueError(f"預設集代號重複：{p['id']}")
+            raise Invalid(f"預設集代號重複：{p['id']}")
         if p["folder"] in seen_folder:
-            raise ValueError(f"資料夾名稱重複：{p['folder']}（zip 裡會撞在一起）")
+            raise Invalid(f"資料夾名稱重複：{p['folder']}（zip 裡會撞在一起）")
         seen_id.add(p["id"])
         seen_folder.add(p["folder"])
         out.append(p)
@@ -126,6 +136,7 @@ def custom(raw: dict) -> dict:
 
 
 # ---------- 輸出 ----------
+
 
 def out_size(size: dict, mode: str, even: bool, src: tuple[int, int] = (512, 512)) -> tuple[int, int]:
     """這個尺寸實際輸出的寬高"""

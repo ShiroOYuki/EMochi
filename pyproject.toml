@@ -17,6 +17,16 @@ dependencies = [
 [tool.uv]
 package = false
 
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["archive", "outputs", "exports", "logs"]
+
+[tool.ruff.lint]
+# E/W：pycodestyle、F：pyflakes、I：import 排序、B：bugbear、UP：新語法
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501"]   # 行長交給 formatter；中文註解、長字串折不了的就讓它長
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "tests"]
@@ -27,4 +37,5 @@ desktop = ["pyinstaller>=6.11"]   # 桌面版打包後端（desktop/emochi-serve
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]

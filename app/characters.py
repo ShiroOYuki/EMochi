@@ -8,16 +8,19 @@ character.json
 
 參考圖的檔名與流水號規則見 reflib.py（和畫風庫共用）。
 """
+
 import json
 import re
 
 from . import codex
+from .errors import Invalid
 from .images import move_to_removed, save_png
-from .paths import outputs_dir, characters_dir, codex_path, read_json, write_json
+from .migrations import migrate_character
+from .paths import characters_dir, codex_path, outputs_dir, read_json, write_json
 from .reflib import STD_RE, RefLibrary, now
 
 # lambda：每次用到才查模組裡的 *_dir（設定改路徑、測試 monkeypatch 都會跟著變）
-_lib = RefLibrary(lambda: characters_dir(), "character.json", "characters", "c")
+_lib = RefLibrary(lambda: characters_dir(), "character.json", "characters", "c", migrate_character)
 _lock = _lib.lock
 refs_dir, get, list_all, _save, _take_name = _lib.refs_dir, _lib.get, _lib.list_all, _lib.save, _lib.take_name
 add_images, remove_image, delete = _lib.add_images, _lib.remove_image, _lib.delete
@@ -45,10 +48,17 @@ def has_ears(c: dict) -> bool:
 
 def create(name: str, files: list[tuple[str, bytes]]) -> dict:
     if not name.strip():
-        raise ValueError("請輸入角色名稱")
+        raise Invalid("請輸入角色名稱")
     with _lock:
-        c = {"id": _lib.new_id(), "name": name.strip(), "identity": "", "notes_zh": "", "images": [],
-             "next_index": 1, "created": now()}
+        c = {
+            "id": _lib.new_id(),
+            "name": name.strip(),
+            "identity": "",
+            "notes_zh": "",
+            "images": [],
+            "next_index": 1,
+            "created": now(),
+        }
         _lib.store(c, files)
         return _save(c)
 
@@ -61,7 +71,7 @@ def update(cid: str, fields: dict) -> dict:
                 c[k] = fields[k]
         if "ears" in fields:
             c["ears"] = None if fields["ears"] is None else bool(fields["ears"])
-        if "use" in fields:   # {file: bool}
+        if "use" in fields:  # {file: bool}
             _lib.apply_use(c, fields["use"])
         return _save(c)
 
@@ -76,7 +86,11 @@ def normalize_names() -> dict[str, dict[str, str]]:
             known = {i["file"] for i in c["images"]}
             # 資料夾裡有、json 沒記錄的圖也收進來（預設不勾）
             for f in sorted(refs_dir(c["id"]).glob("*")):
-                if f.is_file() and f.name not in known and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                if (
+                    f.is_file()
+                    and f.name not in known
+                    and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+                ):
                     c["images"].append({"file": f.name, "use": False})
             for i in c["images"]:
                 if STD_RE.match(i["file"]):
@@ -86,7 +100,7 @@ def normalize_names() -> dict[str, dict[str, str]]:
                 new = _take_name(c)
                 if src.suffix.lower() == ".png":
                     src.replace(refs_dir(c["id"]) / new)
-                else:   # jpg/webp → 轉 PNG，原檔移到 _removed/
+                else:  # jpg/webp → 轉 PNG，原檔移到 _removed/
                     save_png(src.read_bytes(), refs_dir(c["id"]), old, exact=new)
                     move_to_removed(src)
                 i.update(file=new, source=i.get("source") or old)
@@ -105,8 +119,8 @@ def _rewrite_references(renamed: dict[str, dict[str, str]]) -> None:
     def path_map(p: str) -> str:
         for cid, m in renamed.items():
             prefix = f"characters/{cid}/refs/"
-            if p.startswith(prefix) and p[len(prefix):] in m:
-                return prefix + m[p[len(prefix):]]
+            if p.startswith(prefix) and p[len(prefix) :] in m:
+                return prefix + m[p[len(prefix) :]]
         return p
 
     for f in outputs_dir().glob("*/project.json"):
@@ -137,7 +151,8 @@ def rel_paths(cid: str, files: list[str] | None = None) -> list[str]:
 # ---------- 讓 Codex 看圖寫角色特徵 ----------
 
 DESCRIBE_SCHEMA = {
-    "type": "object", "additionalProperties": False,
+    "type": "object",
+    "additionalProperties": False,
     "required": ["identity", "ears", "notes_zh"],
     "properties": {
         "identity": {"type": "string"},
@@ -150,9 +165,9 @@ DESCRIBE_SCHEMA = {
 def describe(cid: str) -> dict:
     c = get(cid)
     if not c or not c["images"]:
-        raise ValueError("請先上傳角色圖片")
+        raise Invalid("請先上傳角色圖片")
     imgs = rel_paths(cid, [i["file"] for i in c["images"]])
-    prompt = f"""Look at the attached reference images of ONE original character named "{c['name']}".
+    prompt = f"""Look at the attached reference images of ONE original character named "{c["name"]}".
 Do not run any tools and do not generate images. Answer only with the JSON required by the output schema.
 
 `identity`: ONE English sentence starting with "Character identity to keep:" that lists only the stable, visible traits an
@@ -168,4 +183,6 @@ the viewer's), and the key outfit color/neckwear. Max ~45 words, concrete colors
     schema.write_text(json.dumps(DESCRIBE_SCHEMA), encoding="utf-8")
     answer = codex.run_text(prompt, schema, codex.log_path_for("characters", f"{cid}_describe"), images=imgs)
     data = json.loads(answer)
-    return update(cid, {"identity": data["identity"], "notes_zh": data.get("notes_zh", ""), "ears": data.get("ears")})
+    return update(
+        cid, {"identity": data["identity"], "notes_zh": data.get("notes_zh", ""), "ears": data.get("ears")}
+    )

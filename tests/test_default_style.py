@@ -1,4 +1,5 @@
 """內建範例畫風：全新安裝才放進畫風庫；已經有畫風庫（或使用者刪掉了）就不動"""
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 
 def test_seed_only_on_fresh_install(monkeypatch):
     from app import settings, style_lib
+
     ext = Path(tempfile.mkdtemp(prefix="emochi_lib_")) / "style_lib"
     monkeypatch.setattr(style_lib, "style_lib_dir", lambda: ext)
     assert style_lib.seed_defaults() == ["st1"]
@@ -20,7 +22,9 @@ def test_seed_only_on_fresh_install(monkeypatch):
 
 def test_builtin_example_is_valid():
     import json
+
     from app.style_lib import BUILTIN_STYLES
+
     d = json.loads((BUILTIN_STYLES / "st1" / "style.json").read_text(encoding="utf-8"))
     assert d["id"] == "st1" and d["framing"] in ("closeup", "whole")
     assert all((BUILTIN_STYLES / "st1" / "refs" / i["file"]).is_file() for i in d["images"])

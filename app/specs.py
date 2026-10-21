@@ -8,6 +8,7 @@
 平台改規定時只要改 SPECS。
 匯出改用預設集（presets.py）後，大小上限由每組預設集自己帶，壓縮共用 compress()。
 """
+
 import io
 from dataclasses import dataclass
 
@@ -17,8 +18,8 @@ from PIL import Image
 @dataclass(frozen=True)
 class Spec:
     label: str
-    size: tuple[int, int] | None   # None＝不檢查尺寸
-    max_bytes: int | None          # None＝不限
+    size: tuple[int, int] | None  # None＝不檢查尺寸
+    max_bytes: int | None  # None＝不限
 
 
 SPECS: dict[str, Spec] = {
@@ -26,7 +27,7 @@ SPECS: dict[str, Spec] = {
     "t56": Spec("Twitch 56", (56, 56), 1024 * 1024),
     "t28": Spec("Twitch 28", (28, 28), 1024 * 1024),
     "discord": Spec("Discord", None, 256 * 1024),
-    "master": Spec("Master 512", None, None),   # 備份用的母版，不上傳平台
+    "master": Spec("Master 512", None, None),  # 備份用的母版，不上傳平台
 }
 
 
@@ -74,5 +75,7 @@ def compress(data: bytes, label: str, max_bytes: int | None) -> tuple[bytes, lis
     q = im.convert("RGBA").quantize(colors=256, method=Image.Quantize.FASTOCTREE)
     out2 = _png(q, optimize=True)
     if len(out2) <= max_bytes:
-        return out2, [f"{_kb(len(data))} 超過 {label} 上限 {limit}，已降為 256 色壓縮到 {_kb(len(out2))}（有損）"]
+        return out2, [
+            f"{_kb(len(data))} 超過 {label} 上限 {limit}，已降為 256 色壓縮到 {_kb(len(out2))}（有損）"
+        ]
     return data, [f"{_kb(len(data))} 超過 {label} 上限 {limit}，壓縮後仍有 {_kb(len(out2))}，請手動處理"]

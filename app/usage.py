@@ -6,20 +6,21 @@
   取最新一筆，所以只有 Codex 跑過之後才會更新（在別處用 Codex 也算）。
   --ephemeral 的文字任務不會留 session 檔，不影響。
 """
+
 import json
 import os
 import re
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _TOKENS_RE = re.compile(r"tokens used\s*[:\n]\s*([\d,]+)", re.I)
 _tok_cache: dict[str, tuple[float, int | None]] = {}
 _rl_cache: dict = {"at": 0.0, "data": None}
 _lock = threading.Lock()
-RL_TTL = 10          # 秒；前端每 30 秒問一次，避免多分頁重複掃檔
-SCAN_FILES = 30      # 只看最新的幾個 session 檔
+RL_TTL = 10  # 秒；前端每 30 秒問一次，避免多分頁重複掃檔
+SCAN_FILES = 30  # 只看最新的幾個 session 檔
 TAIL_BYTES = 512 * 1024
 
 
@@ -68,9 +69,11 @@ def _window(w: dict | None, event_ts: float | None) -> dict | None:
     resets = _ts(w.get("resets_at"))
     if resets is None and w.get("resets_in_seconds") is not None and event_ts is not None:
         resets = event_ts + float(w["resets_in_seconds"])
-    return {"used_percent": float(w["used_percent"]),
-            "window_minutes": w.get("window_minutes"),
-            "resets_at": resets}
+    return {
+        "used_percent": float(w["used_percent"]),
+        "window_minutes": w.get("window_minutes"),
+        "resets_at": resets,
+    }
 
 
 def _find_rate_limits(path: Path) -> dict | None:
@@ -81,7 +84,7 @@ def _find_rate_limits(path: Path) -> dict | None:
             f.seek(max(0, size - tail))
             lines = f.read().decode("utf-8", errors="replace").splitlines()
         if tail < size:
-            lines = lines[1:]      # 第一行可能被切一半
+            lines = lines[1:]  # 第一行可能被切一半
         for line in reversed(lines):
             if '"rate_limits"' not in line:
                 continue
@@ -96,8 +99,13 @@ def _find_rate_limits(path: Path) -> dict | None:
             ets = _ts(o.get("timestamp")) or path.stat().st_mtime
             prim, sec = _window(rl.get("primary"), ets), _window(rl.get("secondary"), ets)
             if prim or sec:
-                return {"primary": prim, "secondary": sec, "plan_type": rl.get("plan_type"),
-                        "updated": ets, "source": path.name}
+                return {
+                    "primary": prim,
+                    "secondary": sec,
+                    "plan_type": rl.get("plan_type"),
+                    "updated": ets,
+                    "source": path.name,
+                }
         if tail >= size:
             break
     return None
@@ -119,15 +127,21 @@ def _expire(data: dict, now: float) -> dict:
 def rate_limits(force: bool = False) -> dict:
     """force=True：跳過快取重新掃（Navbar 的刷新按鈕）"""
     data = _scan(force)
-    return _expire(data, datetime.now(timezone.utc).timestamp())
+    return _expire(data, datetime.now(UTC).timestamp())
 
 
 def _scan(force: bool) -> dict:
     with _lock:
         if not force and time.time() - _rl_cache["at"] < RL_TTL and _rl_cache["data"] is not None:
             return _rl_cache["data"]
-        data = {"available": False, "primary": None, "secondary": None, "plan_type": None,
-                "updated": None, "message": ""}
+        data = {
+            "available": False,
+            "primary": None,
+            "secondary": None,
+            "plan_type": None,
+            "updated": None,
+            "message": "",
+        }
         root = codex_home() / "sessions"
         try:
             files = sorted(root.rglob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)[:SCAN_FILES]

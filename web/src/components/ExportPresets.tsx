@@ -3,12 +3,21 @@ import { Popover } from "radix-ui";
 import type { ExportPreset } from "../api";
 import { groupPresets, OTHER_GROUP, resetPresets, savePresets, sizeText, usePresets } from "../exportPresets";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { TrashIcon } from "./manage";
+import { TrashIcon } from "./icons";
 import { Check, Modal } from "./ui";
 
 const blank = (n: number, group = ""): ExportPreset => ({
-  id: `preset_${n}`, name: "新預設集", group, folder: `preset_${n}`, sizes: [{ w: 128, h: 128 }],
-  mode: "fit", margin: 0, even: false, max_kb: null, naming: "keep", note: "",
+  id: `preset_${n}`,
+  name: "新預設集",
+  group,
+  folder: `preset_${n}`,
+  sizes: [{ w: 128, h: 128 }],
+  mode: "fit",
+  margin: 0,
+  even: false,
+  max_kb: null,
+  naming: "keep",
+  note: "",
 });
 
 /** 一組預設集的摘要：尺寸、上限 */
@@ -17,11 +26,19 @@ export function presetSummary(p: Pick<ExportPreset, "sizes" | "max_kb" | "mode">
 }
 
 /** 打開預設集管理視窗的按鈕（匯出面板、設定頁共用） */
-export function ManagePresetsButton({ className = "btn btn-sm", children = "管理…" }: { className?: string; children?: ReactNode }) {
+export function ManagePresetsButton({
+  className = "btn btn-sm",
+  children = "管理…",
+}: {
+  className?: string;
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className={className} onClick={() => setOpen(true)}>{children}</button>
+      <button className={className} onClick={() => setOpen(true)}>
+        {children}
+      </button>
       <PresetManager open={open} onClose={() => setOpen(false)} />
     </>
   );
@@ -31,51 +48,116 @@ export function ManagePresetsButton({ className = "btn btn-sm", children = "管�
 
 /** 分組欄位：可以自己打字，也可以從已有的分組挑（groups 不含正在編輯的這一筆，不然打一個字就會整串都比對到自己）。
  *  不用原生 <datalist>：它的下拉清單是瀏覽器畫的，樣式、深色主題都改不了；這裡外觀和 Select 一致 */
-function GroupInput({ value, onChange, groups }: { value: string; onChange: (v: string) => void; groups: string[] }) {
+function GroupInput({
+  value,
+  onChange,
+  groups,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  groups: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const k = value.trim().toLowerCase();
   // 打的字剛好等於某個分組（例如剛選完）時列出全部，方便改選別組
-  const list = !k || groups.some((g) => g.toLowerCase() === k) ? groups : groups.filter((g) => g.toLowerCase().includes(k));
+  const list =
+    !k || groups.some((g) => g.toLowerCase() === k)
+      ? groups
+      : groups.filter((g) => g.toLowerCase().includes(k));
   const show = open && list.length > 0;
-  const pick = (g: string) => { onChange(g); setOpen(false); };
-  useEffect(() => { setHi(Math.max(0, list.indexOf(value.trim()))); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (g: string) => {
+    onChange(g);
+    setOpen(false);
+  };
+  useEffect(() => {
+    setHi(Math.max(0, list.indexOf(value.trim())));
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Popover.Root open={show} onOpenChange={setOpen}>
       <Popover.Anchor asChild>
         <div className="group relative mt-1">
-          <input ref={inputRef} className="input pr-8" maxLength={20} placeholder={OTHER_GROUP} value={value}
-            role="combobox" aria-expanded={show} aria-autocomplete="list"
-            onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(0); }}
-            onFocus={() => setOpen(true)} onClick={() => setOpen(true)}
+          <input
+            ref={inputRef}
+            className="input pr-8"
+            maxLength={20}
+            placeholder={OTHER_GROUP}
+            value={value}
+            role="combobox"
+            aria-expanded={show}
+            aria-autocomplete="list"
+            onChange={(e) => {
+              onChange(e.target.value);
+              setOpen(true);
+              setHi(0);
+            }}
+            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                 e.preventDefault();
-                if (!show) { setOpen(true); return; }
+                if (!show) {
+                  setOpen(true);
+                  return;
+                }
                 const d = e.key === "ArrowDown" ? 1 : -1;
                 setHi((h) => (h + d + list.length) % list.length);
-              } else if (e.key === "Enter" && show) { e.preventDefault(); pick(list[Math.min(hi, list.length - 1)]); }
-              else if (e.key === "Escape" && show) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
-              else if (e.key === "Tab") setOpen(false);
-            }} />
-          <button type="button" tabIndex={-1} aria-label="列出分組" disabled={groups.length === 0}
+              } else if (e.key === "Enter" && show) {
+                e.preventDefault();
+                pick(list[Math.min(hi, list.length - 1)]);
+              } else if (e.key === "Escape" && show) {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+              } else if (e.key === "Tab") setOpen(false);
+            }}
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="列出分組"
+            disabled={groups.length === 0}
             className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-mute hover:text-acc disabled:opacity-40 disabled:hover:text-mute"
-            onMouseDown={(e) => e.preventDefault()} onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}>
-            <ChevronDownIcon className={"size-4 transition-transform duration-200 " + (show ? "rotate-180 text-acc" : "")} />
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setOpen((o) => !o);
+              inputRef.current?.focus();
+            }}
+          >
+            <ChevronDownIcon
+              className={"size-4 transition-transform duration-200 " + (show ? "rotate-180 text-acc" : "")}
+            />
           </button>
         </div>
       </Popover.Anchor>
       <Popover.Portal>
-        <Popover.Content side="bottom" align="start" sideOffset={6} collisionPadding={8}
+        <Popover.Content
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={8}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          onInteractOutside={(e) => { if (inputRef.current?.parentElement?.contains(e.target as Node)) e.preventDefault(); }}
-          className="select-pop z-[60] w-(--radix-popover-trigger-width) origin-(--radix-popover-content-transform-origin) rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
+          onInteractOutside={(e) => {
+            if (inputRef.current?.parentElement?.contains(e.target as Node)) e.preventDefault();
+          }}
+          className="select-pop z-[60] w-(--radix-popover-trigger-width) origin-(--radix-popover-content-transform-origin) rounded-2xl border border-line bg-panel p-1.5 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none"
+        >
           <div role="listbox" className="scroll-inset-sm max-h-60 overflow-y-auto">
             {list.map((g, i) => (
-              <div key={g} role="option" aria-selected={g === value.trim()}
-                className={"relative flex cursor-pointer select-none items-center rounded-xl py-1.5 pr-3 pl-8 transition-colors duration-100 " + (i === hi ? "bg-panel2 " : "") + (g === value.trim() ? "text-acc" : "")}
-                onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(g)}>
+              <div
+                key={g}
+                role="option"
+                aria-selected={g === value.trim()}
+                className={
+                  "relative flex cursor-pointer select-none items-center rounded-xl py-1.5 pr-3 pl-8 transition-colors duration-100 " +
+                  (i === hi ? "bg-panel2 " : "") +
+                  (g === value.trim() ? "text-acc" : "")
+                }
+                onMouseEnter={() => setHi(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(g)}
+              >
                 {g === value.trim() && <CheckIcon className="absolute left-2.5 size-3.5" strokeWidth={2.5} />}
                 <span className="truncate">{g}</span>
               </div>
@@ -94,35 +176,64 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  useEffect(() => { if (open) { setDraft(structuredClone(presets)); setCur(0); setErr(""); } }, [open, presets]);
+  useEffect(() => {
+    if (open) {
+      setDraft(structuredClone(presets));
+      setCur(0);
+      setErr("");
+    }
+  }, [open, presets]);
   const listRef = useRef<HTMLDivElement>(null);
   // 新增、複製後選中的是最後一組：左邊清單捲過去，才看得到正在編輯哪一組
-  useEffect(() => { listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" }); }, [cur, draft.length]);
+  useEffect(() => {
+    listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+  }, [cur, draft.length]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(presets);
   const p = draft[cur];
-  const edit = (patch: Partial<ExportPreset>) => setDraft((d) => d.map((x, i) => (i === cur ? { ...x, ...patch } : x)));
-  const nextN = () => { let n = draft.length + 1; while (draft.some((x) => x.id === `preset_${n}`)) n++; return n; };
+  const edit = (patch: Partial<ExportPreset>) =>
+    setDraft((d) => d.map((x, i) => (i === cur ? { ...x, ...patch } : x)));
+  const nextN = () => {
+    let n = draft.length + 1;
+    while (draft.some((x) => x.id === `preset_${n}`)) n++;
+    return n;
+  };
 
   const save = async () => {
-    setBusy(true); setErr("");
-    try { await savePresets(draft); onClose(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+    setBusy(true);
+    setErr("");
+    try {
+      await savePresets(draft);
+      onClose();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Modal open={open} onClose={() => !busy && onClose()} wide label="匯出預設集">
       <div className="mb-4 flex items-baseline gap-3">
         <h3 className="text-lg">匯出預設集</h3>
-        <span className="text-xs text-mute">每組＝一個平台要的尺寸與檔案大小上限；圖庫匯出時勾選要用哪幾組</span>
+        <span className="text-xs text-mute">
+          每組＝一個平台要的尺寸與檔案大小上限；圖庫匯出時勾選要用哪幾組
+        </span>
       </div>
       <div className="flex min-h-[420px] gap-5">
         <div className="flex w-60 shrink-0 flex-col gap-2">
           <div ref={listRef} className="scroll-inset-sm max-h-[52vh] flex-1 space-y-1 overflow-y-auto pr-1">
             {groupPresets(draft.map((x, i) => ({ ...x, i }))).map(({ group, items }) => (
               <div key={group}>
-                <div className="sticky top-0 z-[1] bg-panel px-1 pt-2 pb-1 text-[11px] text-mute">{group}</div>
+                <div className="sticky top-0 z-[1] bg-panel px-1 pt-2 pb-1 text-[11px] text-mute">
+                  {group}
+                </div>
                 {items.map((x) => (
-                  <button key={x.i} onClick={() => setCur(x.i)} aria-current={x.i === cur}
-                    className={`block w-full rounded-xl border px-3 py-2 text-left transition ${x.i === cur ? "border-acc bg-panel2" : "border-transparent hover:bg-panel2/70"}`}>
+                  <button
+                    key={x.i}
+                    onClick={() => setCur(x.i)}
+                    aria-current={x.i === cur}
+                    className={`block w-full rounded-xl border px-3 py-2 text-left transition ${x.i === cur ? "border-acc bg-panel2" : "border-transparent hover:bg-panel2/70"}`}
+                  >
                     <div className="truncate text-sm">{x.name || "（未命名）"}</div>
                     <div className="truncate text-[11px] text-mute">{presetSummary(x)}</div>
                   </button>
@@ -131,28 +242,83 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn btn-sm" onClick={() => { setDraft((d) => [...d, blank(nextN(), p?.group ?? "")]); setCur(draft.length); }}>＋ 新增</button>
-            <button className="btn btn-sm" disabled={!p} onClick={() => {
-              const n = nextN();
-              setDraft((d) => [...d, { ...structuredClone(p), id: `preset_${n}`, folder: `${p.folder}_${n}`, name: `${p.name}（複製）` }]);
-              setCur(draft.length);
-            }}>複製</button>
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setDraft((d) => [...d, blank(nextN(), p?.group ?? "")]);
+                setCur(draft.length);
+              }}
+            >
+              ＋ 新增
+            </button>
+            <button
+              className="btn btn-sm"
+              disabled={!p}
+              onClick={() => {
+                const n = nextN();
+                setDraft((d) => [
+                  ...d,
+                  {
+                    ...structuredClone(p),
+                    id: `preset_${n}`,
+                    folder: `${p.folder}_${n}`,
+                    name: `${p.name}（複製）`,
+                  },
+                ]);
+                setCur(draft.length);
+              }}
+            >
+              複製
+            </button>
           </div>
-          <button className="btn btn-sm text-bad hover:border-bad hover:text-bad" disabled={!p}
-            onClick={() => { setDraft((d) => d.filter((_, i) => i !== cur)); setCur((c) => Math.max(0, c - 1)); }}>刪除這組</button>
+          <button
+            className="btn btn-sm text-bad hover:border-bad hover:text-bad"
+            disabled={!p}
+            onClick={() => {
+              setDraft((d) => d.filter((_, i) => i !== cur));
+              setCur((c) => Math.max(0, c - 1));
+            }}
+          >
+            刪除這組
+          </button>
         </div>
 
         {p ? (
           <div className="min-w-0 flex-1 space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <label className="label">名稱<input className="input mt-1" maxLength={40} value={p.name} onChange={(e) => edit({ name: e.target.value })} /></label>
-              <label className="label">分組（例如平台名稱；空白＝{OTHER_GROUP}）
-                <GroupInput value={p.group} onChange={(group) => edit({ group })}
-                  groups={[...new Set(draft.filter((_, i) => i !== cur).map((x) => x.group.trim()).filter(Boolean))]} />
+              <label className="label">
+                名稱
+                <input
+                  className="input mt-1"
+                  maxLength={40}
+                  value={p.name}
+                  onChange={(e) => edit({ name: e.target.value })}
+                />
               </label>
-              <label className="label">zip 裡的資料夾名稱（英數、_、-）
-                <input className="input mt-1 font-mono" maxLength={40} value={p.folder}
-                  onChange={(e) => edit({ folder: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") })} /></label>
+              <label className="label">
+                分組（例如平台名稱；空白＝{OTHER_GROUP}）
+                <GroupInput
+                  value={p.group}
+                  onChange={(group) => edit({ group })}
+                  groups={[
+                    ...new Set(
+                      draft
+                        .filter((_, i) => i !== cur)
+                        .map((x) => x.group.trim())
+                        .filter(Boolean),
+                    ),
+                  ]}
+                />
+              </label>
+              <label className="label">
+                zip 裡的資料夾名稱（英數、_、-）
+                <input
+                  className="input mt-1 font-mono"
+                  maxLength={40}
+                  value={p.folder}
+                  onChange={(e) => edit({ folder: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") })}
+                />
+              </label>
             </div>
 
             <div>
@@ -160,90 +326,221 @@ export function PresetManager({ open, onClose }: { open: boolean; onClose: () =>
               <div className="flex flex-wrap gap-2">
                 {p.sizes.map((s, i) => (
                   <div key={i} className="flex items-center gap-1 rounded-xl bg-panel2 px-2 py-1">
-                    <input className="input !w-20 !px-2 !py-1 text-center" type="number" min={8} max={2048} value={s.w}
-                      onChange={(e) => edit({ sizes: p.sizes.map((x, j) => (j === i ? { ...x, w: +e.target.value } : x)) })} aria-label="寬" />
+                    <input
+                      className="input !w-20 !px-2 !py-1 text-center"
+                      type="number"
+                      min={8}
+                      max={2048}
+                      value={s.w}
+                      onChange={(e) =>
+                        edit({ sizes: p.sizes.map((x, j) => (j === i ? { ...x, w: +e.target.value } : x)) })
+                      }
+                      aria-label="寬"
+                    />
                     <span className="text-mute">×</span>
-                    <input className="input !w-20 !px-2 !py-1 text-center" type="number" min={8} max={2048} value={s.h}
-                      onChange={(e) => edit({ sizes: p.sizes.map((x, j) => (j === i ? { ...x, h: +e.target.value } : x)) })} aria-label="高" />
+                    <input
+                      className="input !w-20 !px-2 !py-1 text-center"
+                      type="number"
+                      min={8}
+                      max={2048}
+                      value={s.h}
+                      onChange={(e) =>
+                        edit({ sizes: p.sizes.map((x, j) => (j === i ? { ...x, h: +e.target.value } : x)) })
+                      }
+                      aria-label="高"
+                    />
                     {/* 用垃圾桶圖示，不用 ✕：放在「寬 × 高」旁邊會被看成乘號 */}
-                    <button className="ml-1 grid size-7 place-items-center rounded-full text-mute transition hover:bg-bad/10 hover:text-bad disabled:pointer-events-none disabled:opacity-30"
-                      disabled={p.sizes.length <= 1} aria-label="移除這個尺寸" title={p.sizes.length <= 1 ? "至少要留一個尺寸" : "移除這個尺寸"}
-                      onClick={() => edit({ sizes: p.sizes.filter((_, j) => j !== i) })}><TrashIcon size={14} /></button>
+                    <button
+                      className="ml-1 grid size-7 place-items-center rounded-full text-mute transition hover:bg-bad/10 hover:text-bad disabled:pointer-events-none disabled:opacity-30"
+                      disabled={p.sizes.length <= 1}
+                      aria-label="移除這個尺寸"
+                      title={p.sizes.length <= 1 ? "至少要留一個尺寸" : "移除這個尺寸"}
+                      onClick={() => edit({ sizes: p.sizes.filter((_, j) => j !== i) })}
+                    >
+                      <TrashIcon size={14} />
+                    </button>
                   </div>
                 ))}
-                {p.sizes.length < 8 && <button className="btn btn-sm" onClick={() => edit({ sizes: [...p.sizes, { w: 128, h: 128 }] })}>＋ 尺寸</button>}
+                {p.sizes.length < 8 && (
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => edit({ sizes: [...p.sizes, { w: 128, h: 128 }] })}
+                  >
+                    ＋ 尺寸
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <span className="label">縮放方式</span>
-                <Seg value={p.mode} onChange={(mode) => edit({ mode })}
-                  options={[["fit", "等比縮進框內"], ["canvas", "固定畫布，置中補透明"]]} />
-                <p className="mt-1 text-[11px] text-mute">{p.mode === "fit" ? "輸出縮好的大小（正方形貼圖 → 邊長取寬高較小者）" : "輸出剛好是寬×高，例如 LINE 聊天室標籤 96×74"}</p>
+                <Seg
+                  value={p.mode}
+                  onChange={(mode) => edit({ mode })}
+                  options={[
+                    ["fit", "等比縮進框內"],
+                    ["canvas", "固定畫布，置中補透明"],
+                  ]}
+                />
+                <p className="mt-1 text-[11px] text-mute">
+                  {p.mode === "fit"
+                    ? "輸出縮好的大小（正方形貼圖 → 邊長取寬高較小者）"
+                    : "輸出剛好是寬×高，例如 LINE 聊天室標籤 96×74"}
+                </p>
               </div>
               <div>
                 <span className="label">檔名</span>
-                <Seg value={p.naming} onChange={(naming) => edit({ naming })}
-                  options={[["keep", "保留原檔名"], ["index", "序號 01.png…"]]} />
-                <p className="mt-1 text-[11px] text-mute">{p.naming === "index" ? "每個畫風依貼圖編號排成 01.png、02.png…（LINE 上架用）" : "01_happy_s6.png（加上畫風與版本標記）"}</p>
+                <Seg
+                  value={p.naming}
+                  onChange={(naming) => edit({ naming })}
+                  options={[
+                    ["keep", "保留原檔名"],
+                    ["index", "序號 01.png…"],
+                  ]}
+                />
+                <p className="mt-1 text-[11px] text-mute">
+                  {p.naming === "index"
+                    ? "每個畫風依貼圖編號排成 01.png、02.png…（LINE 上架用）"
+                    : "01_happy_s6.png（加上畫風與版本標記）"}
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <label className="label">四周留白（px）
-                <input className="input mt-1" type="number" min={0} max={256} value={p.margin} onChange={(e) => edit({ margin: Math.max(0, +e.target.value) })} /></label>
-              <label className="label">檔案大小上限（KB，選填）
-                <input className="input mt-1" type="number" min={1} max={20480} placeholder="不限" value={p.max_kb ?? ""}
-                  onChange={(e) => edit({ max_kb: e.target.value === "" ? null : Math.max(1, +e.target.value) })} /></label>
-              <div className="label">尺寸取偶數
-                <label className="mt-2.5 flex items-center gap-2 text-sm text-text"><Check checked={p.even} onCheckedChange={(even) => edit({ even })} />寬高都調成偶數（LINE）</label>
+              <label className="label">
+                四周留白（px）
+                <input
+                  className="input mt-1"
+                  type="number"
+                  min={0}
+                  max={256}
+                  value={p.margin}
+                  onChange={(e) => edit({ margin: Math.max(0, +e.target.value) })}
+                />
+              </label>
+              <label className="label">
+                檔案大小上限（KB，選填）
+                <input
+                  className="input mt-1"
+                  type="number"
+                  min={1}
+                  max={20480}
+                  placeholder="不限"
+                  value={p.max_kb ?? ""}
+                  onChange={(e) =>
+                    edit({ max_kb: e.target.value === "" ? null : Math.max(1, +e.target.value) })
+                  }
+                />
+              </label>
+              <div className="label">
+                尺寸取偶數
+                <label className="mt-2.5 flex items-center gap-2 text-sm text-text">
+                  <Check checked={p.even} onCheckedChange={(even) => edit({ even })} />
+                  寬高都調成偶數（LINE）
+                </label>
               </div>
             </div>
-            <p className="text-[11px] text-mute">超過大小上限時會先無損壓縮，還是太大就降成 256 色；都不行會在匯出結果裡提醒。</p>
+            <p className="text-[11px] text-mute">
+              超過大小上限時會先無損壓縮，還是太大就降成 256 色；都不行會在匯出結果裡提醒。
+            </p>
 
-            <label className="label">說明（選填，例如平台規範）
-              <textarea className="input mt-1 h-16 resize-none" maxLength={200} value={p.note} onChange={(e) => edit({ note: e.target.value })} /></label>
+            <label className="label">
+              說明（選填，例如平台規範）
+              <textarea
+                className="input mt-1 h-16 resize-none"
+                maxLength={200}
+                value={p.note}
+                onChange={(e) => edit({ note: e.target.value })}
+              />
+            </label>
           </div>
-        ) : <p className="flex-1 py-10 text-center text-mute">沒有預設集，按「＋ 新增」建立一組</p>}
+        ) : (
+          <p className="flex-1 py-10 text-center text-mute">沒有預設集，按「＋ 新增」建立一組</p>
+        )}
       </div>
 
       {err && <p className="mt-3 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
       <div className="mt-4 flex items-center gap-2 border-t border-line/60 pt-4">
-        <button className="btn btn-sm" disabled={busy} onClick={() => setConfirmReset(true)} title={custom ? "" : "目前就是內建預設集"}>還原內建預設集</button>
+        <button
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={() => setConfirmReset(true)}
+          title={custom ? "" : "目前就是內建預設集"}
+        >
+          還原內建預設集
+        </button>
         <span className="ml-auto" />
-        <button className="btn" disabled={busy} onClick={onClose}>{dirty ? "取消" : "關閉"}</button>
-        <button className="btn btn-primary" disabled={!dirty || busy} onClick={save}>儲存</button>
+        <button className="btn" disabled={busy} onClick={onClose}>
+          {dirty ? "取消" : "關閉"}
+        </button>
+        <button className="btn btn-primary" disabled={!dirty || busy} onClick={save}>
+          儲存
+        </button>
       </div>
 
       <Modal open={confirmReset} onClose={() => setConfirmReset(false)} label="還原內建預設集">
         <h3 className="mb-2 text-lg">還原成內建預設集？</h3>
-        <p className="mb-5 text-sm text-mute">你新增或修改的預設集會被換回內建的那 13 組。原本的檔案會改名成 export_presets.json.bak 留在設定檔資料夾。</p>
+        <p className="mb-5 text-sm text-mute">
+          你新增或修改的預設集會被換回內建的那 13 組。原本的檔案會改名成 export_presets.json.bak
+          留在設定檔資料夾。
+        </p>
         <div className="flex justify-end gap-2">
-          <button className="btn" onClick={() => setConfirmReset(false)}>取消</button>
-          <button className="btn btn-primary" onClick={async () => {
-            setConfirmReset(false); setBusy(true);
-            try { await resetPresets(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
-          }}>還原</button>
+          <button className="btn" onClick={() => setConfirmReset(false)}>
+            取消
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={async () => {
+              setConfirmReset(false);
+              setBusy(true);
+              try {
+                await resetPresets();
+              } catch (e) {
+                setErr((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            還原
+          </button>
         </div>
       </Modal>
     </Modal>
   );
 }
 
-function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: [T, string][] }) {
+function Seg<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: [T, string][];
+}) {
   return (
     <div className="mt-1 flex w-fit items-center rounded-full bg-panel2 p-0.5 text-xs" role="radiogroup">
       {options.map(([v, label]) => (
-        <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(v)}
-          className={`rounded-full px-3 py-1 transition ${value === v ? "bg-panel text-text shadow-[var(--shadow-soft)]" : "text-mute hover:text-text"}`}>{label}</button>
+        <button
+          key={v}
+          role="radio"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`rounded-full px-3 py-1 transition ${value === v ? "bg-panel text-text shadow-[var(--shadow-soft)]" : "text-mute hover:text-text"}`}
+        >
+          {label}
+        </button>
       ))}
     </div>
   );
 }
 
 const XIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+  <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+    <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
 );
 
 /** 匯出面板：只列出已選的預設集（標籤），完整清單收在「＋ 選擇」彈出選單（搜尋、依分組、整組勾選）。
@@ -254,69 +551,110 @@ export function PresetPicker({ chosen, onChange }: { chosen: string[]; onChange:
   const picked = presets.filter((p) => chosen.includes(p.id));
   const groups = useMemo(() => {
     const k = q.trim().toLowerCase();
-    const hit = (p: ExportPreset) => !k || [p.name, p.group, p.note, p.sizes.map(sizeText).join(" ")].join(" ").toLowerCase().includes(k);
+    const hit = (p: ExportPreset) =>
+      !k || [p.name, p.group, p.note, p.sizes.map(sizeText).join(" ")].join(" ").toLowerCase().includes(k);
     return groupPresets(presets.filter(hit));
   }, [presets, q]);
   const toggle = (id: string, on: boolean) => onChange(on ? [...chosen, id] : chosen.filter((x) => x !== id));
-  const toggleGroup = (ids: string[], on: boolean) => onChange(on ? [...new Set([...chosen, ...ids])] : chosen.filter((x) => !ids.includes(x)));
+  const toggleGroup = (ids: string[], on: boolean) =>
+    onChange(on ? [...new Set([...chosen, ...ids])] : chosen.filter((x) => !ids.includes(x)));
 
   return (
     <div className="space-y-2">
       {/* 「＋ 選擇」自己一行、固定不動；已選的標籤從下一行開始排（放在標籤後面的話，每多勾一組按鈕就被擠走，彈出選單跟著跑） */}
       <div className="flex items-center gap-2">
-      <Popover.Root onOpenChange={(o) => { if (!o) setQ(""); }}>
-        <Popover.Trigger asChild>
-          <button className="btn btn-sm">＋ 選擇</button>
-        </Popover.Trigger>
-        <Popover.Portal>
-          {/* 往左開：匯出面板在畫面最右邊，往下開會蓋住剛加上的標籤 */}
-          <Popover.Content side="left" align="start" sideOffset={14} collisionPadding={8}
-            className="select-pop z-[60] w-80 rounded-2xl border border-line bg-panel p-2 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none">
-            <input className="input mb-2 !py-1" autoFocus placeholder="搜尋名稱、平台、尺寸…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <div className="scroll-inset-sm max-h-[min(24rem,60vh)] overflow-y-auto pr-1">
-              {groups.length === 0 && <p className="px-2 py-4 text-center text-xs text-mute">沒有符合的預設集</p>}
-              {groups.map(({ group, items }) => {
-                const ids = items.map((p) => p.id);
-                const all = ids.every((id) => chosen.includes(id));
-                return (
-                  <div key={group} className="mb-1">
-                    <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
-                      <span className="text-[11px] text-mute">{group}</span>
-                      {items.length > 1 && (
-                        <button className="text-[11px] text-acc hover:underline" onClick={() => toggleGroup(ids, !all)}>{all ? "整組取消" : "整組勾選"}</button>
-                      )}
+        <Popover.Root
+          onOpenChange={(o) => {
+            if (!o) setQ("");
+          }}
+        >
+          <Popover.Trigger asChild>
+            <button className="btn btn-sm">＋ 選擇</button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            {/* 往左開：匯出面板在畫面最右邊，往下開會蓋住剛加上的標籤 */}
+            <Popover.Content
+              side="left"
+              align="start"
+              sideOffset={14}
+              collisionPadding={8}
+              className="select-pop z-[60] w-80 rounded-2xl border border-line bg-panel p-2 text-sm text-text shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] outline-none"
+            >
+              <input
+                className="input mb-2 !py-1"
+                autoFocus
+                placeholder="搜尋名稱、平台、尺寸…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <div className="scroll-inset-sm max-h-[min(24rem,60vh)] overflow-y-auto pr-1">
+                {groups.length === 0 && (
+                  <p className="px-2 py-4 text-center text-xs text-mute">沒有符合的預設集</p>
+                )}
+                {groups.map(({ group, items }) => {
+                  const ids = items.map((p) => p.id);
+                  const all = ids.every((id) => chosen.includes(id));
+                  return (
+                    <div key={group} className="mb-1">
+                      <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
+                        <span className="text-[11px] text-mute">{group}</span>
+                        {items.length > 1 && (
+                          <button
+                            className="text-[11px] text-acc hover:underline"
+                            onClick={() => toggleGroup(ids, !all)}
+                          >
+                            {all ? "整組取消" : "整組勾選"}
+                          </button>
+                        )}
+                      </div>
+                      {items.map((p) => (
+                        <label
+                          key={p.id}
+                          className="flex cursor-pointer items-start gap-2 rounded-xl px-2 py-1.5 hover:bg-panel2"
+                          title={p.note || undefined}
+                        >
+                          <Check
+                            className="mt-0.5"
+                            checked={chosen.includes(p.id)}
+                            onCheckedChange={(v) => toggle(p.id, v)}
+                          />
+                          <span className="min-w-0">
+                            <span className="block">{p.name}</span>
+                            <span className="block truncate text-[11px] text-mute">{presetSummary(p)}</span>
+                          </span>
+                        </label>
+                      ))}
                     </div>
-                    {items.map((p) => (
-                      <label key={p.id} className="flex cursor-pointer items-start gap-2 rounded-xl px-2 py-1.5 hover:bg-panel2" title={p.note || undefined}>
-                        <Check className="mt-0.5" checked={chosen.includes(p.id)} onCheckedChange={(v) => toggle(p.id, v)} />
-                        <span className="min-w-0">
-                          <span className="block">{p.name}</span>
-                          <span className="block truncate text-[11px] text-mute">{presetSummary(p)}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-1 border-t border-line/60 px-2 pt-2 text-[11px] text-mute">已選 {picked.length} 組；要新增或修改尺寸請按「管理預設集…」</div>
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-      {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
+                  );
+                })}
+              </div>
+              <div className="mt-1 border-t border-line/60 px-2 pt-2 text-[11px] text-mute">
+                已選 {picked.length} 組；要新增或修改尺寸請按「管理預設集…」
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+        {loaded && picked.length === 0 && <span className="text-xs text-mute">還沒選預設集</span>}
       </div>
       {picked.length > 0 && (
-      <div className="flex flex-wrap gap-1.5">
-      {picked.map((p) => (
-        <span key={p.id} title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
-          className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs">
-          {p.name}
-          <button className="grid size-4 place-items-center rounded-full text-mute hover:bg-panel hover:text-bad" aria-label={`不要匯出 ${p.name}`} onClick={() => toggle(p.id, false)}>
-            <XIcon />
-          </button>
-        </span>
-      ))}
-      </div>
+        <div className="flex flex-wrap gap-1.5">
+          {picked.map((p) => (
+            <span
+              key={p.id}
+              title={`${presetSummary(p)}${p.note ? `\n${p.note}` : ""}`}
+              className="inline-flex items-center gap-1 rounded-full bg-pink-soft py-0.5 pr-1 pl-2.5 text-xs"
+            >
+              {p.name}
+              <button
+                className="grid size-4 place-items-center rounded-full text-mute hover:bg-panel hover:text-bad"
+                aria-label={`不要匯出 ${p.name}`}
+                onClick={() => toggle(p.id, false)}
+              >
+                <XIcon />
+              </button>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );

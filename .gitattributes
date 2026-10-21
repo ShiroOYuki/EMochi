@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.bat text eol=crlf
 *.png binary
+# 前端 build 產物（npm run build 輸出）：留在版控讓網頁版免裝 Node 就能跑，
+# 但標成自動產生：GitHub 不算進語言統計、PR 預設摺疊，git diff 不展開內容
+app/static/** linguist-generated=true -diff

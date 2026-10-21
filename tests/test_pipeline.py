@@ -1,9 +1,10 @@
 """網格切割：3×2 合成網格 → 6 格去背；空格回傳 None；process_grid 輸出各尺寸"""
+
 import numpy as np
+from conftest import make_grid
 from PIL import Image
 
 from app import pipeline
-from conftest import make_grid
 
 PROCESS = {"tol": 70, "soft": 60, "choke": 1, "min_blob": 0.0003, "square": None, "margin": 0.04}
 

@@ -1,4 +1,5 @@
 """專案路徑與設定檔讀寫"""
+
 import json
 import os
 import re
@@ -31,8 +32,10 @@ STATIC = APP_ROOT / "app" / "static"
 
 # ---------- 可在設定頁改位置的資料夾（每次呼叫都讀最新設定，改了立即生效） ----------
 
+
 def _dir(key: str) -> Path:
-    from .settings import dir_of   # settings 會 import paths，放這裡避免循環
+    from .settings import dir_of  # settings 會 import paths，放這裡避免循環
+
     return dir_of(key)
 
 
@@ -105,7 +108,12 @@ def outside_root(p: Path) -> bool:
 
 
 # /files/<前綴>/... 的前綴 → 實際資料夾。網址固定用這些前綴，資料夾搬到哪都不用改前端
-URL_BASES = {"outputs": outputs_dir, "exports": exports_dir, "characters": characters_dir, "style_lib": style_lib_dir}
+URL_BASES = {
+    "outputs": outputs_dir,
+    "exports": exports_dir,
+    "characters": characters_dir,
+    "style_lib": style_lib_dir,
+}
 
 
 def url_path(p: Path) -> str | None:
@@ -128,6 +136,7 @@ def from_url(path: str) -> Path | None:
     p = (base / rest).resolve()
     return p if base in p.parents else None
 
+
 _lock = threading.Lock()
 
 
@@ -148,6 +157,7 @@ def write_json(path: Path, data) -> None:
 
 # ---------- 貼圖清單 ----------
 
+
 def load_stickers() -> list[dict]:
     """config/stickers.json 是本地資料（不進版控）；還沒有的話用 stickers.example.json（基礎 32 種）。
     第一次在網頁上新增／編輯／刪除表情時才寫出 stickers.json"""
@@ -166,6 +176,7 @@ def slugify(text: str) -> str:
 
 # ---------- 專案編號 ----------
 
+
 def next_style_id() -> str:
     out = outputs_dir()
     used = {p.name for p in out.iterdir() if p.is_dir()} if out.exists() else set()
@@ -173,6 +184,7 @@ def next_style_id() -> str:
     logs = logs_dir()
     used |= {p.name for p in logs.iterdir() if p.is_dir()} if logs.exists() else set()
     from .trash import reserved_ids
+
     used |= reserved_ids("projects")
     n = 1
     while f"s{n}" in used:
