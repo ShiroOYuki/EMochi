@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from .. import schemas as S
 from .. import stickers as sticker_mod
 from ..paths import load_stickers
-from ._shared import OUT
+from ._shared import OUT, Upload, _decode
 
 router = APIRouter()
 
@@ -53,6 +53,28 @@ class ExpandSticker(BaseModel):
 def expand_sticker(body: ExpandSticker):
     """讓 Codex 把一句話擴寫成表情設定（同步，約 10~30 秒）；只回傳建議，不存檔"""
     return sticker_mod.expand(body.idea, body.model_dump())
+
+
+class AnalyzeSticker(ExpandSticker):
+    image: Upload
+
+
+@router.post("/api/stickers/analyze", response_model=S.StickerDraft, **OUT)
+def analyze_sticker(body: AnalyzeSticker):
+    """表情分析：Codex 看範例圖填表情設定（同步，約 20~40 秒）；只回傳建議，範例圖要另外存（PUT example）"""
+    ((_, raw, _),) = _decode([body.image])
+    return sticker_mod.expand(body.idea, body.model_dump(exclude={"image"}), image=raw)
+
+
+@router.put("/api/stickers/{sid}/example", response_model=S.Sticker, **OUT)
+def put_sticker_example(sid: int, body: Upload):
+    ((_, raw, _),) = _decode([body])
+    return sticker_mod.set_example(sid, raw)
+
+
+@router.delete("/api/stickers/{sid}/example", response_model=S.Sticker, **OUT)
+def delete_sticker_example(sid: int):
+    return sticker_mod.remove_example(sid)
 
 
 @router.patch("/api/stickers/{sid}", response_model=S.Sticker, **OUT)

@@ -2,7 +2,7 @@
 import { http } from "./client";
 import type { Body } from "./requests";
 import type { components } from "./schema";
-import type { Sticker, StickerGroup } from "./types";
+import type { Sticker, StickerGroup, Upload } from "./types";
 
 /** align："bottom"＝切圖時貼齊底部；null＝置中 */
 export type StickerBody = Omit<Body<"NewSticker">, "group_id">;
@@ -19,6 +19,11 @@ export const stickersApi = {
   restore: (id: number) => http.post(`/api/stickers/${id}/restore`),
   /** Codex 把一句中文想法擴寫成表情的名稱與 prompt */
   expand: (body: Body<"ExpandSticker">) => http.post<StickerDraft>("/api/stickers/expand", body),
+  /** 表情分析：Codex 看範例圖填表情設定（範例圖不會存，要另外 setExample） */
+  analyze: (body: Body<"AnalyzeSticker">) => http.post<StickerDraft>("/api/stickers/analyze", body),
+  /** 存／換掉表情的範例圖（表情分析、小卡縮圖用） */
+  setExample: (id: number, image: Upload) => http.put<Sticker>(`/api/stickers/${id}/example`, image),
+  removeExample: (id: number) => http.del<Sticker>(`/api/stickers/${id}/example`),
 
   groups: () => http.get<StickerGroup[]>("/api/sticker-groups"),
   /** 整份分組存回去，回傳後端整理過的版本 */
