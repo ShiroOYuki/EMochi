@@ -298,6 +298,19 @@ ipcMain.handle("open-logs", async () => {
   await shell.openPath(dir);
   return dir;
 });
+// 設定頁「重新啟動」：有 Codex 在生成時先回報數量讓前端確認（force＝確認過了）；
+// 自己停掉後端再 relaunch（app.exit 不會觸發 will-quit 的收尾）
+ipcMain.handle("relaunch", async (_e, force) => {
+  let running = 0;
+  try { running = (await health()).codex_running; } catch { /* 後端沒回應就直接重開 */ }
+  if (running > 0 && !force) return { ok: false, running };
+  quitting = true;
+  saveBounds();
+  await stopServer();
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
+});
 ipcMain.on("win-is-maximized", (e) => { e.returnValue = !!win?.isMaximized(); });
 ipcMain.on("win", (_e, action) => {
   if (!win) return;

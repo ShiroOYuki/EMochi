@@ -21,6 +21,7 @@ import {
   type Permission,
 } from "../notify";
 import { AboutUpdates } from "./Updates";
+import { RelaunchButton } from "./Relaunch";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
 import { hasSponsors, SponsorLinks } from "./Sponsor";
@@ -319,6 +320,14 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             {desktop && (
               <Group title="關於">
                 <AboutUpdates />
+                {desktop.relaunch && (
+                  <Field
+                    label="重新啟動"
+                    hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
+                  >
+                    <RelaunchButton />
+                  </Field>
+                )}
               </Group>
             )}
 
