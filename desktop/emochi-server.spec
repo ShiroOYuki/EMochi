@@ -11,7 +11,8 @@ a = Analysis(
     [str(ROOT / "desktop" / "server_entry.py")],
     pathex=[str(ROOT)],
     datas=[(str(ROOT / "app" / "static"), "app/static"), *CONFIG,
-           (str(ROOT / "config" / "style_lib.example"), "config/style_lib.example")],   # 內建範例畫風（含圖）
+           (str(ROOT / "config" / "style_lib.example"), "config/style_lib.example"),   # 內建範例畫風（含圖）
+           (str(ROOT / "config" / "sticker_examples.example"), "config/sticker_examples.example")],   # 內建表情 #1～32 的預設範例圖
     hiddenimports=["scipy.ndimage"],
     excludes=["tkinter", "_tkinter", "rembg", "onnxruntime", "matplotlib", "pytest", "IPython"],
     noarchive=False,

@@ -114,6 +114,7 @@ URL_BASES = {
     "characters": characters_dir,
     "style_lib": style_lib_dir,
     "sticker_examples": lambda: config_dir() / "sticker_examples",  # 表情範例圖（stickers.examples_dir）
+    "sticker_examples_default": lambda: BUILTIN_CONFIG / "sticker_examples.example",  # 內建表情的預設範例圖
 }
 
 

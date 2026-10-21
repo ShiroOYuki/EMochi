@@ -2299,6 +2299,8 @@ export interface components {
             example?: string | null;
             /** Example V */
             example_v?: number | null;
+            /** Default Example */
+            default_example?: string | null;
         };
         /**
          * StickerDraft
@@ -2359,7 +2361,7 @@ export interface components {
         };
         /**
          * StickerThumb
-         * @description 表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝範例圖、latest＝圖庫最新成品
+         * @description 表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝自己放的範例圖、default＝內建預設範例圖、latest＝圖庫最新成品
          */
         StickerThumb: {
             /** Id */
@@ -2368,7 +2370,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "example" | "latest";
+            kind: "example" | "default" | "latest";
             /** Path */
             path: string;
             /** V */

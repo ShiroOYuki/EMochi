@@ -207,16 +207,40 @@ def test_thumbs(client, data_root):
     png(new / "twitch" / "112" / "01_happy.png", T + 2_000)
     png(old / "master" / "03_cry.png", T + 1_500)
     fresh = client.post("/api/stickers", json={"label": "No Thumb Yet", "prompt": "x"}).json()
+    made = client.post(
+        "/api/stickers", json={"label": "Made One", "prompt": "x"}
+    ).json()  # 自訂表情：沒有預設圖
+    png(new / "master" / f"{made['id']:02d}_made_one.png", T + 3_000)
     by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
-    assert by_id[1] == {
-        "id": 1,
+    # 內建 #1～32：預設範例圖優先於生成的成品
+    assert by_id[1] == {"id": 1, "kind": "default", "path": "sticker_examples_default/1.png", "v": 0}
+    assert by_id[3]["kind"] == "default"
+    # 自訂表情（#33 起）：用最新成品
+    assert by_id[made["id"]] == {
+        "id": made["id"],
         "kind": "latest",
-        "path": "outputs/t_new/final/twitch/112/01_happy.png",
-        "v": T + 2000,
+        "path": f"outputs/t_new/final/master/{made['id']:02d}_made_one.png",
+        "v": T + 3000,
     }
-    assert by_id[3]["path"] == "outputs/t_old/final/master/03_cry.png"
     assert fresh["id"] not in by_id
     client.put("/api/stickers/3/example", json={"data": _png_data_url()})
     by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
     assert by_id[3]["kind"] == "example" and by_id[3]["path"] == "sticker_examples/3.png"
     assert client.get(f"/files/{by_id[1]['path']}").status_code == 200
+    assert client.get(f"/files/{by_id[made['id']]['path']}").status_code == 200
+    # API 告訴前端有沒有預設圖；拿掉自己的範例圖後縮圖回到預設
+    listed = {s["id"]: s for s in client.get("/api/stickers").json()}
+    assert listed[1]["default_example"] == "1.png" and "default_example" not in listed[made["id"]]
+    client.delete("/api/stickers/3/example")
+    assert {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}[3]["kind"] == "default"
+
+
+def test_default_examples_bundled():
+    """內建 #1～32 都有預設範例圖，打包設定也有帶到"""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parent.parent
+    assert sorted(int(p.stem) for p in (repo / "config" / "sticker_examples.example").glob("*.png")) == list(
+        range(1, 33)
+    )
+    assert "sticker_examples.example" in (repo / "desktop" / "emochi-server.spec").read_text(encoding="utf-8")
