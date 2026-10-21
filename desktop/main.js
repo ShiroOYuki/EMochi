@@ -171,35 +171,46 @@ function splash() {
     font:15px "Microsoft JhengHei UI","Microsoft JhengHei",sans-serif;user-select:none;cursor:default}
   .wrap{display:flex;flex-direction:column;align-items:center;gap:14px;animation:fade .4s ease-out both}
   .stage{position:relative;width:96px;height:92px}
-  .ears{position:absolute;left:12px;top:6px;width:72px;height:53px;transform-origin:50% 100%;
-    animation:hop 1.1s cubic-bezier(.3,.7,.4,1) infinite}
+  /* 彈跳拆成兩層：.jump 管上下（上升減速、下降加速，中間不停頓），.ears 管落地／起跳時的擠壓；
+     緩動寫在各個影格裡（只寫在 animation 上的話每一段都會減速到停，看起來一頓一頓的） */
+  .jump{position:absolute;left:12px;top:6px;width:72px;height:53px;will-change:transform;animation:jump 1.2s infinite}
+  .ears{display:block;width:100%;height:100%;transform-origin:50% 100%;will-change:transform;animation:squash 1.2s infinite}
   .shadow{position:absolute;left:24px;bottom:4px;width:48px;height:9px;border-radius:50%;background:${c.shadow};
-    animation:shadow 1.1s cubic-bezier(.3,.7,.4,1) infinite}
+    will-change:transform,opacity;animation:shadow 1.2s infinite}
   h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.5px}
   .status{color:${c.mute};font-size:13px;display:flex;align-items:baseline;gap:1px}
-  .dot{display:inline-block;animation:dot 1.2s ease-in-out infinite}
+  .dot{display:inline-block;animation:dot 1.2s infinite}
   .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
   .bar{width:120px;height:4px;border-radius:4px;background:${c.track};overflow:hidden}
-  .bar i{display:block;width:40%;height:100%;border-radius:4px;background:${c.acc};animation:slide 1.4s ease-in-out infinite}
-  @keyframes hop{
-    0%,100%{transform:translateY(0) scale(1.12,.86)}
-    18%{transform:translateY(-4px) scale(.92,1.1)}
-    45%{transform:translateY(-22px) scale(.97,1.04)}
-    70%{transform:translateY(-4px) scale(1,1)}
-    85%{transform:translateY(0) scale(1.1,.88)}}
-  @keyframes shadow{0%,85%,100%{transform:scaleX(1);opacity:1}45%{transform:scaleX(.6);opacity:.5}}
-  @keyframes dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+  .bar i{display:block;width:40%;height:100%;border-radius:4px;background:${c.acc};will-change:transform;animation:slide 1.6s cubic-bezier(.45,0,.55,1) infinite}
+  @keyframes jump{
+    0%{transform:translateY(0);animation-timing-function:cubic-bezier(.2,.6,.35,1)}
+    42%{transform:translateY(-26px);animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+    80%,100%{transform:translateY(0)}}
+  @keyframes squash{
+    0%{transform:scale(.93,1.08);animation-timing-function:ease-out}
+    22%{transform:scale(1,1)}
+    72%{transform:scale(1,1);animation-timing-function:ease-in}
+    80%{transform:scale(1.16,.84);animation-timing-function:ease-out}
+    90%{transform:scale(1.06,.94);animation-timing-function:ease-in-out}
+    100%{transform:scale(.93,1.08)}}
+  @keyframes shadow{
+    0%{transform:scaleX(1);opacity:1;animation-timing-function:cubic-bezier(.2,.6,.35,1)}
+    42%{transform:scaleX(.55);opacity:.45;animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+    80%{transform:scaleX(1.12);opacity:1}
+    100%{transform:scaleX(1);opacity:1}}
+  @keyframes dot{0%,60%,100%{transform:translateY(0);animation-timing-function:ease-out}30%{transform:translateY(-3px);animation-timing-function:ease-in}}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
-  @media (prefers-reduced-motion:reduce){.ears,.shadow,.dot,.bar i,.wrap{animation:none}.bar i{width:100%;opacity:.5}}
+  @media (prefers-reduced-motion:reduce){.jump,.ears,.shadow,.dot,.bar i,.wrap{animation:none}.bar i{width:100%;opacity:.5}}
   </style></head><body><div class="wrap" role="status" aria-label="EMochi 啟動中">
     <div class="stage">
-      <svg class="ears" viewBox="0 0 30 22" aria-hidden="true">
+      <div class="jump"><svg class="ears" viewBox="0 0 30 22" aria-hidden="true">
         <path d="M2 21 L7 2 L14 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
         <path d="M6.5 15 L8 7 L11.5 13.5 Z" fill="#ff8db3"/>
         <path d="M28 21 L23 2 L16 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
         <path d="M23.5 15 L22 7 L18.5 13.5 Z" fill="#ff8db3"/>
-      </svg>
+      </svg></div>
       <div class="shadow"></div>
     </div>
     <h1>EMochi</h1>
