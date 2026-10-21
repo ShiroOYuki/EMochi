@@ -23,6 +23,7 @@ import {
 import { AboutUpdates } from "./Updates";
 import { RelaunchButton } from "./Relaunch";
 import { DisclaimerButton } from "./Disclaimer";
+import { LicenseButton } from "./License";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
 import { hasSponsors, SponsorLinks } from "./Sponsor";
@@ -376,6 +377,9 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
               )}
               <Field label="免責聲明" hint="非官方工具、生成內容的責任、內建範例圖的使用範圍、按現狀提供">
                 <DisclaimerButton />
+              </Field>
+              <Field label="授權" hint="程式碼採用 GPL-3.0；內建範例圖等素材另有授權，不在 GPL 範圍內">
+                <LicenseButton />
               </Field>
             </Group>
 
