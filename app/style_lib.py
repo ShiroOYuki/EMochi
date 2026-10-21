@@ -21,11 +21,12 @@ from pathlib import Path
 
 from . import codex, prompts
 from .errors import Invalid, NotFound
+from .migrations import migrate_style
 from .paths import BUILTIN_CONFIG, codex_path, data_path, outputs_dir, read_json, style_lib_dir
 from .reflib import RefLibrary, now
 
 # lambda：每次用到才查模組裡的 *_dir（設定改路徑、測試 monkeypatch 都會跟著變）
-_lib = RefLibrary(lambda: style_lib_dir(), "style.json", "styles", "st")
+_lib = RefLibrary(lambda: style_lib_dir(), "style.json", "styles", "st", migrate_style)
 _lock = _lib.lock
 refs_dir, get, list_all, _save = _lib.refs_dir, _lib.get, _lib.list_all, _lib.save
 add_images, remove_image, delete = _lib.add_images, _lib.remove_image, _lib.delete

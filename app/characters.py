@@ -15,11 +15,12 @@ import re
 from . import codex
 from .errors import Invalid
 from .images import move_to_removed, save_png
+from .migrations import migrate_character
 from .paths import characters_dir, codex_path, outputs_dir, read_json, write_json
 from .reflib import STD_RE, RefLibrary, now
 
 # lambda：每次用到才查模組裡的 *_dir（設定改路徑、測試 monkeypatch 都會跟著變）
-_lib = RefLibrary(lambda: characters_dir(), "character.json", "characters", "c")
+_lib = RefLibrary(lambda: characters_dir(), "character.json", "characters", "c", migrate_character)
 _lock = _lib.lock
 refs_dir, get, list_all, _save, _take_name = _lib.refs_dir, _lib.get, _lib.list_all, _lib.save, _lib.take_name
 add_images, remove_image, delete = _lib.add_images, _lib.remove_image, _lib.delete

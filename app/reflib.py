@@ -31,8 +31,17 @@ def now() -> str:
 
 
 class RefLibrary:
-    def __init__(self, root: Callable[[], Path], json_name: str, trash_kind: str, id_prefix: str):
+    def __init__(
+        self,
+        root: Callable[[], Path],
+        json_name: str,
+        trash_kind: str,
+        id_prefix: str,
+        migrate: Callable[[dict | None], dict | None] = lambda d: d,
+    ):
+        """migrate：讀檔時把舊格式升到最新（app/migrations.py 的 migrate_character／migrate_style）"""
         self.root, self.json_name, self.trash_kind, self.id_prefix = root, json_name, trash_kind, id_prefix
+        self.migrate = migrate
         # 改動一筆資料（讀 → 改 → 存）時要拿著；下面的 add_images／remove_image／delete 會自己拿，
         # 其他（get、save、take_name、store）不拿，給呼叫端在已經拿著鎖時組合使用
         self.lock = threading.Lock()
@@ -46,8 +55,8 @@ class RefLibrary:
         return self.root() / item_id / "refs"
 
     def get(self, item_id: str) -> dict | None:
-        """讀一筆；images 只留檔案還在的"""
-        d = read_json(self.json_path(item_id))
+        """讀一筆（升到最新格式）；images 只留檔案還在的"""
+        d = self.migrate(read_json(self.json_path(item_id)))
         if d:
             d["images"] = [i for i in d.get("images", []) if (self.refs_dir(item_id) / i["file"]).exists()]
         return d
@@ -66,6 +75,7 @@ class RefLibrary:
         return sorted(out, key=lambda d: d.get("created", ""))
 
     def save(self, d: dict) -> dict:
+        d = self.migrate(d)  # 新建的一筆也帶上版本號與完整欄位
         d["updated"] = now()
         write_json(self.json_path(d["id"]), d)
         return d

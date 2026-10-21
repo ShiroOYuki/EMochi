@@ -52,3 +52,37 @@ def test_presets_fill_group_from_builtin():
     builtin = [{"id": "twitch", "group": "Twitch"}]
     out = migrate_presets([{"id": "twitch"}, {"id": "mine"}, {"id": "x", "group": "自訂"}], builtin)
     assert [p["group"] for p in out] == ["Twitch", "", "自訂"]
+
+
+def test_library_items_get_defaults_and_version():
+    from app.migrations import LIBRARY_VERSION, migrate_character, migrate_style
+
+    c = migrate_character({"id": "c1", "images": [{"file": "ref_01.png"}, {"bad": 1}], "created": "x"})
+    assert c["schema_version"] == LIBRARY_VERSION
+    assert c["images"] == [{"file": "ref_01.png", "use": True}]
+    assert c["identity"] == "" and c["ears"] is None and c["name"] == "c1" and c["updated"] == "x"
+
+    s = migrate_style({"id": "st9", "framing": "whole", "images": []})
+    assert s["process"] == {"square": None, "margin": 0.04} and s["source_project"] is None
+    assert migrate_style(copy.deepcopy(s)) == s and migrate_character(None) is None
+
+
+def test_library_get_migrates(data_root):
+    """角色庫讀檔時升級；存檔後檔案帶版本號"""
+    from app import characters
+    from app.migrations import LIBRARY_VERSION
+    from app.paths import read_json
+
+    c = characters.create("遷移測試", [])
+    try:
+        path = characters._lib.json_path(c["id"])
+        assert read_json(path)["schema_version"] == LIBRARY_VERSION
+        raw = read_json(path)
+        del raw["schema_version"], raw["identity"]
+        from app.paths import write_json
+
+        write_json(path, raw)
+        got = characters.get(c["id"])
+        assert got["schema_version"] == LIBRARY_VERSION and got["identity"] == ""
+    finally:
+        characters.delete(c["id"])
