@@ -1,3 +1,3 @@
 # git blame 略過這些純格式化的 commit（GitHub 會自動讀這個檔）
 # 本機：git config blame.ignoreRevsFile .git-blame-ignore-revs
-0a238775da029f36277b8347fd6580484a286726  # 套用 ruff format／prettier
+dda6e1924b825ef21a62a0c26289b0869abb933c  # 套用 ruff format／prettier
