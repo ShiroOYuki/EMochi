@@ -110,7 +110,7 @@ def test_api_first_call_and_reboot_skip_old_events():
     from app import events
     from app.server import app
 
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://127.0.0.1")
     events.emit("batch", SID, "舊的")
     first = c.get("/api/events").json()
     assert first["events"] == [] and first["seq"] == 1  # 第一次只同步 seq
@@ -124,7 +124,7 @@ def test_api_first_call_and_reboot_skip_old_events():
 def test_notify_pref():
     from app.server import app
 
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://127.0.0.1")
     assert c.get("/api/ui-prefs").json()["notify"] is True
     assert c.put("/api/ui-prefs", json={"notify": False}).json()["notify"] is False
     assert c.put("/api/ui-prefs", json={"notify": True}).json()["notify"] is True
