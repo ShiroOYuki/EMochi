@@ -124,3 +124,65 @@ def test_expand(client, monkeypatch):
     assert client.post("/api/stickers/expand", json={"zh": "生氣跺腳"}).status_code == 200
     assert "生氣跺腳" in seen["prompt"]
     assert client.post("/api/stickers/expand", json={}).status_code == 400
+
+
+def _png_data_url(color=(255, 120, 160)) -> str:
+    import base64
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (64, 64), color).save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def test_analyze_with_image(client, monkeypatch, data_root):
+    """表情分析：範例圖交給 Codex 看（images 參數），不寫想法也可以；不會存進表情"""
+    import json
+
+    from app import codex
+
+    seen = {}
+
+    def fake(prompt, schema, log, **kw):
+        seen.update(prompt=prompt, images=kw.get("images"), log=log)
+        return json.dumps(
+            {
+                "label": "Peek",
+                "zh": "從下方探頭",
+                "prompt": "peeking up",
+                "prompt_no_ears": "",
+                "align": "bottom",
+            }
+        )
+
+    monkeypatch.setattr(codex, "run_text", fake)
+    r = client.post("/api/stickers/analyze", json={"image": {"name": "a.png", "data": _png_data_url()}})
+    assert r.status_code == 200, r.text
+    assert r.json()["align"] == "bottom"
+    assert seen["images"] and seen["images"][0].endswith("analyze_input.png")
+    assert seen["images"][0] in seen["prompt"] and "example emote image" in seen["prompt"]
+    assert "analyze" in seen["log"].name
+    assert not any(s.get("example") for s in client.get("/api/stickers").json())
+    bad = client.post(
+        "/api/stickers/analyze", json={"image": {"name": "a.png", "data": "data:image/png;base64,AAAA"}}
+    )
+    assert bad.status_code == 400
+
+
+def test_example_image(client, data_root):
+    """範例圖：存、換、拿掉（移到 _removed），編輯描述不會弄丟"""
+    s = client.post("/api/stickers", json={"label": "Example Pic", "prompt": "waving"}).json()
+    r = client.put(f"/api/stickers/{s['id']}/example", json={"name": "x.png", "data": _png_data_url()})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["example"] == f"{s['id']}.png" and d["example_v"] > 0
+    assert client.get(f"/files/sticker_examples/{d['example']}").status_code == 200
+    client.patch(f"/api/stickers/{s['id']}", json={"zh": "揮手"})
+    again = next(x for x in client.get("/api/stickers").json() if x["id"] == s["id"])
+    assert again["example"] == d["example"]
+    gone = client.delete(f"/api/stickers/{s['id']}/example").json()
+    assert "example" not in gone
+    assert (data_root / "config" / "sticker_examples" / "_removed" / d["example"]).exists()
+    assert client.put("/api/stickers/99999/example", json={"data": _png_data_url()}).status_code == 404

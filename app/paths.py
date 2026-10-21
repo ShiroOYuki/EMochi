@@ -113,6 +113,7 @@ URL_BASES = {
     "exports": exports_dir,
     "characters": characters_dir,
     "style_lib": style_lib_dir,
+    "sticker_examples": lambda: config_dir() / "sticker_examples",  # 表情範例圖（stickers.examples_dir）
 }
 
 

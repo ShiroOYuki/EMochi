@@ -6,12 +6,26 @@
   一個表情可以同時放在好幾個分組（分組是 Gen 頁面「一次勾一組」用的清單，不影響檔名或生成）。
   default=true 的分組，新專案的挑選步驟會預設勾起來。
   檔案還不存在時用 sticker_groups.example.json（預設 4 組），第一次儲存才寫檔。
+- 範例圖：<config_dir>/sticker_examples/<id>.png（每個表情最多一張），stickers.json 記 example（檔名）、example_v（修改時間，前端避免快取舊圖）。
+  「表情分析」把範例圖交給 Codex 看圖填描述；表情小卡的縮圖也優先用它。
 """
 
 import json
+import time
+from pathlib import Path
 
 from .errors import Conflict, Invalid, NotFound
-from .paths import BUILTIN_CONFIG, _lock, config_dir, load_stickers, read_json, slugify, write_json
+from .images import move_to_removed, save_png
+from .paths import (
+    BUILTIN_CONFIG,
+    _lock,
+    codex_path,
+    config_dir,
+    load_stickers,
+    read_json,
+    slugify,
+    write_json,
+)
 
 GROUPS_EXAMPLE = BUILTIN_CONFIG / "sticker_groups.example.json"  # 預設 4 組（進版控）
 
@@ -213,7 +227,36 @@ def _examples(items: list[dict]) -> str:
     return "\n".join(rows)
 
 
-def expand_prompt(idea: str, current: dict | None = None) -> str:
+def examples_dir() -> Path:
+    return config_dir() / "sticker_examples"
+
+
+def set_example(sid: int, raw: bytes) -> dict:
+    """存（或換掉）表情的範例圖"""
+    with _lock:
+        items = load_stickers()
+        s = _find(items, sid)
+        fname = save_png(raw, examples_dir(), "", exact=f"{sid}.png")
+        s["example"] = fname
+        s["example_v"] = int(time.time() * 1000)
+        _save_stickers(items)
+        return s
+
+
+def remove_example(sid: int) -> dict:
+    """拿掉範例圖：檔案移到 sticker_examples/_removed/，不直接刪"""
+    with _lock:
+        items = load_stickers()
+        s = _find(items, sid)
+        if s.get("example"):
+            move_to_removed(examples_dir() / s["example"])
+        s.pop("example", None)
+        s.pop("example_v", None)
+        _save_stickers(items)
+        return s
+
+
+def expand_prompt(idea: str, current: dict | None = None, image: str | None = None) -> str:
     items = load_stickers()
     labels = ", ".join(s["label"] for s in active(items))
     cur = ""
@@ -221,11 +264,19 @@ def expand_prompt(idea: str, current: dict | None = None) -> str:
         cur = "\nCurrent draft (improve it, keep what already fits):\n" + json.dumps(
             {k: current.get(k, "") for k in ("label", "zh", "prompt")}, ensure_ascii=False
         )
+    if image:
+        look = (
+            f"\nThe user attached an example emote image ({image}). Write the entry for the expression shown in it: "
+            "the facial expression, gesture/pose and small emote effects. Ignore who is drawn, the art style, colors, "
+            "clothes and background. If the written idea disagrees with the image, the written idea wins.\n"
+        )
+    else:
+        look = ""
     return f"""You write ONE new chat-emote entry for a sticker sheet (Twitch / Discord emotes of one chibi character).
 Do not run any tools and do not generate images. Answer only with the JSON required by the output schema.
 
-The user's idea (may be Chinese or English): {idea}
-{cur}
+The user's idea (may be Chinese or English): {idea or "(none — follow the attached example image)"}
+{look}{cur}
 Existing entries, for style and length (match them closely):
 {_examples(items)}
 
@@ -240,20 +291,30 @@ Rules:
 - `align`: "bottom" only when the character should be cut off by / pop up from the bottom edge (like peeking or lurking); otherwise "center"."""
 
 
-def expand(idea: str, current: dict | None = None) -> dict:
-    """同步等 Codex（實測約 10 秒）；只回傳建議，不存檔（前端填進表單讓使用者確認）"""
+def expand(idea: str, current: dict | None = None, image: bytes | None = None) -> dict:
+    """同步等 Codex（實測約 10 秒，看圖約 20～40 秒）；只回傳建議，不存檔（前端填進表單讓使用者確認）。
+    image＝表情分析：範例圖存成 logs/stickers/analyze_input.png 給 Codex 看（範例圖要按儲存才會存進表情）"""
     from . import codex  # codex 會 import paths；放這裡避免 import 循環
 
     idea = (idea or "").strip() or " / ".join(
         (current or {}).get(k, "") for k in ("zh", "label") if (current or {}).get(k)
     )
-    if not idea.strip():
-        raise Invalid("先寫一句想要的表情")
-    schema = codex.logs_dir() / "stickers" / "expand_schema.json"
+    if not idea.strip() and image is None:
+        raise Invalid("先寫一句想要的表情，或放一張範例圖")
+    folder = codex.logs_dir() / "stickers"
+    schema = folder / "expand_schema.json"
     schema.parent.mkdir(parents=True, exist_ok=True)
     schema.write_text(json.dumps(EXPAND_SCHEMA), encoding="utf-8")
+    imgs = None
+    if image is not None:
+        imgs = [codex_path(folder / save_png(image, folder, "", exact="analyze_input.png"))]
     data = json.loads(
-        codex.run_text(expand_prompt(idea, current), schema, codex.log_path_for("stickers", "expand"))
+        codex.run_text(
+            expand_prompt(idea, current, imgs[0] if imgs else None),
+            schema,
+            codex.log_path_for("stickers", "analyze" if imgs else "expand"),
+            images=imgs,
+        )
     )
     return {
         "label": data["label"].strip(),
