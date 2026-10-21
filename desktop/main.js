@@ -191,13 +191,14 @@ function splash() {
     0%{transform:scale(.93,1.08);animation-timing-function:ease-out}
     22%{transform:scale(1,1)}
     72%{transform:scale(1,1);animation-timing-function:ease-in}
-    80%{transform:scale(1.16,.84);animation-timing-function:ease-out}
-    90%{transform:scale(1.06,.94);animation-timing-function:ease-in-out}
+    80%{transform:scale(1.3,.7);animation-timing-function:ease-out}
+    84%{transform:scale(1.26,.74);animation-timing-function:ease-in-out}
+    92%{transform:scale(1.08,.92);animation-timing-function:ease-in-out}
     100%{transform:scale(.93,1.08)}}
   @keyframes shadow{
     0%{transform:scaleX(1);opacity:1;animation-timing-function:cubic-bezier(.2,.6,.35,1)}
     42%{transform:scaleX(.55);opacity:.45;animation-timing-function:cubic-bezier(.6,0,.8,.4)}
-    80%{transform:scaleX(1.12);opacity:1}
+    80%,84%{transform:scaleX(1.25);opacity:1}
     100%{transform:scaleX(1);opacity:1}}
   @keyframes dot{0%,60%,100%{transform:translateY(0);animation-timing-function:ease-out}30%{transform:translateY(-3px);animation-timing-function:ease-in}}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
