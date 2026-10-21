@@ -92,4 +92,4 @@ export type CodexTally = S["CodexTally"];
 
 // ---------- 垃圾桶 ----------
 export type TrashItem = S["TrashItem"];
-export type TrashKind = "projects" | "styles" | "characters";
+export type TrashKind = "projects" | "styles" | "characters" | "stickers";

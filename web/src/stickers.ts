@@ -46,7 +46,7 @@ export function deriveStickers(all: Sticker[], groups: StickerGroup[]) {
   return {
     active,
     byId: new Map(all.map((x) => [x.id, x])),
-    deleted: all.filter((x) => x.deleted),
+    deleted: all.filter((x) => x.deleted && !x.purged), // 垃圾桶裡的（永久刪除過的只剩紀錄，不算）
     /** 沒有在任何分組裡的（不含已刪除） */
     ungrouped: active.filter((x) => !grouped.has(x.id)),
     /** Gen 新專案預設勾選的表情（default 分組的聯集，依 id 排序） */
