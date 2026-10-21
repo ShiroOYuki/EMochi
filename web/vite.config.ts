@@ -12,6 +12,8 @@ export default defineConfig({
   // npm test：vitest 只跑 src/**/*.test.ts（純函式、store 邏輯；不需要瀏覽器）
   test: { include: ["src/**/*.test.ts"], environment: "node" },
   server: {
+    // 開發伺服器允許讀 repo 根目錄（License.tsx 用 ?raw 匯入 LICENSE、ASSETS-LICENSE.md）
+    fs: { allow: [".."] },
     proxy: { "/api": "http://127.0.0.1:8765", "/files": "http://127.0.0.1:8765" },
   },
 });

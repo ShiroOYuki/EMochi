@@ -23,12 +23,14 @@ import {
 import { AboutUpdates } from "./Updates";
 import { RelaunchButton } from "./Relaunch";
 import { DisclaimerButton } from "./Disclaimer";
+import { LicenseButton } from "./License";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
 import { hasSponsors, SponsorLinks } from "./Sponsor";
 import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
+import { Download, Folder, Info, LifeBuoy, Settings2, Sparkles } from "lucide-react";
 import { useEffectOnBump, useOnChange } from "../hooks/useOnChange";
 
 const fmtSize = (b: number) =>
@@ -39,6 +41,15 @@ const fmtSize = (b: number) =>
       : b >= 1024
         ? `${Math.round(b / 1024)} KB`
         : `${b} B`;
+type Cat = "general" | "generate" | "folders" | "export" | "help" | "about";
+const CATS: { id: Cat; label: string; desc: string; icon: typeof Settings2 }[] = [
+  { id: "general", label: "一般", desc: "外觀與通知", icon: Settings2 },
+  { id: "generate", label: "生成", desc: "Codex 生圖的方式：同時幾組、版型、逾時", icon: Sparkles },
+  { id: "folders", label: "資料夾", desc: "專案、設定檔、角色庫、畫風庫等資料放在哪裡", icon: Folder },
+  { id: "export", label: "匯出", desc: "圖庫匯出時可選的平台尺寸", icon: Download },
+  { id: "help", label: "說明與支援", desc: "新手導覽、回報問題、支持開發", icon: LifeBuoy },
+  { id: "about", label: "關於", desc: "版本與更新、重新啟動、免責聲明、授權", icon: Info },
+];
 const LAYOUT_LABEL: Record<string, string> = { "4x2w": "4×2 寬版（每組 8 張）", "3x2": "3×2（每組 6 張）" };
 
 /** Navbar 齒輪：設定對話框。所有設定都要按「儲存」才生效（只有主題例外：點了立即套用）；
@@ -88,8 +99,10 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   const [warn, setWarn] = useState(false); // 想關掉但有未儲存的變更：紅框（儲存或放棄後消失）
   const [shake, setShake] = useState(0); // 每次想關掉 +1，重新播一次搖晃
   // 打開時：草稿回到目前的設定、拿掉紅框（render 時比對，不用 effect）
+  const [cat, setCat] = useState<Cat>("general");
   useOnChange(open, () => {
     if (!open) return;
+    setCat("general");
     setWarn(false);
     setNotify(notifyPref);
   });
@@ -224,182 +237,254 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
     }
   };
 
+  const dirtyIn: Record<Cat, boolean> = {
+    general: notifyChanged,
+    generate: Object.keys(changedVals).length > 0,
+    folders: changedDirs.length > 0,
+    export: false,
+    help: false,
+    about: false,
+  };
+  const cur = CATS.find((c) => c.id === cat)!;
+
   return (
     <Modal
       open={open}
       onClose={requestClose}
       label="設定"
-      className={`transition-shadow ${warn ? "ring-3 ring-bad" : ""} ${shaking ? "nudge-shake" : ""}`}
+      // 兩欄版面自己管捲動：框本身不加內距、不捲
+      className={`w-[min(960px,96vw)] overflow-hidden p-0 transition-shadow ${warn ? "ring-3 ring-bad" : ""} ${shaking ? "nudge-shake" : ""}`}
     >
-      <div className="space-y-5">
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-lg">設定</h3>
-          {info && (
-            <span className="min-w-0 truncate text-[11px] text-mute" title={info.settings_file}>
-              存在 {info.settings_file}
-            </span>
-          )}
-        </div>
-        {!info && !err && (
-          <div className="flex items-center gap-2 py-8 text-mute">
-            <Spinner />
-            讀取中…
-          </div>
-        )}
-        {info && vals && (
-          <>
-            <Group
-              title="資料夾"
-              note="一律填完整路徑（例如 D:\EMochiData\logs），或按「選擇…」挑資料夾。儲存時可以選擇把現有檔案搬過去。"
-            >
-              {info.dirs.map((x) => (
-                <DirRow
-                  key={x.key}
-                  d={x}
-                  value={dirs[x.key] ?? x.value}
-                  check={checks[x.key]}
-                  onChange={(v) => setDir(x.key, v)}
-                  onPick={() => pick(x.key, checks[x.key]?.path ?? x.path)}
-                  onOpen={() => openFolder(checks[x.key]?.path ?? x.path)}
-                  onReset={() => setDir(x.key, x.default)}
-                />
-              ))}
-            </Group>
-
-            <Group title="外觀">
-              <Field label="主題" hint="點了立即套用並存檔（不用按儲存）；Navbar 的淺色／深色按鈕也會改這裡">
-                <Seg<ThemePref>
-                  options={[
-                    ["system", "跟隨系統"],
-                    ["light", "淺色"],
-                    ["dark", "深色"],
-                  ]}
-                  value={themePref}
-                  onChange={setThemePref}
-                />
-              </Field>
-            </Group>
-
-            <Group title="通知">
-              <Field
-                top
-                label="桌面通知"
-                hint="預覽圖或整批生成跑完時通知（視窗在前景時不跳），點了會打開那個專案"
-              >
-                <NotifySetting on={notify} onChange={setNotify} />
-              </Field>
-            </Group>
-
-            <Group title="生成">
-              <Field
-                label="同時生圖組數"
-                hint="調低比較不容易撞到 Codex 額度上限；改了之後，排隊中的組別也照新的上限"
-              >
-                <Seg
-                  options={[1, 2, 3].map((n) => [n, `${n} 組`])}
-                  value={vals.max_parallel}
-                  onChange={(v) => setVals({ ...vals, max_parallel: v })}
-                />
-              </Field>
-              <Field label="預設網格版型" hint="生成「選擇貼圖」步驟一開始選哪一個">
-                <Seg
-                  options={info.layouts.map((l) => [l, LAYOUT_LABEL[l] ?? l])}
-                  value={vals.default_layout}
-                  onChange={(v) =>
-                    setVals({ ...vals, default_layout: v as SettingsValues["default_layout"] })
-                  }
-                />
-              </Field>
-              <Field label="生圖逾時" hint="單組超過就停掉、標成逾時">
-                <Num
-                  value={vals.image_timeout_min}
-                  lim={info.limits.image_timeout_min}
-                  onChange={(v) => setVals({ ...vals, image_timeout_min: v })}
-                />
-              </Field>
-              <Field label="文字任務逾時" hint="擴寫、看圖寫特徵、分析畫風">
-                <Num
-                  value={vals.text_timeout_min}
-                  lim={info.limits.text_timeout_min}
-                  onChange={(v) => setVals({ ...vals, text_timeout_min: v })}
-                />
-              </Field>
-            </Group>
-
-            <Group title="匯出">
-              <Field
-                label="匯出預設集"
-                hint="圖庫匯出 ZIP 時可勾選的平台尺寸（Twitch、Discord、LINE…），可新增自己的尺寸與檔案大小上限"
-              >
-                <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
-              </Field>
-            </Group>
-
-            <Group title="說明">
-              <Field label="新手導覽" hint="依序介紹生成、表情、畫風、角色、圖庫等主要功能">
+      <div className="flex h-[min(680px,88vh)] flex-col">
+        <div className="flex min-h-0 flex-1">
+          {/* 左：分類 */}
+          <nav
+            className="flex w-48 shrink-0 flex-col gap-0.5 border-r border-line/60 bg-panel2/40 p-3"
+            aria-label="設定分類"
+          >
+            <h3 className="mb-2 px-2 pt-1 text-lg">設定</h3>
+            {CATS.map((c) => {
+              const Icon = c.icon;
+              const active = c.id === cat;
+              return (
                 <button
-                  className="btn btn-sm"
-                  onClick={() => {
-                    onClose();
-                    startTour();
-                  }}
+                  key={c.id}
+                  onClick={() => setCat(c.id)}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition ${active ? "bg-panel text-text shadow-soft" : "text-mute hover:bg-panel/60 hover:text-text"}`}
                 >
-                  重看導覽
+                  <Icon className={`size-4 shrink-0 ${active ? "text-acc" : ""}`} aria-hidden />
+                  <span className="flex-1">{c.label}</span>
+                  {(dirtyIn[c.id] || (c.id === "folders" && hasError)) && (
+                    <span
+                      className={`size-2 rounded-full ${c.id === "folders" && hasError ? "bg-bad" : "bg-pink"}`}
+                      title={c.id === "folders" && hasError ? "有資料夾路徑不能用" : "有沒儲存的變更"}
+                    />
+                  )}
                 </button>
-              </Field>
-              <Field
-                top
-                label="回報問題"
-                hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊"
-              >
-                <ReportSection />
-              </Field>
-              {hasSponsors && (
-                <Field
-                  label="支持開發"
-                  hint="EMochi 免費開源；喜歡的話可以請我喝杯咖啡（在瀏覽器開啟付款頁）"
-                >
-                  <SponsorLinks />
-                </Field>
-              )}
-            </Group>
+              );
+            })}
+          </nav>
 
-            <Group title="關於">
-              {desktop && <AboutUpdates />}
-              {desktop?.relaunch && (
-                <Field
-                  label="重新啟動"
-                  hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
-                >
-                  <RelaunchButton />
-                </Field>
-              )}
-              <Field label="免責聲明" hint="非官方工具、生成內容的責任、內建範例圖的使用範圍、按現狀提供">
-                <DisclaimerButton />
-              </Field>
-            </Group>
+          {/* 右：目前分類的內容（自己捲動） */}
+          <div className="scroll-inset min-w-0 flex-1 overflow-y-auto px-7 py-6">
+            <header className="mb-5">
+              <h4 className="text-base">{cur.label}</h4>
+              <p className="mt-0.5 text-xs text-mute">{cur.desc}</p>
+            </header>
+            {!info && !err && (
+              <div className="flex items-center gap-2 py-8 text-mute">
+                <Spinner />
+                讀取中…
+              </div>
+            )}
+            {info && vals && (
+              <div className="space-y-6">
+                {cat === "general" && (
+                  <>
+                    <Group title="外觀">
+                      <Field
+                        label="主題"
+                        hint="點了立即套用並存檔（不用按儲存）；Navbar 的淺色／深色按鈕也會改這裡"
+                      >
+                        <Seg<ThemePref>
+                          options={[
+                            ["system", "跟隨系統"],
+                            ["light", "淺色"],
+                            ["dark", "深色"],
+                          ]}
+                          value={themePref}
+                          onChange={setThemePref}
+                        />
+                      </Field>
+                    </Group>
 
-            <Group title="Codex">
-              <Field
-                label="執行參數"
-                hint="生圖時實際執行的指令（不含參考圖與 prompt）；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔"
-              >
-                <code className="block rounded-lg bg-panel2 px-2.5 py-1.5 font-mono text-xs">
-                  {info.codex_command.join(" ")}
-                </code>
-                <p className="mt-1 text-[11px] text-mute">
-                  --enable prefer_mxc：Windows 能用 MXC 沙盒就用，不能用時自動退回舊模式；只影響 EMochi
-                  的呼叫，不改 Codex 的設定檔。
-                  {info.codex_command.includes("--add-dir") &&
-                    " --add-dir：專案輸出資料夾在專案外，加開讓 Codex 能寫入。"}
-                </p>
-              </Field>
-            </Group>
-          </>
-        )}
+                    <Group title="通知">
+                      <Field
+                        top
+                        label="桌面通知"
+                        hint="預覽圖或整批生成跑完時通知（視窗在前景時不跳），點了會打開那個專案"
+                      >
+                        <NotifySetting on={notify} onChange={setNotify} />
+                      </Field>
+                    </Group>
+                  </>
+                )}
+                {cat === "generate" && (
+                  <>
+                    <Group title="生圖">
+                      <Field
+                        label="同時生圖組數"
+                        hint="調低比較不容易撞到 Codex 額度上限；改了之後，排隊中的組別也照新的上限"
+                      >
+                        <Seg
+                          options={[1, 2, 3].map((n) => [n, `${n} 組`])}
+                          value={vals.max_parallel}
+                          onChange={(v) => setVals({ ...vals, max_parallel: v })}
+                        />
+                      </Field>
+                      <Field label="預設網格版型" hint="生成「選擇貼圖」步驟一開始選哪一個">
+                        <Seg
+                          options={info.layouts.map((l) => [l, LAYOUT_LABEL[l] ?? l])}
+                          value={vals.default_layout}
+                          onChange={(v) =>
+                            setVals({ ...vals, default_layout: v as SettingsValues["default_layout"] })
+                          }
+                        />
+                      </Field>
+                      <Field label="生圖逾時" hint="單組超過就停掉、標成逾時">
+                        <Num
+                          value={vals.image_timeout_min}
+                          lim={info.limits.image_timeout_min}
+                          onChange={(v) => setVals({ ...vals, image_timeout_min: v })}
+                        />
+                      </Field>
+                      <Field label="文字任務逾時" hint="擴寫、看圖寫特徵、分析畫風">
+                        <Num
+                          value={vals.text_timeout_min}
+                          lim={info.limits.text_timeout_min}
+                          onChange={(v) => setVals({ ...vals, text_timeout_min: v })}
+                        />
+                      </Field>
+                    </Group>
 
-        {/* 底部固定：訊息＋按鈕不跟著內容捲走。對話框本身是捲動容器（p-6），sticky 的位置要扣掉內距，所以用 -bottom-6 */}
-        <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 space-y-2 border-t border-line/60 bg-panel px-6 pt-3 pb-6">
+                    <Group title="Codex">
+                      <Field
+                        label="執行參數"
+                        hint="生圖時實際執行的指令（不含參考圖與 prompt）；改錯會讓 Codex 沒辦法寫入，需要時直接改設定檔"
+                      >
+                        <code className="block rounded-lg bg-panel2 px-2.5 py-1.5 font-mono text-xs">
+                          {info.codex_command.join(" ")}
+                        </code>
+                        <p className="mt-1 text-[11px] text-mute">
+                          --enable prefer_mxc：Windows 能用 MXC 沙盒就用，不能用時自動退回舊模式；只影響
+                          EMochi 的呼叫，不改 Codex 的設定檔。
+                          {info.codex_command.includes("--add-dir") &&
+                            " --add-dir：專案輸出資料夾在專案外，加開讓 Codex 能寫入。"}
+                        </p>
+                      </Field>
+                    </Group>
+                  </>
+                )}
+                {cat === "folders" && (
+                  <>
+                    <Group
+                      plain
+                      note="一律填完整路徑（例如 D:\EMochiData\logs），或按「選擇…」挑資料夾。儲存時可以選擇把現有檔案搬過去。"
+                    >
+                      {info.dirs.map((x) => (
+                        <DirRow
+                          key={x.key}
+                          d={x}
+                          value={dirs[x.key] ?? x.value}
+                          check={checks[x.key]}
+                          onChange={(v) => setDir(x.key, v)}
+                          onPick={() => pick(x.key, checks[x.key]?.path ?? x.path)}
+                          onOpen={() => openFolder(checks[x.key]?.path ?? x.path)}
+                          onReset={() => setDir(x.key, x.default)}
+                        />
+                      ))}
+                    </Group>
+                  </>
+                )}
+                {cat === "export" && (
+                  <>
+                    <Group>
+                      <Field
+                        label="匯出預設集"
+                        hint="圖庫匯出 ZIP 時可勾選的平台尺寸（Twitch、Discord、LINE…），可新增自己的尺寸與檔案大小上限"
+                      >
+                        <ManagePresetsButton className="btn btn-sm">管理預設集…</ManagePresetsButton>
+                      </Field>
+                    </Group>
+                  </>
+                )}
+                {cat === "help" && (
+                  <>
+                    <Group>
+                      <Field label="新手導覽" hint="依序介紹生成、表情、畫風、角色、圖庫等主要功能">
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => {
+                            onClose();
+                            startTour();
+                          }}
+                        >
+                          重看導覽
+                        </button>
+                      </Field>
+                      <Field
+                        top
+                        label="回報問題"
+                        hint="遇到 bug 或有功能建議：GitHub Issues 或 Email 都可以；會附上版本、系統、Codex 狀態等診斷資訊"
+                      >
+                        <ReportSection />
+                      </Field>
+                      {hasSponsors && (
+                        <Field
+                          label="支持開發"
+                          hint="EMochi 免費開源；喜歡的話可以請我喝杯咖啡（在瀏覽器開啟付款頁）"
+                        >
+                          <SponsorLinks />
+                        </Field>
+                      )}
+                    </Group>
+                  </>
+                )}
+                {cat === "about" && (
+                  <>
+                    <Group>
+                      {desktop && <AboutUpdates />}
+                      {desktop?.relaunch && (
+                        <Field
+                          label="重新啟動"
+                          hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
+                        >
+                          <RelaunchButton />
+                        </Field>
+                      )}
+                      <Field
+                        label="免責聲明"
+                        hint="非官方工具、生成內容的責任、內建範例圖的使用範圍、按現狀提供"
+                      >
+                        <DisclaimerButton />
+                      </Field>
+                      <Field
+                        label="授權"
+                        hint="程式碼採用 GPL-3.0；內建範例圖等素材另有授權，不在 GPL 範圍內"
+                      >
+                        <LicenseButton />
+                      </Field>
+                    </Group>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 底部：設定檔位置、訊息、按鈕（不跟著內容捲） */}
+        <div className="space-y-2 border-t border-line/60 bg-panel px-6 py-3">
           {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
           {warn && dirty && (
             <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad" role="alert">
@@ -412,7 +497,14 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
               {info.busy}，等它結束才能改資料夾位置。
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex items-center gap-2">
+            {info && (
+              <span className="min-w-0 truncate text-[11px] text-mute" title={info.settings_file}>
+                存在 {info.settings_file}
+              </span>
+            )}
+            <span className="flex-1" />
+            {dirty && !warn && !info?.busy && <span className="text-xs text-pink">有沒儲存的變更</span>}
             <button className="btn" onClick={onClose} disabled={saving}>
               {dirty ? "放棄變更" : "關閉"}
             </button>
@@ -491,14 +583,29 @@ function NotifySetting({ on, onChange }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-function Group({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+/** 一個區塊：小標題＋卡片（plain＝裡面本來就是卡片，例如資料夾，就不再包一層） */
+function Group({
+  title,
+  note,
+  plain,
+  children,
+}: {
+  title?: string;
+  note?: string;
+  plain?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <section className="space-y-3">
-      <div>
-        <h4 className="text-sm">{title}</h4>
-        {note && <p className="text-[11px] text-mute">{note}</p>}
+    <section className="space-y-2">
+      {(title || note) && (
+        <div className="px-1">
+          {title && <h5 className="text-xs text-mute">{title}</h5>}
+          {note && <p className="text-[11px] text-mute">{note}</p>}
+        </div>
+      )}
+      <div className={plain ? "space-y-3" : "space-y-4 rounded-2xl border border-line/70 p-4"}>
+        {children}
       </div>
-      {children}
     </section>
   );
 }
