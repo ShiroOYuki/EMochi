@@ -324,6 +324,7 @@ class SettingsValues(Out):
     image_timeout_min: int
     text_timeout_min: int
     tour_done: bool
+    disclaimer: int
     notify: bool
     theme: Literal["system", "light", "dark"]
     codex_args: list[str]
@@ -398,6 +399,7 @@ class UiPrefsOut(Out):
     stored: bool  # 主題是否存過（沒存過才搬瀏覽器的舊值）
     tour_done: bool
     notify: bool
+    disclaimer: int  # 同意過的免責聲明版本（0＝還沒同意）
 
 
 class AppEvent(Out):

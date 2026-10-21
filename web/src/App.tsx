@@ -7,6 +7,7 @@ import { WindowControls } from "./components/WindowControls";
 import { UpdateBadge, useUpdateToast } from "./components/Updates";
 import { SponsorButton } from "./components/Sponsor";
 import CodexSetup from "./components/CodexSetup";
+import { DisclaimerGate } from "./components/Disclaimer";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
@@ -140,6 +141,7 @@ export default function App() {
           <GalleryPage />
         </Page>
       </main>
+      <DisclaimerGate />
       <CodexSetup />
       <Tour />
       <TitleTooltips />

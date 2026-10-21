@@ -183,12 +183,14 @@ def test_ui_prefs_theme(client, clean):
         "stored": False,
         "tour_done": False,
         "notify": True,
+        "disclaimer": 0,
     }
     assert client.put("/api/ui-prefs", json={"theme": "dark"}).json() == {
         "theme": "dark",
         "stored": True,
         "tour_done": False,
         "notify": True,
+        "disclaimer": 0,
     }
     from app import settings
 
@@ -209,6 +211,14 @@ def test_ui_prefs_tour_done(client, clean):
     assert settings.get("tour_done") is True
     client.put("/api/ui-prefs", json={"tour_done": False})
     assert "tour_done" not in (settings.read_json(settings.FILE, {}) or {})
+
+
+def test_ui_prefs_disclaimer(client, clean):
+    """免責聲明：記同意過的版本；負數擋掉"""
+    assert client.get("/api/ui-prefs").json()["disclaimer"] == 0
+    assert client.put("/api/ui-prefs", json={"disclaimer": 1}).json()["disclaimer"] == 1
+    assert client.put("/api/ui-prefs", json={"disclaimer": -1}).status_code == 400
+    client.put("/api/ui-prefs", json={"disclaimer": 0})
 
 
 def test_model_rules_and_bad_file_values(data_root):

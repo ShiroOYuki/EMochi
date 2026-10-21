@@ -2265,6 +2265,8 @@ export interface components {
             text_timeout_min: number;
             /** Tour Done */
             tour_done: boolean;
+            /** Disclaimer */
+            disclaimer: number;
             /** Notify */
             notify: boolean;
             /**
@@ -2413,6 +2415,8 @@ export interface components {
             tour_done?: boolean | null;
             /** Notify */
             notify?: boolean | null;
+            /** Disclaimer */
+            disclaimer?: number | null;
         };
         /** UiPrefsOut */
         UiPrefsOut: {
@@ -2427,6 +2431,8 @@ export interface components {
             tour_done: boolean;
             /** Notify */
             notify: boolean;
+            /** Disclaimer */
+            disclaimer: number;
         };
         /**
          * Upload

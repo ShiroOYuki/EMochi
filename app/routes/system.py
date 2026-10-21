@@ -15,6 +15,7 @@ class UiPrefs(BaseModel):
     theme: str | None = None
     tour_done: bool | None = None
     notify: bool | None = None
+    disclaimer: int | None = None
 
 
 @router.get("/api/ui-prefs", response_model=S.UiPrefsOut, **OUT)
@@ -28,6 +29,7 @@ def get_ui_prefs():
         "stored": stored,
         "tour_done": settings.get("tour_done"),
         "notify": settings.get("notify"),
+        "disclaimer": settings.get("disclaimer"),
     }
 
 
