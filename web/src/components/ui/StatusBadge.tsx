@@ -29,7 +29,7 @@ export function StatusBadge({ status }: { status: ProjectStatus | GroupStatus })
 }
 
 /** 從 "YYYY-MM-DD HH:MM:SS" 開始經過的時間 */
-export function Elapsed({ since }: { since?: string }) {
+export function Elapsed({ since }: { since?: string | null }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 1000);

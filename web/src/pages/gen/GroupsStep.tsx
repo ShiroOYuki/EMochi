@@ -98,7 +98,7 @@ function GroupCard({
               手動通過
             </span>
           )}
-          {g.attempts > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
+          {(g.attempts ?? 0) > 1 && <span className="text-xs text-mute">第 {g.attempts} 次</span>}
           {g.status !== "running" && <TokenBadge tokens={g.tokens} />}
         </ScrollRow>
         <div className="flex shrink-0 gap-1.5 whitespace-nowrap">
@@ -138,7 +138,7 @@ function GroupCard({
         <FailedImage
           path={g.image}
           v={g.finished}
-          message={g.message}
+          message={g.message ?? ""}
           className="w-full"
           rechecked={g.rechecked}
           onRecheck={canRegen ? () => act(() => projectsApi.recheck(p.id, g.index)) : undefined}

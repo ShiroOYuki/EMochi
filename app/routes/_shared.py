@@ -18,6 +18,9 @@ class Upload(BaseModel):
 
 Framing = Literal["closeup", "whole"]
 
+# 回應只輸出原本 dict 裡有的鍵（沒有的不會多出 null），見 app/schemas.py
+OUT = {"response_model_exclude_unset": True}
+
 
 class ProcessPatch(BaseModel):
     """後處理參數（project.json／style.json 的 process）；只會改有傳的欄位"""

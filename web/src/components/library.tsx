@@ -18,7 +18,7 @@ import { copyText } from "../lib/clipboard";
 
 /** 角色庫、畫風庫兩頁共用：左側清單（新增鈕、右鍵選單、刪除確認、垃圾桶）、參考圖格、待上傳的圖 */
 
-type Item = { id: string; updated: string; images: CharImage[]; error?: string };
+type Item = { id: string; updated: string; images: CharImage[]; error?: string | null };
 
 /** 清單、目前選取、act（執行後重新整理並切過去）、刪除流程 */
 export function useLibrary<T extends Item>({

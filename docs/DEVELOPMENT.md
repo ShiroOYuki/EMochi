@@ -44,7 +44,7 @@ cd web
 npm ci
 npm run dev        :: http://localhost:5173（API 轉給 8765，需先開 scripts\app.bat）
 npm run build      :: 輸出到 app\static，提交時一起 commit
-npm run gen:api    :: 後端改了請求格式（Pydantic model）後，重新產生 src\api\schema.d.ts
+npm run gen:api    :: 後端改了請求或回應格式（Pydantic model、app/schemas.py）後，重新產生 src\api\schema.d.ts
 ```
 
 改後端（`app/*.py`）要重開伺服器；改前端 build 完重新整理瀏覽器即可。
@@ -110,7 +110,8 @@ app/                後端（FastAPI）
   routes/           API 路由，依領域分檔：system、settings、stickers、files、projects、library、gallery
   jobs/             Gen 流程（store 讀寫 project.json、refs 參考圖、prompting 組 prompt、
                     runner 背景執行、flow 狀態轉換）；project_types.py 是專案資料的型別與狀態
-  migrations.py     資料檔格式升級（project.json 的 schema_version）
+  schemas.py        API 回應的形狀（response_model）；前端型別由它和請求 model 自動產生
+  migrations.py     資料檔格式升級（project.json、character.json、style.json 的 schema_version）
   codex.py          執行 Codex；applog.py 程式記錄（logs/app.log）
   pipeline.py       網格 → 成品（去背核心在 keying.py）；gallery.py 匯出、組合；specs.py 平台規格檢查；prompts.py 組 prompt
   presets.py        匯出預設集；stickers.py 表情與分組；settings.py 設定（Settings model 是唯一來源）
@@ -118,7 +119,8 @@ app/                後端（FastAPI）
   static/           前端 build 結果（由 web/ 產生）
 web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI + TanStack Query）
   src/api/          後端呼叫：projects／library／gallery／stickers／settings／system 各領域的 xxxApi、
-                    types.ts 回應型別、schema.d.ts 自動產生的請求型別、queries.ts 快取與輪詢
+                    types.ts（取自 schema.d.ts 的型別別名）、schema.d.ts 自動產生的請求／回應型別、queries.ts 快取與輪詢
+  src/router.ts     網址路由：#/gen/s12、#/characters/c2…
   src/pages/        五個分頁；gen/ 生成頁各步驟、gallery/ 圖庫的篩選與面板
   src/components/   共用元件；ui/ 一個元件一個檔
   src/hooks/        useStored（localStorage 記憶）、useViewTransition 等

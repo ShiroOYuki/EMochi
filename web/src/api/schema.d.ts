@@ -1067,6 +1067,61 @@ export interface components {
             /** Request */
             request?: string | null;
         };
+        /** AppEvent */
+        AppEvent: {
+            /** Seq */
+            seq: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "preview" | "batch";
+            /** Project */
+            project: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Ok */
+            ok: boolean;
+            /** Time */
+            time: number;
+        };
+        /** CharImage */
+        CharImage: {
+            /** File */
+            file: string;
+            /** Use */
+            use: boolean;
+            /** Source */
+            source?: string | null;
+        };
+        /** Character */
+        Character: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Identity */
+            identity: string;
+            /** Notes Zh */
+            notes_zh: string;
+            /** Ears */
+            ears?: boolean | null;
+            /** Images */
+            images: components["schemas"]["CharImage"][];
+            /**
+             * Next Index
+             * @default 1
+             */
+            next_index?: number;
+            /** Created */
+            created: string;
+            /** Updated */
+            updated: string;
+            /** Schema Version */
+            schema_version?: number | null;
+        };
         /**
          * CharacterPatch
          * @description 只會改有傳的欄位；use＝{檔名: 是否預設附上}
@@ -1084,6 +1139,152 @@ export interface components {
             use?: {
                 [key: string]: boolean;
             } | null;
+        };
+        /** CodexCheck */
+        CodexCheck: {
+            cli: components["schemas"]["CodexCli"];
+            login: components["schemas"]["CodexLogin"];
+            /** Checked At */
+            checked_at?: number | null;
+        };
+        /** CodexCli */
+        CodexCli: {
+            /** Found */
+            found: boolean;
+            /** Path */
+            path?: string | null;
+            /** Version */
+            version?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /** CodexDaily */
+        CodexDaily: {
+            /** Date */
+            date: string;
+            /** Tokens */
+            tokens: number;
+            /** Runs */
+            runs: number;
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+        };
+        /** CodexLogin */
+        CodexLogin: {
+            /** Ok */
+            ok: boolean;
+            /** Text */
+            text: string;
+            /** Pending */
+            pending: boolean;
+        };
+        /** CodexRun */
+        CodexRun: {
+            /** Time */
+            time: string;
+            /** Date */
+            date: string;
+            /** Scope */
+            scope: string;
+            /** Scope Label */
+            scope_label: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Tokens */
+            tokens: number | null;
+            /** Seconds */
+            seconds: number | null;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "ok" | "failed" | "timeout" | "running" | "unknown";
+            /** Log */
+            log: string;
+        };
+        /** CodexRunning */
+        CodexRunning: {
+            /** Scope */
+            scope: string;
+            /** Scope Label */
+            scope_label: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Seconds */
+            seconds: number;
+        };
+        /** CodexStatus */
+        CodexStatus: {
+            cli: components["schemas"]["CodexCli"];
+            login: components["schemas"]["CodexLogin"];
+            /** Checked At */
+            checked_at?: number | null;
+            rate: components["schemas"]["CodexUsage"];
+            /** Sessions Dir */
+            sessions_dir: string;
+            /** Sessions Found */
+            sessions_found: boolean;
+            /** Running */
+            running: components["schemas"]["CodexRunning"][];
+            usage: components["schemas"]["CodexUsageDays"];
+        };
+        /** CodexTally */
+        CodexTally: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Tokens */
+            tokens: number;
+            /** Runs */
+            runs: number;
+        };
+        /**
+         * CodexUsage
+         * @description ChatGPT 方案的額度：primary＝5 小時窗口、secondary＝每週；時間都是 unix 秒
+         */
+        CodexUsage: {
+            /** Available */
+            available: boolean;
+            primary: components["schemas"]["RateWindow"] | null;
+            secondary: components["schemas"]["RateWindow"] | null;
+            /** Plan Type */
+            plan_type: string | null;
+            /** Updated */
+            updated: number | null;
+            /** Message */
+            message: string;
+            /** Source */
+            source?: string | null;
+            /** Now */
+            now: number;
+        };
+        /** CodexUsageDays */
+        CodexUsageDays: {
+            /** Days */
+            days: number;
+            /** Daily */
+            daily: components["schemas"]["CodexDaily"][];
+            /** By Kind */
+            by_kind: components["schemas"]["CodexTally"][];
+            /** By Scope */
+            by_scope: components["schemas"]["CodexTally"][];
+            /** Total Tokens */
+            total_tokens: number;
+            /** Runs */
+            runs: number;
+            /** Failed */
+            failed: number;
+            /** Avg Grid Tokens */
+            avg_grid_tokens: number | null;
+            /** Recent */
+            recent: components["schemas"]["CodexRun"][];
         };
         /** CombineBody */
         CombineBody: {
@@ -1134,6 +1335,57 @@ export interface components {
             /** Style Lib Id */
             style_lib_id?: string | null;
         };
+        /** Deleted */
+        Deleted: {
+            /** Deleted */
+            deleted: number;
+        };
+        /** Diagnostics */
+        Diagnostics: {
+            /** Version */
+            version: string;
+            /** Os */
+            os: string;
+            /** Codex */
+            codex: string;
+            /** Mode */
+            mode: string;
+            /** Text */
+            text: string;
+        };
+        /** DirInfo */
+        DirInfo: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "outputs_dir" | "logs_dir" | "config_dir" | "exports_dir" | "characters_dir" | "style_lib_dir";
+            /** Label */
+            label: string;
+            /** Desc */
+            desc: string;
+            /** Value */
+            value: string;
+            /** Default */
+            default: string;
+            /** Path */
+            path: string;
+            /** Exists */
+            exists: boolean;
+            /** Files */
+            files: number;
+            /** Size */
+            size: number;
+        };
+        /** EventsResp */
+        EventsResp: {
+            /** Boot */
+            boot: string;
+            /** Seq */
+            seq: number;
+            /** Events */
+            events: components["schemas"]["AppEvent"][];
+        };
         /** ExpandBody */
         ExpandBody: {
             /** Request */
@@ -1183,6 +1435,60 @@ export interface components {
              */
             tag?: string;
         };
+        /** ExportIssue */
+        ExportIssue: {
+            /** File */
+            file: string;
+            /** Notes */
+            notes: string[];
+        };
+        /** ExportPreset */
+        ExportPreset: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Group */
+            group: string;
+            /** Folder */
+            folder: string;
+            /** Sizes */
+            sizes: components["schemas"]["PresetSize"][];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "fit" | "canvas";
+            /** Margin */
+            margin: number;
+            /** Even */
+            even: boolean;
+            /** Max Kb */
+            max_kb: number | null;
+            /**
+             * Naming
+             * @enum {string}
+             */
+            naming: "keep" | "index";
+            /** Note */
+            note: string;
+        };
+        /** ExportResult */
+        ExportResult: {
+            /** File */
+            file: string;
+            /** Count */
+            count: number;
+            /** Issues */
+            issues: components["schemas"]["ExportIssue"][];
+        };
+        /** FileResult */
+        FileResult: {
+            /** File */
+            file: string;
+            /** Count */
+            count?: number | null;
+        };
         /** FolderBody */
         FolderBody: {
             /**
@@ -1190,6 +1496,36 @@ export interface components {
              * @default
              */
             path?: string;
+        };
+        /** GalleryItem */
+        GalleryItem: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Zh */
+            zh: string;
+            /** Files */
+            files: {
+                [key: string]: string;
+            };
+            /** Mtime */
+            mtime: number;
+        };
+        /** GalleryStyle */
+        GalleryStyle: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Items */
+            items: components["schemas"]["GalleryItem"][];
+            /** Character Id */
+            character_id: string | null;
+            /** Character Name */
+            character_name: string;
         };
         /** GenBody */
         GenBody: {
@@ -1201,15 +1537,170 @@ export interface components {
              */
             layout?: string;
         };
+        /**
+         * GridItem
+         * @description 預覽圖、每一組網格共用的欄位
+         */
+        GridItem: {
+            /** Image */
+            image: string;
+            /** Ids */
+            ids: number[];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Refs
+             * @default []
+             */
+            refs?: string[];
+            /** Layout */
+            layout: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "running" | "done" | "failed";
+            /**
+             * Message
+             * @default
+             */
+            message?: string;
+            /** Started */
+            started?: string | null;
+            /** Finished */
+            finished?: string | null;
+            /** Log */
+            log?: string | null;
+            /** Tokens */
+            tokens?: number | null;
+            /** Rechecked */
+            rechecked?: string | null;
+            /** Accepted */
+            accepted?: boolean | null;
+        };
+        /** Group */
+        Group: {
+            /** Image */
+            image: string;
+            /** Ids */
+            ids: number[];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Refs
+             * @default []
+             */
+            refs?: string[];
+            /** Layout */
+            layout: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "running" | "done" | "failed";
+            /**
+             * Message
+             * @default
+             */
+            message?: string;
+            /** Started */
+            started?: string | null;
+            /** Finished */
+            finished?: string | null;
+            /** Log */
+            log?: string | null;
+            /** Tokens */
+            tokens?: number | null;
+            /** Rechecked */
+            rechecked?: string | null;
+            /** Accepted */
+            accepted?: boolean | null;
+            /** Index */
+            index: number;
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts?: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** Health */
+        Health: {
+            /** Ok */
+            ok: boolean;
+            /** Root */
+            root: string;
+            /** Frozen */
+            frozen: boolean;
+            /** Codex Running */
+            codex_running: number;
+            /** Busy */
+            busy: string | null;
+        };
         /** ImportBody */
         ImportBody: {
             /** Project */
             project: string;
+        };
+        /** Importable */
+        Importable: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Image */
+            image: string | null;
+            /** Imported */
+            imported: boolean;
+            /** Needs Analyze */
+            needs_analyze?: boolean | null;
+        };
+        /** LibProcess */
+        LibProcess: {
+            /** Square */
+            square: number | null;
+            /** Margin */
+            margin: number;
+        };
+        /** LibStyle */
+        LibStyle: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Request */
+            request: string;
+            /** Style Block */
+            style_block: string;
+            /**
+             * Framing
+             * @enum {string}
+             */
+            framing: "closeup" | "whole";
+            process: components["schemas"]["LibProcess"];
+            /** Notes Zh */
+            notes_zh: string;
+            /** Images */
+            images: components["schemas"]["CharImage"][];
+            /** Source Project */
+            source_project: string | null;
+            /**
+             * Next Index
+             * @default 1
+             */
+            next_index?: number;
+            /** Created */
+            created: string;
+            /** Updated */
+            updated: string;
+            /** Schema Version */
+            schema_version?: number | null;
+            /** Error */
+            error?: string | null;
         };
         /** LibStylePatch */
         LibStylePatch: {
@@ -1228,6 +1719,30 @@ export interface components {
             use?: {
                 [key: string]: boolean;
             } | null;
+        };
+        /** LogText */
+        LogText: {
+            /** Text */
+            text: string;
+        };
+        /** LoginStarted */
+        LoginStarted: {
+            /** Started */
+            started: boolean;
+            /** Message */
+            message: string;
+        };
+        /** MoveReport */
+        MoveReport: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "outputs_dir" | "logs_dir" | "config_dir" | "exports_dir" | "characters_dir" | "style_lib_dir";
+            /** Moved */
+            moved: number;
+            /** Skipped */
+            skipped: number;
         };
         /** NewCharacter */
         NewCharacter: {
@@ -1283,6 +1798,16 @@ export interface components {
             /** Group Id */
             group_id?: number | null;
         };
+        /** Ok */
+        Ok: {
+            /** Ok */
+            ok: boolean;
+        };
+        /** Opened */
+        Opened: {
+            /** Opened */
+            opened: boolean;
+        };
         /** PathCheck */
         PathCheck: {
             /** Key */
@@ -1300,12 +1825,87 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** PathCheckResult */
+        PathCheckResult: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "outputs_dir" | "logs_dir" | "config_dir" | "exports_dir" | "characters_dir" | "style_lib_dir";
+            /** Value */
+            value: string;
+            /** Path */
+            path: string;
+            /** Exists */
+            exists: boolean;
+            /** Files */
+            files: number;
+            /** Size */
+            size: number;
+            /** Error */
+            error: string | null;
+            /** Warn */
+            warn: string | null;
+        };
+        /** PathResult */
+        PathResult: {
+            /** Path */
+            path: string | null;
+        };
+        /** PlanDir */
+        PlanDir: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "outputs_dir" | "logs_dir" | "config_dir" | "exports_dir" | "characters_dir" | "style_lib_dir";
+            /** Label */
+            label: string;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** Files */
+            files: number;
+            /** Size */
+            size: number;
+            /** Conflicts */
+            conflicts: string[];
+            /** Conflict Count */
+            conflict_count: number;
+        };
+        /** PresetSize */
+        PresetSize: {
+            /** W */
+            w: number;
+            /** H */
+            h: number;
+        };
+        /** PresetState */
+        PresetState: {
+            /** Presets */
+            presets: components["schemas"]["ExportPreset"][];
+            /** Custom */
+            custom: boolean;
+        };
         /** PresetsBody */
         PresetsBody: {
             /** Presets */
             presets: {
                 [key: string]: unknown;
             }[];
+        };
+        /** Process */
+        Process: {
+            /** Square */
+            square: number | null;
+            /** Margin */
+            margin: number;
+            /**
+             * Min Blob
+             * @default 0.0003
+             */
+            min_blob?: number;
         };
         /**
          * ProcessPatch
@@ -1318,6 +1918,72 @@ export interface components {
             margin?: number | null;
             /** Min Blob */
             min_blob?: number | null;
+        };
+        /**
+         * Project
+         * @description jobs.view() 的結果：project.json＋整理過的參考圖（ref_paths）＋每張圖的 tokens
+         */
+        Project: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Request */
+            request: string;
+            /** Style Block */
+            style_block: string;
+            /**
+             * Framing
+             * @enum {string}
+             */
+            framing: "closeup" | "whole";
+            process: components["schemas"]["Process"];
+            /** Notes Zh */
+            notes_zh: string;
+            refs: components["schemas"]["ProjectRefs"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done";
+            /** Error */
+            error: string | null;
+            /** Created */
+            created: string;
+            /**
+             * Updated
+             * @default
+             */
+            updated?: string;
+            preview: components["schemas"]["GridItem"] | null;
+            /** Sticker Ids */
+            sticker_ids: number[];
+            /** Groups */
+            groups: components["schemas"]["Group"][];
+            /** Group Layout */
+            group_layout?: string | null;
+            /** Finished Ids */
+            finished_ids?: number[] | null;
+            /** Finished */
+            finished?: string | null;
+            /** Style Lib Id */
+            style_lib_id?: string | null;
+            /** Schema Version */
+            schema_version?: number | null;
+            ref_paths: components["schemas"]["RefPaths"];
+        };
+        /** ProjectList */
+        ProjectList: {
+            /** Projects */
+            projects: components["schemas"]["ProjectSummary"][];
+            /** Next Id */
+            next_id: string;
+            /** Preview Ids */
+            preview_ids: number[];
+            /** Max Parallel */
+            max_parallel: number;
+            /** Default Layout */
+            default_layout?: ("4x2w" | "3x2") | null;
         };
         /**
          * ProjectPatch
@@ -1338,6 +2004,55 @@ export interface components {
             /** Character Images */
             character_images?: string[] | null;
         };
+        /** ProjectRefs */
+        ProjectRefs: {
+            /** Character Id */
+            character_id: string | null;
+            /** Character Images */
+            character_images: string[] | null;
+            /** Temp */
+            temp: components["schemas"]["TempRef"][];
+        };
+        /** ProjectSummary */
+        ProjectSummary: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done";
+            /** Updated */
+            updated: string | null;
+            /** Request */
+            request: string;
+            /** Character Id */
+            character_id: string | null;
+        };
+        /** PromptPreview */
+        PromptPreview: {
+            /** Prompt */
+            prompt: string;
+            /** Ids */
+            ids: number[];
+            /** Output */
+            output: string;
+            /** Refs */
+            refs: string[];
+        };
+        /** RateWindow */
+        RateWindow: {
+            /** Used Percent */
+            used_percent: number;
+            /** Window Minutes */
+            window_minutes: number | null;
+            /** Resets At */
+            resets_at: number | null;
+            /** Expired */
+            expired?: boolean | null;
+        };
         /** RefPatch */
         RefPatch: {
             /** Role */
@@ -1347,6 +2062,22 @@ export interface components {
              * @default false
              */
             remove?: boolean;
+        };
+        /** RefPaths */
+        RefPaths: {
+            /** Character */
+            character: string[];
+            /** Style */
+            style: string[];
+            /** Identity */
+            identity: string;
+            /** Ears */
+            ears: boolean;
+        };
+        /** Restored */
+        Restored: {
+            /** Id */
+            id: string;
         };
         /** SelectionBody */
         SelectionBody: {
@@ -1370,6 +2101,19 @@ export interface components {
              */
             tag?: string;
         };
+        /** SelectionInfo */
+        SelectionInfo: {
+            /** File */
+            file: string;
+            /** Count */
+            count: number;
+            /** Created */
+            created: string;
+            /** Kind */
+            kind: string;
+            /** Tag */
+            tag: string | null;
+        };
         /** SettingsChange */
         SettingsChange: {
             /** Changes */
@@ -1383,6 +2127,111 @@ export interface components {
             move?: boolean;
             /** Conflict */
             conflict?: string | null;
+        };
+        /** SettingsInfo */
+        SettingsInfo: {
+            /** Dirs */
+            dirs: components["schemas"]["DirInfo"][];
+            values: components["schemas"]["SettingsValues"];
+            defaults: components["schemas"]["SettingsValues"];
+            /** Limits */
+            limits: {
+                [key: string]: [
+                    number,
+                    number
+                ];
+            };
+            /** Layouts */
+            layouts: string[];
+            /** Themes */
+            themes: string[];
+            /** Settings File */
+            settings_file: string;
+            /** Root */
+            root: string;
+            /** Busy */
+            busy: string | null;
+            /** Codex Command */
+            codex_command: string[];
+            report?: components["schemas"]["SettingsReport"] | null;
+        };
+        /** SettingsPlan */
+        SettingsPlan: {
+            /** Dirs */
+            dirs: components["schemas"]["PlanDir"][];
+            /** Errors */
+            errors: string[];
+            /** Busy */
+            busy: string | null;
+        };
+        /** SettingsReport */
+        SettingsReport: {
+            /** Moved */
+            moved: components["schemas"]["MoveReport"][];
+            /** Projects Updated */
+            projects_updated: number;
+        };
+        /** SettingsValues */
+        SettingsValues: {
+            /** Max Parallel */
+            max_parallel: number;
+            /**
+             * Default Layout
+             * @enum {string}
+             */
+            default_layout: "4x2w" | "3x2";
+            /** Image Timeout Min */
+            image_timeout_min: number;
+            /** Text Timeout Min */
+            text_timeout_min: number;
+            /** Tour Done */
+            tour_done: boolean;
+            /** Notify */
+            notify: boolean;
+            /**
+             * Theme
+             * @enum {string}
+             */
+            theme: "system" | "light" | "dark";
+            /** Codex Args */
+            codex_args: string[];
+        };
+        /** Sticker */
+        Sticker: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Zh */
+            zh: string;
+            /** Prompt */
+            prompt: string;
+            /** Prompt No Ears */
+            prompt_no_ears?: string | null;
+            /** Custom */
+            custom?: boolean | null;
+            /** Align */
+            align?: string | null;
+            /** Deleted */
+            deleted?: boolean | null;
+        };
+        /**
+         * StickerDraft
+         * @description Codex 擴寫的結果
+         */
+        StickerDraft: {
+            /** Label */
+            label: string;
+            /** Zh */
+            zh: string;
+            /** Prompt */
+            prompt: string;
+            /** Prompt No Ears */
+            prompt_no_ears: string;
+            /** Align */
+            align: string | null;
         };
         /** StickerGroup */
         StickerGroup: {
@@ -1401,6 +2250,17 @@ export interface components {
              */
             default?: boolean;
         };
+        /** StickerGroupOut */
+        StickerGroupOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Ids */
+            ids: number[];
+            /** Default */
+            default: boolean;
+        };
         /** StickerPatch */
         StickerPatch: {
             /** Label */
@@ -1414,6 +2274,35 @@ export interface components {
             /** Align */
             align?: string | null;
         };
+        /** TempRef */
+        TempRef: {
+            /** File */
+            file: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "character" | "style";
+        };
+        /** TrashItem */
+        TrashItem: {
+            /** Name */
+            name: string;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: ("expanding" | "draft" | "previewing" | "preview_ready" | "generating" | "review" | "processing" | "done") | null;
+            /** Removed */
+            removed: string;
+            /** Size */
+            size: number;
+            /** Thumb */
+            thumb: string | null;
+            /** Restorable */
+            restorable: boolean;
+        };
         /** UiPrefs */
         UiPrefs: {
             /** Theme */
@@ -1422,6 +2311,20 @@ export interface components {
             tour_done?: boolean | null;
             /** Notify */
             notify?: boolean | null;
+        };
+        /** UiPrefsOut */
+        UiPrefsOut: {
+            /**
+             * Theme
+             * @enum {string}
+             */
+            theme: "system" | "light" | "dark";
+            /** Stored */
+            stored: boolean;
+            /** Tour Done */
+            tour_done: boolean;
+            /** Notify */
+            notify: boolean;
         };
         /**
          * Upload
@@ -1478,7 +2381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["UiPrefsOut"];
                 };
             };
         };
@@ -1502,7 +2405,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["UiPrefsOut"];
                 };
             };
             /** @description Validation Error */
@@ -1534,7 +2437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EventsResp"];
                 };
             };
             /** @description Validation Error */
@@ -1563,7 +2466,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Health"];
                 };
             };
         };
@@ -1585,7 +2488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CodexUsage"];
                 };
             };
             /** @description Validation Error */
@@ -1616,7 +2519,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CodexStatus"];
                 };
             };
             /** @description Validation Error */
@@ -1647,7 +2550,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CodexCheck"];
                 };
             };
             /** @description Validation Error */
@@ -1679,7 +2582,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Diagnostics"];
                 };
             };
             /** @description Validation Error */
@@ -1708,7 +2611,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PathResult"];
                 };
             };
         };
@@ -1728,7 +2631,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LoginStarted"];
                 };
             };
         };
@@ -1748,7 +2651,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettingsInfo"];
                 };
             };
         };
@@ -1772,7 +2675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettingsInfo"];
                 };
             };
             /** @description Validation Error */
@@ -1805,7 +2708,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PathCheckResult"];
                 };
             };
             /** @description Validation Error */
@@ -1838,7 +2741,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SettingsPlan"];
                 };
             };
             /** @description Validation Error */
@@ -1871,7 +2774,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PathResult"];
                 };
             };
             /** @description Validation Error */
@@ -1904,7 +2807,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Opened"];
                 };
             };
             /** @description Validation Error */
@@ -1935,7 +2838,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Sticker"][];
                 };
             };
             /** @description Validation Error */
@@ -1968,7 +2871,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Sticker"];
                 };
             };
             /** @description Validation Error */
@@ -2001,7 +2904,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StickerDraft"];
                 };
             };
             /** @description Validation Error */
@@ -2032,7 +2935,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Sticker"];
                 };
             };
             /** @description Validation Error */
@@ -2067,7 +2970,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Sticker"];
                 };
             };
             /** @description Validation Error */
@@ -2098,7 +3001,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Sticker"];
                 };
             };
             /** @description Validation Error */
@@ -2127,7 +3030,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StickerGroupOut"][];
                 };
             };
         };
@@ -2151,7 +3054,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StickerGroupOut"][];
                 };
             };
             /** @description Validation Error */
@@ -2213,7 +3116,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ProjectList"];
                 };
             };
         };
@@ -2237,7 +3140,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2268,7 +3171,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2299,7 +3202,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Validation Error */
@@ -2334,7 +3237,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2365,7 +3268,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TrashItem"][];
                 };
             };
             /** @description Validation Error */
@@ -2396,7 +3299,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Deleted"];
                 };
             };
             /** @description Validation Error */
@@ -2428,7 +3331,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Restored"];
                 };
             };
             /** @description Validation Error */
@@ -2460,7 +3363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Deleted"];
                 };
             };
             /** @description Validation Error */
@@ -2495,7 +3398,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2531,7 +3434,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2566,7 +3469,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2597,7 +3500,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PromptPreview"];
                 };
             };
             /** @description Validation Error */
@@ -2628,7 +3531,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2663,7 +3566,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2695,7 +3598,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2727,7 +3630,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2759,7 +3662,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2790,7 +3693,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2821,7 +3724,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Project"];
                 };
             };
             /** @description Validation Error */
@@ -2854,7 +3757,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LogText"];
                 };
             };
             /** @description Validation Error */
@@ -2883,7 +3786,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"][];
                 };
             };
         };
@@ -2907,7 +3810,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"];
                 };
             };
             /** @description Validation Error */
@@ -2938,7 +3841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Validation Error */
@@ -2973,7 +3876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"];
                 };
             };
             /** @description Validation Error */
@@ -3008,7 +3911,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"];
                 };
             };
             /** @description Validation Error */
@@ -3040,7 +3943,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"];
                 };
             };
             /** @description Validation Error */
@@ -3071,7 +3974,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Character"];
                 };
             };
             /** @description Validation Error */
@@ -3100,7 +4003,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"][];
                 };
             };
         };
@@ -3124,7 +4027,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3153,7 +4056,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Importable"][];
                 };
             };
         };
@@ -3177,7 +4080,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3208,7 +4111,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3239,7 +4142,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Validation Error */
@@ -3274,7 +4177,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3309,7 +4212,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3341,7 +4244,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3376,7 +4279,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["LibStyle"];
                 };
             };
             /** @description Validation Error */
@@ -3405,7 +4308,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GalleryStyle"][];
                 };
             };
         };
@@ -3429,7 +4332,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportResult"];
                 };
             };
             /** @description Validation Error */
@@ -3458,7 +4361,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PresetState"];
                 };
             };
         };
@@ -3482,7 +4385,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PresetState"];
                 };
             };
             /** @description Validation Error */
@@ -3511,7 +4414,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PresetState"];
                 };
             };
         };
@@ -3535,7 +4438,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FileResult"];
                 };
             };
             /** @description Validation Error */
@@ -3564,7 +4467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SelectionInfo"][];
                 };
             };
         };
@@ -3588,7 +4491,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FileResult"];
                 };
             };
             /** @description Validation Error */

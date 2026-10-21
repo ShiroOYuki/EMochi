@@ -1,5 +1,6 @@
 // 設定頁（app/routes/settings.py）與介面偏好（/api/ui-prefs）
 import { http } from "./client";
+import type { components } from "./schema";
 import type { DirKey, PathCheck, SettingsInfo, SettingsPlan, SettingsValues } from "./types";
 
 /** 要改的資料夾（完整路徑）與數值設定 */
@@ -18,13 +19,13 @@ export const settingsApi = {
     http.put<SettingsInfo>("/api/settings", { changes, move, conflict }),
   /** 網頁版：在伺服器那台電腦跳出選資料夾視窗；取消回傳 null */
   pickFolder: async (start: string) =>
-    (await http.post<{ path: string | null }>("/api/settings/pick-folder", { path: start })).path,
+    (await http.post<components["schemas"]["PathResult"]>("/api/settings/pick-folder", { path: start })).path,
   openFolder: (path: string) => http.post("/api/settings/open-folder", { path }),
 };
 
 export type ThemePref = "system" | "light" | "dark";
 /** settings.local.json 裡跟介面有關的偏好；stored＝主題是否存過（沒存過才搬瀏覽器舊值） */
-export type UiPrefs = { theme: ThemePref; stored: boolean; tour_done?: boolean; notify?: boolean };
+export type UiPrefs = components["schemas"]["UiPrefsOut"];
 
 export const uiPrefsApi = {
   get: () => http.get<UiPrefs>("/api/ui-prefs"),

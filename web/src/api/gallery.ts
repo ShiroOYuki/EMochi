@@ -1,11 +1,13 @@
 // 圖庫、匯出、勾選清單、匯出預設集（app/routes/gallery.py）
 import { http } from "./client";
+import type { Body } from "./requests";
+import type { components } from "./schema";
 import type { CustomExport, ExportPreset, GalleryStyle, SelectionInfo } from "./types";
 
 /** 總覽圖（把勾選的貼圖排成一張）設定 */
-export type CombineOptions = { cols: number; cell: number; gap: number; bg: string; labels: boolean };
-export type ExportResult = { file: string; count: number; issues: { file: string; notes: string[] }[] };
-export type PresetState = { presets: ExportPreset[]; custom: boolean };
+export type CombineOptions = Omit<Body<"CombineBody">, "keys">;
+export type ExportResult = components["schemas"]["ExportResult"];
+export type PresetState = components["schemas"]["PresetState"];
 
 export const galleryApi = {
   list: () => http.get<GalleryStyle[]>("/api/gallery"),
@@ -13,7 +15,7 @@ export const galleryApi = {
   export: (body: { keys: string[]; presets: string[]; custom: CustomExport | null; tag: string }) =>
     http.post<ExportResult>("/api/gallery/export", body),
   combine: (keys: string[], opts: CombineOptions) =>
-    http.post<{ file: string }>("/api/gallery/combine", { keys, ...opts }),
+    http.post<components["schemas"]["FileResult"]>("/api/gallery/combine", { keys, ...opts }),
 
   selections: () => http.get<SelectionInfo[]>("/api/gallery/selections"),
   /** 讀回存過的勾選清單；舊版檔案的欄位不一定齊，呼叫端自己檢查 */
@@ -25,7 +27,7 @@ export const galleryApi = {
     custom: CustomExport | null;
     combine: CombineOptions;
     tag: string;
-  }) => http.post<{ file: string }>("/api/gallery/selections", body),
+  }) => http.post<components["schemas"]["FileResult"]>("/api/gallery/selections", body),
 };
 
 export const exportPresetsApi = {

@@ -1,20 +1,17 @@
 // 生成頁：畫風專案（app/routes/projects.py）
 import { http } from "./client";
 import type { Body } from "./requests";
-import type { LibStyle, Project, ProjectSummary, RefRole, Upload } from "./types";
+import type { components } from "./schema";
+
+type Out<K extends keyof components["schemas"]> = components["schemas"][K];
+import type { LibStyle, Project, RefRole, Upload } from "./types";
 
 const enc = encodeURIComponent;
 const base = (id: string) => `/api/projects/${id}`;
 
 /** GET /api/projects：專案清單＋生成頁需要的設定 */
-export type ProjectList = {
-  projects: ProjectSummary[];
-  next_id: string;
-  preview_ids: number[];
-  max_parallel: number;
-  default_layout?: GroupLayout;
-};
-export type GroupLayout = "4x2w" | "3x2";
+export type ProjectList = Out<"ProjectList">;
+export type GroupLayout = NonNullable<ProjectList["default_layout"]>;
 
 /** character_images：null＝用角色庫預設勾選的圖；[]＝一張都不用 */
 export type CreateProjectBody = Body<"CreateBody">;
@@ -49,8 +46,8 @@ export const projectsApi = {
     http.patch<Project>(`${base(id)}/refs/${enc(file)}`, { remove: true }),
 
   /** 目前描述組出來、實際送給 Codex 的 prompt */
-  prompt: async (id: string) => (await http.get<{ prompt: string }>(`${base(id)}/prompt`)).prompt,
+  prompt: async (id: string) => (await http.get<Out<"PromptPreview">>(`${base(id)}/prompt`)).prompt,
   /** Codex 紀錄檔內容（path 是 project.json 裡記的 log 路徑） */
   log: async (id: string, path: string) =>
-    (await http.get<{ text: string }>(`${base(id)}/log?path=${enc(path)}`)).text,
+    (await http.get<Out<"LogText">>(`${base(id)}/log?path=${enc(path)}`)).text,
 };

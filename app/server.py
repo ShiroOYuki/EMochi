@@ -23,7 +23,9 @@ async def _lifespan(_app):
     yield
 
 
-app = FastAPI(title="EMochi", lifespan=_lifespan)
+# separate_input_output_schemas=False：回應用 exclude_unset 輸出，有預設值的欄位可能不在回應裡，
+# 產生的前端型別要標成可省略（用驗證模式的 schema）
+app = FastAPI(title="EMochi", lifespan=_lifespan, separate_input_output_schemas=False)
 
 
 @app.middleware("http")

@@ -39,7 +39,7 @@ export const http = {
 };
 
 /** outputs/、exports/ 底下的檔案網址；v 用來避免瀏覽器快取舊圖 */
-export const fileUrl = (path: string, v?: string | number) =>
+export const fileUrl = (path: string, v?: string | number | null) =>
   `/files/${path}${v ? `?v=${encodeURIComponent(String(v))}` : ""}`;
 
 /** 瀏覽器端把檔案讀成 data URL（後端再轉成 PNG） */

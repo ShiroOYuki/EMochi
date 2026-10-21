@@ -47,13 +47,13 @@ export function FailedImage({
   tokens,
 }: {
   path: string;
-  v?: string;
+  v?: string | null;
   message: string;
   className: string;
   tokens?: number | null;
   onRecheck?: () => Promise<unknown>;
   onAccept?: () => Promise<unknown>;
-  rechecked?: string;
+  rechecked?: string | null;
 }) {
   const [exists, setExists] = useState(true);
   const [busy, setBusy] = useState<"" | "recheck" | "accept">("");

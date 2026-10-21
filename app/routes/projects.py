@@ -4,13 +4,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from .. import jobs, prompts, settings, trash
+from .. import schemas as S
 from ..paths import ROOT, logs_dir, next_style_id
-from ._shared import Framing, ProcessPatch, Upload, _decode
+from ._shared import OUT, Framing, ProcessPatch, Upload, _decode
 
 router = APIRouter()
 
 
-@router.get("/api/projects")
+@router.get("/api/projects", response_model=S.ProjectList, **OUT)
 def projects():
     return {
         "projects": jobs.list_projects(),
@@ -21,7 +22,7 @@ def projects():
     }
 
 
-@router.get("/api/projects/{style}")
+@router.get("/api/projects/{style}", response_model=S.Project, **OUT)
 def project(style: str):
     p = jobs.load(style)
     if not p:
@@ -29,27 +30,27 @@ def project(style: str):
     return jobs.view(p)
 
 
-@router.get("/api/trash/{kind}")
+@router.get("/api/trash/{kind}", response_model=list[S.TrashItem], **OUT)
 def trash_list(kind: str):
     return trash.list_items(kind)
 
 
-@router.post("/api/trash/{kind}/{name}/restore")
+@router.post("/api/trash/{kind}/{name}/restore", response_model=S.Restored, **OUT)
 def trash_restore(kind: str, name: str):
     return {"id": trash.restore(kind, name)}
 
 
-@router.delete("/api/trash/{kind}/{name}")
+@router.delete("/api/trash/{kind}/{name}", response_model=S.Deleted, **OUT)
 def trash_purge(kind: str, name: str):
     return {"deleted": trash.purge(kind, name)}
 
 
-@router.delete("/api/trash/{kind}")
+@router.delete("/api/trash/{kind}", response_model=S.Deleted, **OUT)
 def trash_empty(kind: str):
     return {"deleted": trash.purge(kind, None)}
 
 
-@router.delete("/api/projects/{style}")
+@router.delete("/api/projects/{style}", response_model=S.Ok, **OUT)
 def delete_project(style: str):
     jobs.delete(style)
     return {"ok": True}
@@ -67,7 +68,7 @@ class ExpandBody(BaseModel):
     request: str
 
 
-@router.post("/api/projects")
+@router.post("/api/projects", response_model=S.Project, **OUT)
 def create(body: CreateBody):
     return jobs.view(
         jobs.create(
@@ -76,7 +77,7 @@ def create(body: CreateBody):
     )
 
 
-@router.post("/api/projects/{style}/refs")
+@router.post("/api/projects/{style}/refs", response_model=S.Project, **OUT)
 def add_refs(style: str, files: list[Upload]):
     return jobs.view(jobs.add_temp_refs(style, _decode(files)))
 
@@ -86,12 +87,12 @@ class RefPatch(BaseModel):
     remove: bool = False
 
 
-@router.patch("/api/projects/{style}/refs/{file}")
+@router.patch("/api/projects/{style}/refs/{file}", response_model=S.Project, **OUT)
 def patch_ref(style: str, file: str, body: RefPatch):
     return jobs.view(jobs.update_temp_ref(style, file, body.role, body.remove))
 
 
-@router.post("/api/projects/{style}/expand")
+@router.post("/api/projects/{style}/expand", response_model=S.Project, **OUT)
 def reexpand(style: str, body: ExpandBody):
     return jobs.view(jobs.reexpand(style, body.request))
 
@@ -108,12 +109,12 @@ class ProjectPatch(BaseModel):
     character_images: list[str] | None = None
 
 
-@router.patch("/api/projects/{style}")
+@router.patch("/api/projects/{style}", response_model=S.Project, **OUT)
 def update(style: str, body: ProjectPatch):
     return jobs.view(jobs.update(style, body.model_dump(exclude_unset=True)))
 
 
-@router.get("/api/projects/{style}/prompt")
+@router.get("/api/projects/{style}/prompt", response_model=S.PromptPreview, **OUT)
 def prompt_preview(style: str):
     """目前描述組出來的完整預覽 prompt（不執行）"""
     p = jobs.load(style)
@@ -123,7 +124,7 @@ def prompt_preview(style: str):
     return {"prompt": text, "ids": ids, "output": out, "refs": refs}
 
 
-@router.post("/api/projects/{style}/preview")
+@router.post("/api/projects/{style}/preview", response_model=S.Project, **OUT)
 def preview(style: str):
     return jobs.view(jobs.start_preview(style))
 
@@ -133,39 +134,39 @@ class GenBody(BaseModel):
     layout: str = "4x2w"  # 4x2w（2:1 畫布、8 格，預設）或 3x2（3:2 畫布、6 格）
 
 
-@router.post("/api/projects/{style}/generate")
+@router.post("/api/projects/{style}/generate", response_model=S.Project, **OUT)
 def generate(style: str, body: GenBody):
     return jobs.view(jobs.start_generate(style, body.ids, body.layout))
 
 
-@router.post("/api/projects/{style}/groups/{index}/regenerate")
+@router.post("/api/projects/{style}/groups/{index}/regenerate", response_model=S.Project, **OUT)
 def regenerate(style: str, index: int):
     return jobs.view(jobs.regenerate_group(style, index))
 
 
-@router.post("/api/projects/{style}/recheck/{target}")
+@router.post("/api/projects/{style}/recheck/{target}", response_model=S.Project, **OUT)
 def recheck(style: str, target: str):
     """target = preview 或組別編號；只重新檢查現有的圖，不會呼叫 Codex"""
     return jobs.view(jobs.recheck(style, target))
 
 
-@router.post("/api/projects/{style}/accept/{target}")
+@router.post("/api/projects/{style}/accept/{target}", response_model=S.Project, **OUT)
 def accept(style: str, target: str):
     """target = preview 或組別編號；使用者判斷圖沒問題，手動當成成功（不呼叫 Codex）"""
     return jobs.view(jobs.accept(style, target))
 
 
-@router.post("/api/projects/{style}/finalize")
+@router.post("/api/projects/{style}/finalize", response_model=S.Project, **OUT)
 def finalize(style: str):
     return jobs.view(jobs.start_finalize(style))
 
 
-@router.post("/api/projects/{style}/reopen")
+@router.post("/api/projects/{style}/reopen", response_model=S.Project, **OUT)
 def reopen(style: str):
     return jobs.view(jobs.reopen(style))
 
 
-@router.get("/api/projects/{style}/log")
+@router.get("/api/projects/{style}/log", response_model=S.LogText, **OUT)
 def log(style: str, path: str):
     p = (ROOT / path).resolve()  # 專案裡記的 log 路徑：相對資料根目錄或絕對路徑
     if logs_dir().resolve() not in p.parents or not p.is_file():

@@ -47,7 +47,10 @@ def test_codex_check_endpoint(client, monkeypatch):
     monkeypatch.setattr(
         codex_status,
         "check",
-        lambda force=False: seen.append(force) or {"cli": {"found": False}, "login": {"ok": False}},
+        lambda force=False: (
+            seen.append(force)
+            or {"cli": {"found": False}, "login": {"ok": False, "text": "", "pending": False}}
+        ),
     )
     assert client.get("/api/codex-check").json()["cli"]["found"] is False
     client.get("/api/codex-check?refresh=1")

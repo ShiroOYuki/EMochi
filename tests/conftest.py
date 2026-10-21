@@ -20,6 +20,8 @@ DATA = Path(tempfile.mkdtemp(prefix="emochi_test_")).resolve()
 for name in ("prompt_template.json", "stickers.example.json", "sticker_groups.example.json"):
     shutil.copy(REPO / "config" / name, DATA / "config" / name)
 os.environ["EMOCHI_ROOT"] = str(DATA)
+# 回應的 response_model 用嚴格模式：回傳了 model 沒寫到的欄位就會失敗（app/schemas.py）
+os.environ["EMOCHI_STRICT_SCHEMAS"] = "1"
 
 from PIL import Image, ImageDraw  # noqa: E402
 
