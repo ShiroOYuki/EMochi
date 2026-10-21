@@ -1,14 +1,11 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as RPointerEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   codexApi,
+  invalidate,
+  keys,
+  refreshCodexStatus,
+  useCodexStatus,
   type CodexRun,
   type CodexRunResult,
   type CodexStatus,
@@ -19,7 +16,6 @@ import { Modal, SPRING, Spinner } from "./ui";
 import { copyText } from "../lib/clipboard";
 import { openCodexSetup } from "./CodexSetup";
 
-const POLL_MS = 5_000; // 對話框開著時：執行中的工作、用量要跟著動
 const fmtTok = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
 const fmtFull = (n: number) => n.toLocaleString("en-US");
@@ -52,45 +48,25 @@ export default function CodexStatusDialog({
   onClose: () => void;
   onReconnected?: () => void;
 }) {
-  const [d, setD] = useState<CodexStatus | null>(null);
-  const [err, setErr] = useState("");
+  // 開著的時候每 5 秒重抓（api/queries.ts）：執行中的工作、用量要跟著動
+  const { data, error } = useCodexStatus(open);
+  const d: CodexStatus | null = data ?? null;
+  const err = error ? error.message : "";
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const alive = useRef(true);
-  const load = useCallback(async (force = false) => {
-    try {
-      const x = await codexApi.status(force);
-      if (alive.current) {
-        setD(x);
-        setErr("");
-      }
-    } catch (e) {
-      if (alive.current) setErr((e as Error).message);
-    }
-  }, []);
-  useEffect(() => {
-    alive.current = true;
-    if (!open) return;
-    load();
-    const t = setInterval(() => load(), POLL_MS);
-    return () => {
-      alive.current = false;
-      clearInterval(t);
-    };
-  }, [open, load]);
 
   /** 重新連線：重查 CLI、登入狀態，並跳過快取重讀額度 */
   const reconnect = async () => {
     setBusy(true);
     setNote("");
-    await Promise.all([load(true), new Promise((r) => setTimeout(r, 500))]);
+    await refreshCodexStatus(500).catch(() => {});
     onReconnected?.();
-    if (alive.current) setBusy(false);
+    setBusy(false);
   };
   const login = async () => {
     try {
       setNote(await codexApi.login());
-      load();
+      invalidate(keys.codexStatus);
     } catch (e) {
       setNote((e as Error).message);
     }

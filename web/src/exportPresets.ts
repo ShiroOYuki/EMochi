@@ -1,42 +1,22 @@
-// 匯出預設集的共用狀態：圖庫的匯出面板、預設集管理視窗（從匯出面板或設定頁打開）看到的是同一份
-import { useEffect, useSyncExternalStore } from "react";
-import { exportPresetsApi, type ExportPreset, type PresetSize } from "./api";
+// 匯出預設集：圖庫的匯出面板、預設集管理視窗（從匯出面板或設定頁打開）看到的是同一份（TanStack Query 快取）
+import { useQuery } from "@tanstack/react-query";
+import { exportPresetsApi, keys, queryClient, type ExportPreset, type PresetSize } from "./api";
 
-type State = { presets: ExportPreset[]; custom: boolean; loaded: boolean };
-let state: State = { presets: [], custom: false, loaded: false };
-const subs = new Set<() => void>();
-const set = (s: Omit<State, "loaded">) => {
-  state = { ...s, loaded: true };
-  subs.forEach((f) => f());
-};
-
-export async function reloadPresets() {
-  set(await exportPresetsApi.get());
-}
+const NONE: ExportPreset[] = [];
 
 /** 整份存回去；驗證失敗會丟錯（訊息直接給使用者看） */
 export async function savePresets(presets: ExportPreset[]) {
-  set(await exportPresetsApi.save(presets));
+  queryClient.setQueryData(keys.exportPresets, await exportPresetsApi.save(presets));
 }
 
 export async function resetPresets() {
-  set(await exportPresetsApi.reset());
+  queryClient.setQueryData(keys.exportPresets, await exportPresetsApi.reset());
 }
 
+/** presets：目前的預設集；custom：使用者改過（不是內建的那份）；loaded：載入完成 */
 export function usePresets() {
-  const s = useSyncExternalStore(
-    (f) => {
-      subs.add(f);
-      return () => {
-        subs.delete(f);
-      };
-    },
-    () => state,
-  );
-  useEffect(() => {
-    if (!state.loaded) reloadPresets().catch(() => {});
-  }, []);
-  return s;
+  const q = useQuery({ queryKey: keys.exportPresets, queryFn: exportPresetsApi.get });
+  return { presets: q.data?.presets ?? NONE, custom: q.data?.custom ?? false, loaded: q.isSuccess };
 }
 
 export const OTHER_GROUP = "其他";

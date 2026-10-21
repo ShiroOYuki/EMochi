@@ -10,7 +10,6 @@ import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
 import { invalidateAll } from "./api";
-import { reloadStickers } from "./stickers";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import {
@@ -72,11 +71,10 @@ export default function App() {
   const go = (t: Tab) => {
     location.hash = `#/${t}`;
   };
-  // 切分頁時重抓伺服器資料：可能剛在別的分頁改過（新增角色、從垃圾桶還原…）。
+  // 切分頁時重抓伺服器資料（含表情、匯出預設集）：可能剛在別的分頁改過（新增角色、從垃圾桶還原…）。
   // 頁面都保留在 DOM 裡，所以不用各頁自己判斷「是不是切回來了」
   useEffect(() => {
     invalidateAll();
-    reloadStickers().catch(() => {});
   }, [tab]);
 
   return (

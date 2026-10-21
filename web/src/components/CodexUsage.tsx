@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { codexApi, type CodexUsage as Usage, type RateWindow } from "../api";
+import { useState } from "react";
+import { refreshCodexUsage, useCodexUsage, type CodexUsage as Usage, type RateWindow } from "../api";
 import CodexStatusDialog from "./CodexStatus";
 
-const POLL_MS = 30_000;
 type Level = "ok" | "warn" | "bad" | "off";
 
 /** 用得最兇的那個窗口決定燈號：< 60% 綠、< 85% 黃、其餘紅；讀不到資料是灰 */
@@ -39,36 +38,17 @@ const pct = (w: RateWindow) => `${Math.round(w.used_percent)}%`;
 
 /** Navbar 右側：Codex 額度百分比＋狀態燈；資料來自 Codex 的 session 記錄，跑過 Codex 才會更新 */
 export default function CodexUsage({ className = "" }: { className?: string }) {
-  const [u, setU] = useState<Usage | null>(null);
+  // 每 30 秒、切回視窗時自動重抓（api/queries.ts）；讀不到（伺服器沒回應）就顯示灰燈
+  const { data, isError } = useCodexUsage();
+  const u: Usage | null = isError ? null : (data ?? null);
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
-  const alive = useRef(true);
-  const load = useCallback(
-    (force = false) =>
-      codexApi
-        .usage(force)
-        .then((d) => alive.current && setU(d))
-        .catch(() => alive.current && setU(null)),
-    [],
-  );
-  useEffect(() => {
-    alive.current = true;
-    load();
-    const t = setInterval(() => load(), POLL_MS);
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      alive.current = false;
-      clearInterval(t);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [load]);
   /** 刷新按鈕：跳過後端快取重新讀；至少轉半秒，讓人看得出有動作 */
   const refresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    await Promise.all([load(true), new Promise((r) => setTimeout(r, 500))]);
-    if (alive.current) setRefreshing(false);
+    await refreshCodexUsage(500).catch(() => {});
+    setRefreshing(false);
   };
 
   const level = levelOf(u);
@@ -151,7 +131,11 @@ export default function CodexUsage({ className = "" }: { className?: string }) {
           <path d="M20 4v5h-5" />
         </svg>
       </button>
-      <CodexStatusDialog open={open} onClose={() => setOpen(false)} onReconnected={() => load(true)} />
+      <CodexStatusDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onReconnected={() => refreshCodexUsage().catch(() => {})}
+      />
     </div>
   );
 }

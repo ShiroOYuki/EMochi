@@ -1,55 +1,42 @@
-// 表情清單與分組的共用狀態：「表情」分頁編輯、Gen 頁面挑選，兩邊看到的是同一份
-import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { stickersApi, type Sticker, type StickerGroup } from "./api";
+// 表情清單與分組：「表情」分頁編輯、Gen 挑選、圖庫篩選看到的是同一份（TanStack Query 快取，api/queries.ts）
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { invalidate, keys, queryClient, stickersApi, type Sticker, type StickerGroup } from "./api";
 
-type State = { all: Sticker[]; groups: StickerGroup[]; loaded: boolean };
-let state: State = { all: [], groups: [], loaded: false };
-/** 目前的狀態快照（元件請用 useStickers；這個給測試和非 React 程式碼） */
-export const getStickerState = () => state;
-const subs = new Set<() => void>();
-const set = (patch: Partial<State>) => {
-  state = { ...state, ...patch };
-  subs.forEach((f) => f());
-};
-const subscribe = (f: () => void) => {
-  subs.add(f);
-  return () => {
-    subs.delete(f);
-  };
-};
+const NONE: never[] = []; // 還沒載入時用同一個空陣列，useMemo 才不會每次重算
 
-let loading: Promise<void> | null = null;
 /** 重抓表情（含已刪除）與分組 */
-export function reloadStickers(): Promise<void> {
-  loading ??= Promise.all([stickersApi.listAll(), stickersApi.groups()])
-    .then(([all, groups]) => set({ all, groups, loaded: true }))
-    .finally(() => {
-      loading = null;
-    });
-  return loading;
-}
+export const reloadStickers = () => invalidate(keys.stickers, keys.stickerGroups).then(() => {});
+
+/** 目前快取裡的資料（元件請用 useStickers；這個給測試和非 React 程式碼） */
+export const getStickerState = () => ({
+  all: queryClient.getQueryData<Sticker[]>(keys.stickers) ?? NONE,
+  groups: queryClient.getQueryData<StickerGroup[]>(keys.stickerGroups) ?? NONE,
+});
 
 let seq = 0;
 /** 分組整份存回去：畫面先更新（拖拉要即時），失敗就退回原本的；連續拖好幾次時只採用最後一次的回應 */
 export async function saveGroups(groups: StickerGroup[]): Promise<void> {
-  const prev = state.groups;
+  void queryClient.cancelQueries({ queryKey: keys.stickerGroups }); // 進行中的重抓不要蓋掉這次的改動
+  const prev = getStickerState().groups;
   const my = ++seq;
-  set({ groups });
+  queryClient.setQueryData(keys.stickerGroups, groups);
   try {
     const saved = await stickersApi.saveGroups(groups);
-    if (my === seq) set({ groups: saved });
+    if (my === seq) queryClient.setQueryData(keys.stickerGroups, saved);
   } catch (e) {
-    if (my === seq) set({ groups: prev });
+    if (my === seq) queryClient.setQueryData(keys.stickerGroups, prev);
     throw e;
   }
 }
 
 export function useStickers() {
-  const s = useSyncExternalStore(subscribe, () => state);
-  useEffect(() => {
-    if (!state.loaded) reloadStickers().catch(() => {});
-  }, []);
-  return useMemo(() => ({ ...s, ...deriveStickers(s.all, s.groups) }), [s]);
+  const stickers = useQuery({ queryKey: keys.stickers, queryFn: stickersApi.listAll });
+  const groupsQuery = useQuery({ queryKey: keys.stickerGroups, queryFn: stickersApi.groups });
+  const all = stickers.data ?? NONE;
+  const groups = groupsQuery.data ?? NONE;
+  const loaded = stickers.isSuccess && groupsQuery.isSuccess;
+  return useMemo(() => ({ all, groups, loaded, ...deriveStickers(all, groups) }), [all, groups, loaded]);
 }
 
 /** 從表情清單與分組算出各頁要用的衍生資料（純函式，stickers.test.ts 有測） */

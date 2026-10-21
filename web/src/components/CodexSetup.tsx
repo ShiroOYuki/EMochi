@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { codexApi, type CodexCheck } from "../api";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { codexApi, refreshCodexCheck, useCodexCheck } from "../api";
 import { Modal, Spinner } from "./ui";
 import { copyText } from "../lib/clipboard";
 
 const PS_INSTALL = `powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"`;
 const NPM_INSTALL = "npm install -g @openai/codex";
 const DISMISS_KEY = "codexSetup.dismissed"; // 這次開 App 按過「稍後再說」就不再自動跳（下次開 App 還是會檢查）
-const POLL_MS = 3_000; // 等瀏覽器登入時自動重查
 
 /* ---------- 啟動流程的狀態：新手導覽要等這個視窗處理完才開始 ---------- */
 export type CodexGate = "checking" | "open" | "done";
@@ -38,50 +37,31 @@ const dismissed = () => {
 /** 掛在 App 上：啟動時查一次 Codex，找不到 CLI 或沒登入就跳出準備視窗 */
 export default function CodexSetup() {
   const g = useCodexGate();
-  const [c, setC] = useState<CodexCheck | null>(null);
+  const open = g === "open";
+  // 等瀏覽器登入（後端回報 login.pending）時每 3 秒跳過快取重查，登入完成就會變成「準備好了」
+  const [waitingLogin, setWaitingLogin] = useState(false);
+  const { data, isFetched } = useCodexCheck(open && waitingLogin);
+  const c = data ?? null;
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const alive = useRef(true);
-  const load = useCallback(async (force: boolean) => {
-    try {
-      const x = await codexApi.check(force);
-      if (alive.current) setC(x);
-      return x;
-    } catch {
-      return null;
-    }
-  }, []);
 
+  // 啟動時第一次查完：找不到 CLI 或沒登入（且這次開 App 沒按過「稍後再說」）就打開；
+  // 伺服器沒回應時（isFetched 但沒有 data）不擋，其他地方會顯示錯誤
   useEffect(() => {
-    alive.current = true;
-    load(false).then((x) => {
-      if (gate !== "checking") return;
-      // 伺服器沒回應時不擋（其他地方會顯示錯誤）
-      setGate(x && (!x.cli.found || !x.login.ok) && !dismissed() ? "open" : "done");
-    });
-    return () => {
-      alive.current = false;
-    };
-  }, [load]);
-
-  const open = g === "open";
-  // 打開時重查一次（從 Codex 狀態對話框進來時資料可能是舊的）
-  useEffect(() => {
-    if (open) load(true);
-  }, [open, load]);
-  // 等瀏覽器登入：自動重查，登入完成就會變成「準備好了」
+    if (gate !== "checking" || !isFetched) return;
+    setGate(c && (!c.cli.found || !c.login.ok) && !dismissed() ? "open" : "done");
+  }, [isFetched, c]);
   const pending = !!c?.login.pending;
+  useEffect(() => setWaitingLogin(pending), [pending]);
+  // 打開時跳過快取重查一次（從 Codex 狀態對話框進來時資料可能是舊的）
   useEffect(() => {
-    if (!open || !pending) return;
-    const t = setInterval(() => load(true), POLL_MS);
-    return () => clearInterval(t);
-  }, [open, pending, load]);
+    if (open) refreshCodexCheck().catch(() => {});
+  }, [open]);
 
   const recheck = async () => {
     setBusy(true);
     setNote("");
-    const [x] = await Promise.all([load(true), new Promise((r) => setTimeout(r, 500))]);
-    if (!alive.current) return;
+    const x = await refreshCodexCheck(500).catch(() => null);
     setBusy(false);
     if (x && !x.cli.found)
       setNote(
@@ -92,7 +72,7 @@ export default function CodexSetup() {
     setNote("");
     try {
       setNote(await codexApi.login());
-      load(true);
+      refreshCodexCheck().catch(() => {}); // 拿到 login.pending 就會開始每 3 秒重查
     } catch (e) {
       setNote((e as Error).message);
     }

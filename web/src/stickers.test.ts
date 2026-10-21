@@ -3,7 +3,8 @@ import type { Sticker, StickerGroup } from "./api";
 
 // saveGroups 會呼叫後端：換成可控制的假 API
 const saveGroupsMock = vi.fn<(groups: StickerGroup[]) => Promise<StickerGroup[]>>();
-vi.mock("./api", () => ({
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()), // queryClient、keys 用真的
   stickersApi: {
     saveGroups: (groups: StickerGroup[]) => saveGroupsMock(groups),
     listAll: vi.fn(),
