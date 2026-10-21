@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "../toast";
 import { desktop, type UpdateState } from "../desktop";
 import { Modal } from "./ui";
 
@@ -200,4 +201,19 @@ export function AboutUpdates() {
       )}
     </div>
   );
+}
+
+/** 桌面版發現新版本：每個版本跳一次 toast（Navbar 的更新按鈕一直都在） */
+export function useUpdateToast() {
+  const s = useUpdateState();
+  const shown = useRef<string | null>(null);
+  useEffect(() => {
+    if (s?.state !== "available" || !s.version || shown.current === s.version) return;
+    shown.current = s.version;
+    toast.info({
+      title: `有新版本 v${s.version}`,
+      body: "按下載開始下載，下載好再決定什麼時候重新啟動安裝",
+      action: { label: "下載更新", run: () => desktop?.updates?.download() },
+    });
+  }, [s?.state, s?.version]);
 }

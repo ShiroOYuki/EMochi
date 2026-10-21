@@ -1,7 +1,8 @@
 // 伺服器狀態（TanStack Query）：哪些資料、用什麼 key 快取、什麼時候自動重抓
 // 改了資料的操作成功後呼叫 invalidate(...) 讓看得到這份資料的畫面一起更新；
 // 切換分頁時 App 會整批重抓（invalidateAll），所以頁面不用再各自寫「切回來就重抓」
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
+import { toastError } from "../toast";
 import { galleryApi } from "./gallery";
 import { charactersApi, styleLibApi, type RefLibraryApi } from "./library";
 import { projectsApi } from "./projects";
@@ -9,6 +10,8 @@ import { codexApi, trashApi } from "./system";
 import { BUSY, type TrashKind } from "./types";
 
 export const queryClient = new QueryClient({
+  // 讀資料失敗（伺服器沒回應、程式錯誤）：跳 toast；同樣的訊息還在畫面上就不重複跳（toast.tsx）
+  queryCache: new QueryCache({ onError: (e) => toastError(e, "讀取資料失敗") }),
   defaultOptions: {
     queries: {
       retry: 1,

@@ -1,4 +1,4 @@
-/** 桌面通知：生圖完成／失敗時提醒（視窗不在前景才跳）
+/** 生圖完成／失敗的提醒：視窗不在前景跳桌面通知，在前景跳站內 toast（toast.tsx）
  *  後端把事件記在 /api/events（app/events.py），這裡每 3 秒拿一次新的；不管停在哪個分頁都收得到。
  *  桌面版走 Electron 原生通知（window.emochi.notify），網頁版用瀏覽器的 Notification（要先允許）。
  *  點通知：視窗叫到前面 → 切到「生成」分頁 → 打開那個專案 */
@@ -6,6 +6,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { invalidate, keys, systemApi, uiPrefsApi, type AppEvent } from "./api";
 import { goTo } from "./router";
 import { desktop } from "./desktop";
+import { toast } from "./toast";
 
 const POLL_MS = 3000;
 const listeners = new Set<() => void>();
@@ -101,9 +102,19 @@ export function useNotifier() {
         const r = await systemApi.events(seq, boot);
         seq = r.seq;
         boot = r.boot;
-        if (enabled && !document.hasFocus()) {
-          for (const e of r.events)
-            await showNotification({ title: e.title, body: e.body, project: e.project });
+        const focused = document.hasFocus();
+        for (const e of r.events) {
+          if (!focused) {
+            if (enabled) await showNotification({ title: e.title, body: e.body, project: e.project });
+            continue;
+          }
+          // 在前景：站內 toast（不受「桌面通知」開關影響）；點了打開那個專案
+          const open = () => openProject(e.project);
+          (e.ok ? toast.ok : toast.error)({
+            title: e.title,
+            body: e.body,
+            action: { label: "開啟專案", run: open },
+          });
         }
       } catch {
         /* 伺服器暫時沒回應：下次再拿 */
