@@ -14,6 +14,10 @@ updates:
     target-branch: develop
     schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Taipei }
     groups:
+      # vite 和綁著它的外掛、測試工具要一起升（大版本也一起）：分開升會互相卡 peer dependency，npm ci 直接失敗
+      # 一個套件只會進第一個符合的分組，所以這組要放在 web-minor 前面
+      vite:
+        patterns: ["vite", "@vitejs/*", "vitest", "@vitest/*", "tailwindcss", "@tailwindcss/*"]
       web-minor: { update-types: [minor, patch] }
 
   - package-ecosystem: npm           # 桌面版（Electron、electron-builder）
