@@ -1,0 +1,31 @@
+# 每週檢查一次套件更新與安全性公告，PR 開到 develop（照分支流程，大版本才進 main）
+# 同一生態系的小版本更新併成一個 PR，避免一次冒出一堆
+version: 2
+updates:
+  - package-ecosystem: uv            # pyproject.toml／uv.lock（後端）
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Taipei }
+    groups:
+      python-minor: { update-types: [minor, patch] }
+
+  - package-ecosystem: npm           # 前端
+    directory: /web
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Taipei }
+    groups:
+      web-minor: { update-types: [minor, patch] }
+
+  - package-ecosystem: npm           # 桌面版（Electron、electron-builder）
+    directory: /desktop
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Taipei }
+    groups:
+      desktop-minor: { update-types: [minor, patch] }
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ["*"] }
