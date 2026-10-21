@@ -4,6 +4,7 @@ import { ManagePresetsButton, PresetPicker } from "../../components/ExportPreset
 import { Check, Select } from "../../components/ui";
 import { legacyToPresets, parseSizes, sizeText, usePresets } from "../../exportPresets";
 import { useStored } from "../../hooks/useStored";
+import { toast, toastError } from "../../toast";
 
 /** 圖庫右側：勾選清單（存／讀）、匯出 zip、組合總覽圖 */
 
@@ -272,10 +273,17 @@ export function SidePanel({
                     ? `\n規格檢查有 ${notes.length} 則提醒：\n${notes.slice(0, 8).join("\n")}${notes.length > 8 ? `\n…其餘 ${notes.length - 8} 則寫在同名的 JSON 裡` : ""}`
                     : "\n大小檢查：全部符合各預設集的上限"),
               );
+              toast.ok({
+                title: "匯出完成",
+                body:
+                  `${r.count} 個檔案，存在 exports\\${r.file}` +
+                  (notes.length ? `\n規格檢查有 ${notes.length} 則提醒，詳情見側欄的匯出區` : ""),
+              });
               location.href = fileUrl(`exports/${r.file}`);
               loadList();
             } catch (e) {
               say("exp", `失敗：${(e as Error).message}`);
+              toastError(e, "匯出失敗");
             }
           }}
         >

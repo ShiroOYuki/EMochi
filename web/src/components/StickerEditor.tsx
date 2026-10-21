@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
-import { stickersApi, type Sticker, type StickerBody } from "../api";
+import {
+  fileUrl,
+  invalidate,
+  keys,
+  readFiles,
+  stickersApi,
+  type Sticker,
+  type StickerBody,
+  type Upload,
+} from "../api";
 import { reloadStickers, useStickers } from "../stickers";
-import { Check, Modal, Select, Spinner } from "./ui";
+import { Check, DropZone, Modal, Select, Spinner } from "./ui";
 import { DeleteButton } from "./DeleteButton";
 
 type Form = {
@@ -13,6 +22,19 @@ type Form = {
   group: number;
 }; // 0＝不放進分組
 const EMPTY: Form = { label: "", zh: "", prompt: "", prompt_no_ears: "", bottom: false, group: 0 };
+
+/** 範例圖：saved＝表情已經存的那張；upload＝這次新放的（按儲存才存進表情）；null＝沒有／拿掉了 */
+/** 範例圖：saved＝自己放過的；default＝內建表情（#1～32）的預設圖，可以放新的蓋過去；upload＝這次新放的（按儲存才存） */
+type Example =
+  { kind: "saved" | "default"; url: string } | { kind: "upload"; url: string; upload: Upload } | null;
+const defaultExample = (s: Sticker | null): Example =>
+  s?.default_example
+    ? { kind: "default", url: fileUrl(`sticker_examples_default/${s.default_example}`) }
+    : null;
+const savedExample = (s: Sticker | null): Example =>
+  s?.example
+    ? { kind: "saved", url: fileUrl(`sticker_examples/${s.example}`, s.example_v) }
+    : defaultExample(s);
 
 /** 新增／編輯表情的對話框（「表情」分頁與 Gen 挑選步驟共用）。
  *  sticker＝null 是新增；onSaved 拿到存好的表情；onDelete 有給才顯示刪除鈕 */
@@ -36,11 +58,13 @@ export default function StickerEditor({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [idea, setIdea] = useState("");
-  const [expanding, setExpanding] = useState(false);
+  const [expanding, setExpanding] = useState<"" | "text" | "image">("");
+  const [example, setExample] = useState<Example>(null);
   useEffect(() => {
     if (!open) return;
     setErr("");
     setIdea("");
+    setExample(savedExample(sticker));
     setF(
       sticker
         ? {
@@ -57,11 +81,14 @@ export default function StickerEditor({
 
   const ok = f.label.trim() && f.prompt.trim();
   /** 讓 Codex 把一句話擴寫成名稱／中文／prompt（短句，跟現有表情同風格）；結果填進表單，存不存由使用者決定 */
-  const expand = async () => {
-    setExpanding(true);
+  const expand = async (withImage = false) => {
+    setExpanding(withImage ? "image" : "text");
     setErr("");
     try {
-      const d = await stickersApi.expand({ idea, label: f.label, zh: f.zh, prompt: f.prompt });
+      const body = { idea, label: f.label, zh: f.zh, prompt: f.prompt };
+      const d = withImage
+        ? await stickersApi.analyze({ ...body, image: await exampleUpload() })
+        : await stickersApi.expand(body);
       // 編輯既有表情時保留原本的英文名稱（使用者通常只想改描述）
       setF((x) => ({
         ...x,
@@ -74,8 +101,19 @@ export default function StickerEditor({
     } catch (e) {
       setErr((e as Error).message);
     } finally {
-      setExpanding(false);
+      setExpanding("");
     }
+  };
+  /** 分析要傳的圖：新放的直接用；已存的那張從伺服器讀回來 */
+  const exampleUpload = async (): Promise<Upload> => {
+    if (example?.kind === "upload") return example.upload;
+    const blob = await (await fetch(example!.url)).blob();
+    const [u] = await readFiles([new File([blob], "example.png", { type: blob.type || "image/png" })]);
+    return u;
+  };
+  const pickExample = async (files: File[]) => {
+    const [u] = await readFiles(files.slice(0, 1));
+    if (u) setExample({ kind: "upload", url: u.data, upload: u });
   };
   const save = async () => {
     setBusy(true);
@@ -88,10 +126,13 @@ export default function StickerEditor({
         prompt_no_ears: f.prompt_no_ears,
         align: f.bottom ? "bottom" : null,
       };
-      const s = sticker
+      let s = sticker
         ? await stickersApi.update(sticker.id, body)
         : await stickersApi.create({ ...body, group_id: f.group || null });
+      if (example?.kind === "upload") s = await stickersApi.setExample(s.id, example.upload);
+      else if (example?.kind !== "saved" && sticker?.example) s = await stickersApi.removeExample(s.id);
       await reloadStickers();
+      invalidate(keys.stickerThumbs);
       onSaved?.(s);
       onClose();
     } catch (e) {
@@ -118,42 +159,95 @@ export default function StickerEditor({
             "新增表情"
           )}
         </h3>
-        <div className="rounded-2xl bg-panel2 p-3">
-          <label className="label">
-            用一句話描述想要的表情，讓 Codex 擴寫（中英文都可以；留空就用下面的中文說明）
-          </label>
-          <div className="flex gap-2">
-            <input
-              className="input bg-panel"
-              autoFocus={!sticker}
-              placeholder="例如：捧著茶杯打瞌睡"
-              value={idea}
-              disabled={expanding}
-              onChange={(e) => setIdea(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !expanding) expand();
-              }}
-            />
-            <button
-              className="btn shrink-0"
-              onClick={expand}
-              disabled={expanding || busy || !(idea.trim() || f.zh.trim() || f.label.trim())}
-            >
-              {expanding ? (
-                <>
-                  <Spinner className="size-3.5" />
-                  擴寫中…
-                </>
-              ) : (
-                "✨ 擴寫"
-              )}
-            </button>
+        <div className="flex gap-3 rounded-2xl bg-panel2 p-3">
+          {/* 範例圖：表情分析用，也是表情小卡的縮圖 */}
+          <div className="w-24 shrink-0">
+            {example?.kind === "default" ? (
+              // 預設圖：點一下或拖新的圖進來就換掉
+              <DropZone
+                className="relative size-24 overflow-hidden border-solid p-0"
+                onFiles={pickExample}
+                disabled={!!expanding}
+              >
+                <img src={example.url} alt="預設範例圖" className="size-full object-contain" />
+                <span className="absolute inset-x-0 bottom-0 bg-panel/85 py-0.5 text-[10px]">
+                  預設・點我換
+                </span>
+              </DropZone>
+            ) : example ? (
+              <div className="group relative">
+                <img src={example.url} alt="範例圖" className="checker size-24 rounded-xl object-contain" />
+                <button
+                  className="absolute right-1 top-1 hidden rounded-full bg-panel/90 px-1.5 text-xs text-mute hover:text-bad group-hover:block"
+                  onClick={() => setExample(defaultExample(sticker))}
+                  disabled={!!expanding}
+                  aria-label="拿掉範例圖"
+                  title={sticker?.default_example ? "拿掉，改回預設範例圖" : "拿掉範例圖"}
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <DropZone className="size-24 p-1" onFiles={pickExample} disabled={!!expanding}>
+                <span className="text-lg leading-none">＋</span>
+                <span className="text-[11px] leading-tight">範例圖</span>
+              </DropZone>
+            )}
           </div>
-          <p className="mt-1.5 text-[11px] text-mute">
-            {expanding
-              ? "Codex 思考中，大約 10～30 秒"
-              : "會參考現有表情的寫法，產生簡短的名稱、中文說明與英文描述，填進下面的欄位；滿意再按儲存"}
-          </p>
+          <div className="min-w-0 flex-1">
+            <label className="label">
+              用一句話描述想要的表情，或放一張範例圖，讓 Codex 幫你寫（留空就用下面的中文說明）
+            </label>
+            <div className="flex gap-2">
+              <input
+                className="input bg-panel"
+                autoFocus={!sticker}
+                placeholder="例如：捧著茶杯打瞌睡"
+                value={idea}
+                disabled={!!expanding}
+                onChange={(e) => setIdea(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !expanding) expand();
+                }}
+              />
+              <button
+                className="btn shrink-0"
+                onClick={() => expand()}
+                disabled={!!expanding || busy || !(idea.trim() || f.zh.trim() || f.label.trim())}
+              >
+                {expanding === "text" ? (
+                  <>
+                    <Spinner className="size-3.5" />
+                    擴寫中…
+                  </>
+                ) : (
+                  "✨ 擴寫"
+                )}
+              </button>
+              <button
+                className="btn shrink-0"
+                onClick={() => expand(true)}
+                disabled={!!expanding || busy || !example}
+                title={example ? "讓 Codex 看範例圖，填寫名稱、說明與描述" : "先放一張範例圖"}
+              >
+                {expanding === "image" ? (
+                  <>
+                    <Spinner className="size-3.5" />
+                    分析中…
+                  </>
+                ) : (
+                  "🔍 看圖分析"
+                )}
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-mute">
+              {expanding === "image"
+                ? "Codex 看圖中，大約 20～40 秒"
+                : expanding
+                  ? "Codex 思考中，大約 10～30 秒"
+                  : "會參考現有表情的寫法填進下面的欄位，滿意再按儲存。範例圖會跟著表情存起來，當作小卡的縮圖（#1～32 有預設圖）"}
+            </p>
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -223,7 +317,7 @@ export default function StickerEditor({
           <button className="btn ml-auto" onClick={onClose} disabled={busy}>
             取消
           </button>
-          <button className="btn btn-primary" onClick={save} disabled={!ok || busy || expanding}>
+          <button className="btn btn-primary" onClick={save} disabled={!ok || busy || !!expanding}>
             {busy ? (
               <>
                 <Spinner className="size-3.5 border-on-acc border-t-transparent" />

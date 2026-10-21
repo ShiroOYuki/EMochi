@@ -124,3 +124,123 @@ def test_expand(client, monkeypatch):
     assert client.post("/api/stickers/expand", json={"zh": "生氣跺腳"}).status_code == 200
     assert "生氣跺腳" in seen["prompt"]
     assert client.post("/api/stickers/expand", json={}).status_code == 400
+
+
+def _png_data_url(color=(255, 120, 160)) -> str:
+    import base64
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (64, 64), color).save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def test_analyze_with_image(client, monkeypatch, data_root):
+    """表情分析：範例圖交給 Codex 看（images 參數），不寫想法也可以；不會存進表情"""
+    import json
+
+    from app import codex
+
+    seen = {}
+
+    def fake(prompt, schema, log, **kw):
+        seen.update(prompt=prompt, images=kw.get("images"), log=log)
+        return json.dumps(
+            {
+                "label": "Peek",
+                "zh": "從下方探頭",
+                "prompt": "peeking up",
+                "prompt_no_ears": "",
+                "align": "bottom",
+            }
+        )
+
+    monkeypatch.setattr(codex, "run_text", fake)
+    r = client.post("/api/stickers/analyze", json={"image": {"name": "a.png", "data": _png_data_url()}})
+    assert r.status_code == 200, r.text
+    assert r.json()["align"] == "bottom"
+    assert seen["images"] and seen["images"][0].endswith("analyze_input.png")
+    assert seen["images"][0] in seen["prompt"] and "example emote image" in seen["prompt"]
+    assert "analyze" in seen["log"].name
+    assert not any(s.get("example") for s in client.get("/api/stickers").json())
+    bad = client.post(
+        "/api/stickers/analyze", json={"image": {"name": "a.png", "data": "data:image/png;base64,AAAA"}}
+    )
+    assert bad.status_code == 400
+
+
+def test_example_image(client, data_root):
+    """範例圖：存、換、拿掉（移到 _removed），編輯描述不會弄丟"""
+    s = client.post("/api/stickers", json={"label": "Example Pic", "prompt": "waving"}).json()
+    r = client.put(f"/api/stickers/{s['id']}/example", json={"name": "x.png", "data": _png_data_url()})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["example"] == f"{s['id']}.png" and d["example_v"] > 0
+    assert client.get(f"/files/sticker_examples/{d['example']}").status_code == 200
+    client.patch(f"/api/stickers/{s['id']}", json={"zh": "揮手"})
+    again = next(x for x in client.get("/api/stickers").json() if x["id"] == s["id"])
+    assert again["example"] == d["example"]
+    gone = client.delete(f"/api/stickers/{s['id']}/example").json()
+    assert "example" not in gone
+    assert (data_root / "config" / "sticker_examples" / "_removed" / d["example"]).exists()
+    assert client.put("/api/stickers/99999/example", json={"data": _png_data_url()}).status_code == 404
+
+
+def test_thumbs(client, data_root):
+    """縮圖：範例圖優先；沒有就用最新成品（優先 Twitch 112）；都沒有不列"""
+    import os
+
+    from PIL import Image
+
+    def png(p, mtime):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGBA", (8, 8), (1, 2, 3, 255)).save(p)
+        os.utime(p, (mtime, mtime))
+
+    T = 4_000_000_000  # 比其他測試生成的檔案都新
+    old = data_root / "outputs" / "t_old" / "final"
+    new = data_root / "outputs" / "t_new" / "final"
+    png(old / "master" / "01_happy.png", T + 1_000)
+    png(new / "master" / "01_happy.png", T + 2_000)
+    png(new / "twitch" / "112" / "01_happy.png", T + 2_000)
+    png(old / "master" / "03_cry.png", T + 1_500)
+    fresh = client.post("/api/stickers", json={"label": "No Thumb Yet", "prompt": "x"}).json()
+    made = client.post(
+        "/api/stickers", json={"label": "Made One", "prompt": "x"}
+    ).json()  # 自訂表情：沒有預設圖
+    png(new / "master" / f"{made['id']:02d}_made_one.png", T + 3_000)
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    # 內建 #1～32：預設範例圖優先於生成的成品
+    assert by_id[1] == {"id": 1, "kind": "default", "path": "sticker_examples_default/1.png", "v": 0}
+    assert by_id[3]["kind"] == "default"
+    # 自訂表情（#33 起）：用最新成品
+    assert by_id[made["id"]] == {
+        "id": made["id"],
+        "kind": "latest",
+        "path": f"outputs/t_new/final/master/{made['id']:02d}_made_one.png",
+        "v": T + 3000,
+    }
+    assert fresh["id"] not in by_id
+    client.put("/api/stickers/3/example", json={"data": _png_data_url()})
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    assert by_id[3]["kind"] == "example" and by_id[3]["path"] == "sticker_examples/3.png"
+    assert client.get(f"/files/{by_id[1]['path']}").status_code == 200
+    assert client.get(f"/files/{by_id[made['id']]['path']}").status_code == 200
+    # API 告訴前端有沒有預設圖；拿掉自己的範例圖後縮圖回到預設
+    listed = {s["id"]: s for s in client.get("/api/stickers").json()}
+    assert listed[1]["default_example"] == "1.png" and "default_example" not in listed[made["id"]]
+    client.delete("/api/stickers/3/example")
+    assert {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}[3]["kind"] == "default"
+
+
+def test_default_examples_bundled():
+    """內建 #1～32 都有預設範例圖，打包設定也有帶到"""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parent.parent
+    assert sorted(int(p.stem) for p in (repo / "config" / "sticker_examples.example").glob("*.png")) == list(
+        range(1, 33)
+    )
+    assert "sticker_examples.example" in (repo / "desktop" / "emochi-server.spec").read_text(encoding="utf-8")

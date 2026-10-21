@@ -59,6 +59,9 @@ class Settings(BaseModel):
         5, ge=1, le=30, description="文字任務（擴寫、看圖寫特徵、分析畫風）逾時（分鐘）"
     )
     tour_done: bool = Field(False, description="新手導覽看過（略過也算）；設定頁「說明」可以重看")
+    disclaimer: int = Field(
+        0, ge=0, description="同意過的免責聲明版本（0＝還沒同意；內容改版時前端版本號加 1 會再問一次）"
+    )
     notify: bool = Field(True, description="桌面通知：生圖完成／失敗、視窗不在前景時跳；立即存檔")
     theme: Theme = Field("system", description="介面主題：跟隨系統／淺色／深色；立即存檔")
     # codex exec 的參數（生圖用）；設定頁只顯示不給改，改錯會讓 Codex 沒辦法寫入

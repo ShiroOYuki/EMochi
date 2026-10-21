@@ -29,6 +29,6 @@ export type UiPrefs = components["schemas"]["UiPrefsOut"];
 
 export const uiPrefsApi = {
   get: () => http.get<UiPrefs>("/api/ui-prefs"),
-  set: (prefs: Partial<{ theme: ThemePref; tour_done: boolean; notify: boolean }>) =>
+  set: (prefs: Partial<{ theme: ThemePref; tour_done: boolean; notify: boolean; disclaimer: number }>) =>
     http.put("/api/ui-prefs", prefs),
 };

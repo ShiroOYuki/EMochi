@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { codexApi, refreshCodexCheck, useCodexCheck } from "../api";
 import { Modal, Spinner } from "./ui";
 import { copyText } from "../lib/clipboard";
+import { useDisclaimerState } from "./Disclaimer";
 
 const PS_INSTALL = `powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"`;
 const NPM_INSTALL = "npm install -g @openai/codex";
@@ -47,10 +48,12 @@ export default function CodexSetup() {
 
   // 啟動時第一次查完：找不到 CLI 或沒登入（且這次開 App 沒按過「稍後再說」）就打開；
   // 伺服器沒回應時（isFetched 但沒有 data）不擋，其他地方會顯示錯誤
+  // 第一次開 App 要先同意免責聲明（Disclaimer.tsx），同意後才輪到這個視窗
+  const disclaimer = useDisclaimerState();
   useEffect(() => {
-    if (gate !== "checking" || !isFetched) return;
+    if (gate !== "checking" || !isFetched || disclaimer !== "ok") return;
     setGate(c && (!c.cli.found || !c.login.ok) && !dismissed() ? "open" : "done");
-  }, [isFetched, c]);
+  }, [isFetched, c, disclaimer]);
   const pending = !!c?.login.pending;
   useEffect(() => setWaitingLogin(pending), [pending]);
   // 打開時跳過快取重查一次（從 Codex 狀態對話框進來時資料可能是舊的）

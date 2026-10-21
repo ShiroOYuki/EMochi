@@ -18,12 +18,15 @@ export function Modal({
   children,
   wide,
   label = "對話框",
+  className,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
   label?: string;
+  /** 加在框本身的 class（例如設定頁未儲存時的紅框、搖晃） */
+  className?: string;
 }) {
   const reduce = useReducedMotion();
   // 關閉時呼叫端通常會把內容清掉（例如 target 變 null）；留住最後一次的內容，收起動畫期間框才不會先變空白
@@ -70,6 +73,7 @@ export function Modal({
           className={cn(
             "no-drag scroll-inset fixed inset-0 z-50 m-auto h-fit max-h-[92vh] overflow-auto overscroll-contain rounded-[26px] bg-panel p-6 shadow-2xl outline-none",
             wide ? "w-[min(1200px,96vw)]" : "w-[min(780px,96vw)]",
+            className,
           )}
         >
           <DialogTitle className="sr-only">{label}</DialogTitle>

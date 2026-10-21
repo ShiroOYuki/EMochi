@@ -158,10 +158,67 @@ function applyTheme(pref) {
 
 const isLocal = (url) => url.startsWith(baseUrl);
 
+/** 啟動畫面（等後端好之前）：狐狸耳朵像麻糬一樣彈跳＋「啟動中」三個點輪流跳；
+ *  系統開了「減少動態效果」就不動。data: URL 不能載外部字型，用系統字 */
 function splash() {
   const dark = isDark();
-  const html = `<html><body style="-webkit-app-region:drag;margin:0;display:grid;place-items:center;height:100vh;font:15px 'Microsoft JhengHei UI',sans-serif;
-    background:${dark ? "#1c1b29" : "#faf8ff"};color:${dark ? "#cfcbe6" : "#4a4668"}">EMochi 啟動中…</body></html>`;
+  const c = dark
+    ? { bg: BG.dark, text: "#ece9ff", mute: "#a29fc4", panel: "#2a2742", acc: "#7c9dff", track: "#2f2c48", shadow: "rgba(0,0,0,.35)" }
+    : { bg: BG.light, text: "#34315a", mute: "#8a87a8", panel: "#ffffff", acc: "#5a86f0", track: "#e2e0f1", shadow: "rgba(52,49,90,.18)" };
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{height:100%;margin:0}
+  body{-webkit-app-region:drag;display:grid;place-items:center;background:${c.bg};color:${c.text};
+    font:15px "Microsoft JhengHei UI","Microsoft JhengHei",sans-serif;user-select:none;cursor:default}
+  .wrap{display:flex;flex-direction:column;align-items:center;gap:14px;animation:fade .4s ease-out both}
+  .stage{position:relative;width:96px;height:92px}
+  /* 彈跳拆成兩層：.jump 管上下（上升減速、下降加速，中間不停頓），.ears 管落地／起跳時的擠壓；
+     緩動寫在各個影格裡（只寫在 animation 上的話每一段都會減速到停，看起來一頓一頓的） */
+  .jump{position:absolute;left:12px;top:6px;width:72px;height:53px;will-change:transform;animation:jump 1.2s infinite}
+  .ears{display:block;width:100%;height:100%;transform-origin:50% 100%;will-change:transform;animation:squash 1.2s infinite}
+  .shadow{position:absolute;left:24px;bottom:4px;width:48px;height:9px;border-radius:50%;background:${c.shadow};
+    will-change:transform,opacity;animation:shadow 1.2s infinite}
+  h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.5px}
+  .status{color:${c.mute};font-size:13px;display:flex;align-items:baseline;gap:1px}
+  .dot{display:inline-block;animation:dot 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+  .bar{width:120px;height:4px;border-radius:4px;background:${c.track};overflow:hidden}
+  .bar i{display:block;width:40%;height:100%;border-radius:4px;background:${c.acc};will-change:transform;animation:slide 1.6s cubic-bezier(.45,0,.55,1) infinite}
+  @keyframes jump{
+    0%{transform:translateY(0);animation-timing-function:cubic-bezier(.2,.6,.35,1)}
+    42%{transform:translateY(-26px);animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+    80%,100%{transform:translateY(0)}}
+  @keyframes squash{
+    0%{transform:scale(.93,1.08);animation-timing-function:ease-out}
+    22%{transform:scale(1,1)}
+    60%{transform:scale(1,1);animation-timing-function:ease-in}
+    80%{transform:scale(.95,1.06);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+    88%{transform:scale(1.3,.7);animation-timing-function:ease-in-out}
+    95%{transform:scale(1.08,.92);animation-timing-function:ease-in-out}
+    100%{transform:scale(.93,1.08)}}
+  @keyframes shadow{
+    0%{transform:scaleX(1);opacity:1;animation-timing-function:cubic-bezier(.2,.6,.35,1)}
+    42%{transform:scaleX(.55);opacity:.45;animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+    80%{transform:scaleX(1);opacity:1;animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+    88%{transform:scaleX(1.25);opacity:1;animation-timing-function:ease-in-out}
+    100%{transform:scaleX(1);opacity:1}}
+  @keyframes dot{0%,60%,100%{transform:translateY(0);animation-timing-function:ease-out}30%{transform:translateY(-3px);animation-timing-function:ease-in}}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  @media (prefers-reduced-motion:reduce){.jump,.ears,.shadow,.dot,.bar i,.wrap{animation:none}.bar i{width:100%;opacity:.5}}
+  </style></head><body><div class="wrap" role="status" aria-label="EMochi 啟動中">
+    <div class="stage">
+      <div class="jump"><svg class="ears" viewBox="0 0 30 22" aria-hidden="true">
+        <path d="M2 21 L7 2 L14 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M6.5 15 L8 7 L11.5 13.5 Z" fill="#ff8db3"/>
+        <path d="M28 21 L23 2 L16 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M23.5 15 L22 7 L18.5 13.5 Z" fill="#ff8db3"/>
+      </svg></div>
+      <div class="shadow"></div>
+    </div>
+    <h1>EMochi</h1>
+    <div class="bar"><i></i></div>
+    <div class="status">啟動中<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div></body></html>`;
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
 }
 
@@ -240,6 +297,19 @@ ipcMain.handle("open-logs", async () => {
   fs.mkdirSync(dir, { recursive: true });
   await shell.openPath(dir);
   return dir;
+});
+// 設定頁「重新啟動」：有 Codex 在生成時先回報數量讓前端確認（force＝確認過了）；
+// 自己停掉後端再 relaunch（app.exit 不會觸發 will-quit 的收尾）
+ipcMain.handle("relaunch", async (_e, force) => {
+  let running = 0;
+  try { running = (await health()).codex_running; } catch { /* 後端沒回應就直接重開 */ }
+  if (running > 0 && !force) return { ok: false, running };
+  quitting = true;
+  saveBounds();
+  await stopServer();
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
 });
 ipcMain.on("win-is-maximized", (e) => { e.returnValue = !!win?.isMaximized(); });
 ipcMain.on("win", (_e, action) => {

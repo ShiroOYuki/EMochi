@@ -1,11 +1,12 @@
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { stickersApi, type Sticker, type StickerGroup } from "../api";
+import { stickersApi, useStickerThumbs, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
 import { Check, Modal, SPRING, Spinner } from "../components/ui";
 import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
 import { TrashIcon } from "../components/icons";
 import StickerEditor from "../components/StickerEditor";
+import { toastError } from "../toast";
 
 /** 拖曳中的表情：from＝來源分組 id，null＝從左邊「所有表情」拖出來 */
 type Drag = { id: number; from: number | null };
@@ -15,7 +16,6 @@ type Over = { gid: number; index: number } | { pool: true } | null;
 /** 表情分頁：左邊是所有表情，右邊是分組；把小卡拖進分組，Gen 的挑選步驟就能一次勾一組 */
 export default function StickersPage() {
   const { active: list, groups, deleted, loaded } = useStickers();
-  const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [onlyUngrouped, setOnlyUngrouped] = useState(false);
   const [editing, setEditing] = useState<{ sticker: Sticker | null; group?: number } | null>(null);
@@ -27,8 +27,7 @@ export default function StickersPage() {
   const [menu, openMenu] = useContextMenu();
 
   const save = (next: StickerGroup[]) => {
-    setErr("");
-    saveGroups(next).catch((e) => setErr((e as Error).message));
+    saveGroups(next).catch((e) => toastError(e, "分組儲存失敗"));
   };
   const clone = () => groups.map((g) => ({ ...g, ids: [...g.ids] }));
   const countIn = (id: number) => groups.filter((g) => g.ids.includes(id)).length;
@@ -219,9 +218,6 @@ export default function StickersPage() {
               ＋ 新增分組
             </button>
           </div>
-          {err && (
-            <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>
-          )}
           {groups.map((g, gi) => (
             <GroupCard
               key={g.id}
@@ -341,6 +337,7 @@ function Card({
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const reduce = useReducedMotion();
+  const thumb = useStickerThumbs().get(s.id);
   return (
     <motion.div layout={!reduce} transition={SPRING} className="group relative">
       {marker && (
@@ -357,8 +354,25 @@ function Card({
         onClick={handlers.onClick}
         onContextMenu={handlers.onContextMenu}
         title={s.prompt}
-        className="flex w-full cursor-grab items-start rounded-xl border border-line bg-panel px-2.5 py-2 text-left text-xs transition hover:border-acc active:cursor-grabbing"
+        className="flex w-full cursor-grab items-center gap-2 rounded-xl border border-line bg-panel py-1.5 pr-2.5 pl-1.5 text-left text-xs transition hover:border-acc active:cursor-grabbing"
       >
+        {/* 縮圖：範例圖優先，否則圖庫最新成品；都沒有就放淡淡的笑臉 */}
+        {thumb ? (
+          <img
+            src={thumb}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            className="size-9 shrink-0 rounded-lg bg-panel2 object-contain"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-panel2 text-base text-mute/50"
+          >
+            ☺
+          </span>
+        )}
         <span className="min-w-0 flex-1 pr-3">
           <span className="block truncate">
             #{s.id} {s.label}

@@ -23,6 +23,8 @@ export type DesktopBridge = {
   notify?: (n: { title: string; body?: string; project?: string }) => Promise<boolean>;
   /** 使用者點了通知（視窗已被叫到前面）；回傳取消訂閱的函式 */
   onNotifyClick?: (cb: (project: string) => void) => () => void;
+  /** 重新啟動整個 App（含後端；舊版殼沒有）。有 Codex 在跑且沒 force 時回傳 running 數量，不重開 */
+  relaunch?: (force?: boolean) => Promise<{ ok: boolean; running?: number }>;
   /** 自動更新（舊版殼沒有） */
   updates?: {
     get: () => Promise<UpdateState>;

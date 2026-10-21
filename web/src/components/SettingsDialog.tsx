@@ -21,12 +21,15 @@ import {
   type Permission,
 } from "../notify";
 import { AboutUpdates } from "./Updates";
+import { RelaunchButton } from "./Relaunch";
+import { DisclaimerButton } from "./Disclaimer";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
 import { hasSponsors, SponsorLinks } from "./Sponsor";
 import { ManagePresetsButton } from "./ExportPresets";
 import { reloadStickers } from "../stickers";
 import { Modal, Spinner } from "./ui";
+import { useEffectOnBump, useOnChange } from "../hooks/useOnChange";
 
 const fmtSize = (b: number) =>
   b >= 1 << 30
@@ -38,7 +41,8 @@ const fmtSize = (b: number) =>
         : `${b} B`;
 const LAYOUT_LABEL: Record<string, string> = { "4x2w": "4×2 寬版（每組 8 張）", "3x2": "3×2（每組 6 張）" };
 
-/** Navbar 齒輪：設定對話框（資料夾位置、生成參數；儲存立即生效） */
+/** Navbar 齒輪：設定對話框。所有設定都要按「儲存」才生效（只有主題例外：點了立即套用）；
+ *  有未儲存的變更時按 Esc／點外面不會關，框變紅並搖一下提醒 */
 export function SettingsButton() {
   const [open, setOpen] = useState(false);
   return (
@@ -79,6 +83,16 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   const [saving, setSaving] = useState(false);
   const [plan, setPlan] = useState<SettingsPlan | null>(null);
   const [done, setDone] = useState("");
+  const notifyPref = useNotifyPref();
+  const [notify, setNotify] = useState(notifyPref); // 草稿：按儲存才寫回（setNotifyPref）
+  const [warn, setWarn] = useState(false); // 想關掉但有未儲存的變更：紅框（儲存或放棄後消失）
+  const [shake, setShake] = useState(0); // 每次想關掉 +1，重新播一次搖晃
+  // 打開時：草稿回到目前的設定、拿掉紅框（render 時比對，不用 effect）
+  useOnChange(open, () => {
+    if (!open) return;
+    setWarn(false);
+    setNotify(notifyPref);
+  });
 
   const reset = (d: SettingsInfo) => {
     setInfo(d);
@@ -111,7 +125,29 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
         .map((k) => [k, vals[k]]),
     );
   }, [info, vals]);
-  const dirty = changedDirs.length > 0 || Object.keys(changedVals).length > 0;
+  const notifyChanged = notify !== notifyPref;
+  const dirty = changedDirs.length > 0 || Object.keys(changedVals).length > 0 || notifyChanged;
+  useOnChange(dirty, () => {
+    if (!dirty) setWarn(false);
+  });
+  /** Esc、點外面：有未儲存的變更就不關，紅框＋搖晃提醒；「放棄變更」按鈕才會直接關 */
+  const requestClose = () => {
+    if (saving) return;
+    if (!dirty) return onClose();
+    setWarn(true);
+    setShake((n) => n + 1);
+  };
+  const [shaking, setShaking] = useState(false);
+  useEffectOnBump(shake, () => {
+    // 先拿掉 class 再加回去，動畫才會重播
+    setShaking(false);
+    const raf = requestAnimationFrame(() => setShaking(true));
+    const timer = window.setTimeout(() => setShaking(false), 500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  });
   const hasError = Object.values(checks).some((c) => c?.error);
 
   // 改路徑時（停 0.3 秒）檢查一次：能不能寫、有沒有和其他資料夾重疊
@@ -149,6 +185,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
     }) as SettingsChanges;
   const save = async () => {
     setErr("");
+    if (!changedDirs.length && !Object.keys(changedVals).length) {
+      // 只改了通知開關
+      setNotifyPref(notify);
+      setDone("已儲存，立即生效");
+      return;
+    }
     if (changedDirs.length) {
       try {
         setPlan(await settingsApi.plan(changes()));
@@ -164,6 +206,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
     setErr("");
     try {
       const r = await settingsApi.apply(changes(), move, conflict);
+      if (notifyChanged) setNotifyPref(notify);
       reset(r);
       setPlan(null);
       await reloadStickers(); // 設定檔資料夾換了，表情清單要重讀
@@ -182,7 +225,12 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   };
 
   return (
-    <Modal open={open} onClose={() => !saving && onClose()} label="設定">
+    <Modal
+      open={open}
+      onClose={requestClose}
+      label="設定"
+      className={`transition-shadow ${warn ? "ring-3 ring-bad" : ""} ${shaking ? "nudge-shake" : ""}`}
+    >
       <div className="space-y-5">
         <div className="flex items-baseline gap-3">
           <h3 className="text-lg">設定</h3>
@@ -219,7 +267,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
             </Group>
 
             <Group title="外觀">
-              <Field label="主題" hint="點了立即套用並存檔；Navbar 的淺色／深色按鈕也會改這裡">
+              <Field label="主題" hint="點了立即套用並存檔（不用按儲存）；Navbar 的淺色／深色按鈕也會改這裡">
                 <Seg<ThemePref>
                   options={[
                     ["system", "跟隨系統"],
@@ -238,7 +286,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
                 label="桌面通知"
                 hint="預覽圖或整批生成跑完時通知（視窗在前景時不跳），點了會打開那個專案"
               >
-                <NotifySetting />
+                <NotifySetting on={notify} onChange={setNotify} />
               </Field>
             </Group>
 
@@ -316,11 +364,20 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
               )}
             </Group>
 
-            {desktop && (
-              <Group title="關於">
-                <AboutUpdates />
-              </Group>
-            )}
+            <Group title="關於">
+              {desktop && <AboutUpdates />}
+              {desktop?.relaunch && (
+                <Field
+                  label="重新啟動"
+                  hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
+                >
+                  <RelaunchButton />
+                </Field>
+              )}
+              <Field label="免責聲明" hint="非官方工具、生成內容的責任、內建範例圖的使用範圍、按現狀提供">
+                <DisclaimerButton />
+              </Field>
+            </Group>
 
             <Group title="Codex">
               <Field
@@ -344,6 +401,11 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
         {/* 底部固定：訊息＋按鈕不跟著內容捲走。對話框本身是捲動容器（p-6），sticky 的位置要扣掉內距，所以用 -bottom-6 */}
         <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 space-y-2 border-t border-line/60 bg-panel px-6 pt-3 pb-6">
           {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
+          {warn && dirty && (
+            <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad" role="alert">
+              還有沒儲存的變更：按「儲存」套用，或按「放棄變更」不存直接關閉。
+            </p>
+          )}
           {done && !dirty && <p className="rounded-lg bg-ok/15 px-3 py-2 text-sm text-ok">{done}</p>}
           {info?.busy && changedDirs.length > 0 && (
             <p className="rounded-lg bg-warn/15 px-3 py-2 text-sm text-warn">
@@ -352,7 +414,7 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
           )}
           <div className="flex justify-end gap-2">
             <button className="btn" onClick={onClose} disabled={saving}>
-              {dirty ? "取消" : "關閉"}
+              {dirty ? "放棄變更" : "關閉"}
             </button>
             <button
               className="btn btn-primary"
@@ -376,14 +438,13 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
   );
 }
 
-/** 開關立即存檔（像主題）；網頁版另外處理瀏覽器的通知權限 */
-function NotifySetting() {
-  const on = useNotifyPref();
+/** 開關是草稿（按儲存才生效）；網頁版另外處理瀏覽器的通知權限（允許、測試通知是動作，按了就做） */
+function NotifySetting({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   const [perm, setPerm] = useState<Permission>(permission);
   const [msg, setMsg] = useState("");
   const ask = async () => setPerm(await requestPermission());
   const turn = async (v: boolean) => {
-    setNotifyPref(v);
+    onChange(v);
     setMsg("");
     if (v && perm === "default") await ask();
   };

@@ -23,6 +23,7 @@ import { Link } from "react-router";
 import { pathOf, useSelect, useTabId } from "../router";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
+import { toastError } from "../toast";
 
 export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }) {
   // 目前開著的專案跟著網址（#/gen/s12）；null＝新增貼圖。桌面通知點下去也是改網址（notify.ts）
@@ -34,10 +35,8 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
   const { data: chars = [] } = useCharacters();
   const { data: libs = [] } = useStyleLib();
   const { all: stickers } = useStickers(); // 含已刪除的（舊專案的組別還要顯示名稱）
-  const [err, setErr] = useState("");
   const [newKey, setNewKey] = useState(0); // 每按一次「新增貼圖」+1，讓表單聚焦並閃一下
 
-  useEffect(() => setErr(""), [current]);
   // 收尾完成（變成 done）→ 圖庫、畫風庫的「可匯入」清單多了東西
   const status = project?.status;
   useEffect(() => {
@@ -46,14 +45,13 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
 
   /** 呼叫會改變專案狀態的 API：成功後把回傳的專案放進快取（畫面立刻更新），清單重抓 */
   const act = async (fn: () => Promise<Project>) => {
-    setErr("");
     try {
       const p = await fn();
       queryClient.setQueryData(keys.project(p.id), p);
       setCurrent(p.id);
       invalidate(keys.projects);
     } catch (e) {
-      setErr((e as Error).message);
+      toastError(e);
     }
   };
 
@@ -148,9 +146,6 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
 
       <div className="min-w-0 flex-1 overflow-y-auto p-5" data-tour="gen-main">
         <div className="mx-auto max-w-6xl space-y-4">
-          {err && (
-            <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>
-          )}
           {current === null ? (
             <div data-tour="gen-new">
               <NewProject

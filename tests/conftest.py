@@ -51,13 +51,16 @@ def data_root() -> Path:
     return DATA
 
 
+LOCAL = "http://127.0.0.1"  # 伺服器只接受本機 Host（app/server.py _local_only）
+
+
 @pytest.fixture(scope="session")
 def client():
     from fastapi.testclient import TestClient
 
     from app.server import app
 
-    return TestClient(app)
+    return TestClient(app, base_url=LOCAL)
 
 
 def pytest_sessionfinish(session, exitstatus):

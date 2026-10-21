@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stickers/thumbs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sticker Thumbs */
+        get: operations["sticker_thumbs_api_stickers_thumbs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stickers/expand": {
         parameters: {
             query?: never;
@@ -302,6 +319,44 @@ export interface paths {
          */
         post: operations["expand_sticker_api_stickers_expand_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stickers/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Sticker
+         * @description 表情分析：Codex 看範例圖填表情設定（同步，約 20~40 秒）；只回傳建議，範例圖要另外存（PUT example）
+         */
+        post: operations["analyze_sticker_api_stickers_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stickers/{sid}/example": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Sticker Example */
+        put: operations["put_sticker_example_api_stickers__sid__example_put"];
+        post?: never;
+        /** Delete Sticker Example */
+        delete: operations["delete_sticker_example_api_stickers__sid__example_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1066,6 +1121,30 @@ export interface components {
         AnalyzeBody: {
             /** Request */
             request?: string | null;
+        };
+        /** AnalyzeSticker */
+        AnalyzeSticker: {
+            /**
+             * Idea
+             * @default
+             */
+            idea?: string;
+            /**
+             * Label
+             * @default
+             */
+            label?: string;
+            /**
+             * Zh
+             * @default
+             */
+            zh?: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt?: string;
+            image: components["schemas"]["Upload"];
         };
         /** AppEvent */
         AppEvent: {
@@ -2186,6 +2265,8 @@ export interface components {
             text_timeout_min: number;
             /** Tour Done */
             tour_done: boolean;
+            /** Disclaimer */
+            disclaimer: number;
             /** Notify */
             notify: boolean;
             /**
@@ -2216,6 +2297,12 @@ export interface components {
             align?: string | null;
             /** Deleted */
             deleted?: boolean | null;
+            /** Example */
+            example?: string | null;
+            /** Example V */
+            example_v?: number | null;
+            /** Default Example */
+            default_example?: string | null;
         };
         /**
          * StickerDraft
@@ -2274,6 +2361,23 @@ export interface components {
             /** Align */
             align?: string | null;
         };
+        /**
+         * StickerThumb
+         * @description 表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝自己放的範例圖、default＝內建預設範例圖、latest＝圖庫最新成品
+         */
+        StickerThumb: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "example" | "default" | "latest";
+            /** Path */
+            path: string;
+            /** V */
+            v: number;
+        };
         /** TempRef */
         TempRef: {
             /** File */
@@ -2311,6 +2415,8 @@ export interface components {
             tour_done?: boolean | null;
             /** Notify */
             notify?: boolean | null;
+            /** Disclaimer */
+            disclaimer?: number | null;
         };
         /** UiPrefsOut */
         UiPrefsOut: {
@@ -2325,6 +2431,8 @@ export interface components {
             tour_done: boolean;
             /** Notify */
             notify: boolean;
+            /** Disclaimer */
+            disclaimer: number;
         };
         /**
          * Upload
@@ -2885,6 +2993,26 @@ export interface operations {
             };
         };
     };
+    sticker_thumbs_api_stickers_thumbs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickerThumb"][];
+                };
+            };
+        };
+    };
     expand_sticker_api_stickers_expand_post: {
         parameters: {
             query?: never;
@@ -2905,6 +3033,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StickerDraft"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_sticker_api_stickers_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalyzeSticker"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickerDraft"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_sticker_example_api_stickers__sid__example_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Upload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sticker"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_sticker_example_api_stickers__sid__example_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sticker"];
                 };
             };
             /** @description Validation Error */
