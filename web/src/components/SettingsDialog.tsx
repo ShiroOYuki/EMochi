@@ -22,6 +22,7 @@ import {
 } from "../notify";
 import { AboutUpdates } from "./Updates";
 import { RelaunchButton } from "./Relaunch";
+import { DisclaimerButton } from "./Disclaimer";
 import { startTour } from "./Tour";
 import { ReportSection } from "./BugReport";
 import { hasSponsors, SponsorLinks } from "./Sponsor";
@@ -363,19 +364,20 @@ export default function SettingsDialog({ open, onClose }: { open: boolean; onClo
               )}
             </Group>
 
-            {desktop && (
-              <Group title="關於">
-                <AboutUpdates />
-                {desktop.relaunch && (
-                  <Field
-                    label="重新啟動"
-                    hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
-                  >
-                    <RelaunchButton />
-                  </Field>
-                )}
-              </Group>
-            )}
+            <Group title="關於">
+              {desktop && <AboutUpdates />}
+              {desktop?.relaunch && (
+                <Field
+                  label="重新啟動"
+                  hint="關掉 EMochi 再重新開啟（後端也會重開）；畫面卡住或改了設定檔時可以用"
+                >
+                  <RelaunchButton />
+                </Field>
+              )}
+              <Field label="免責聲明" hint="非官方工具、生成內容的責任、內建範例圖的使用範圍、按現狀提供">
+                <DisclaimerButton />
+              </Field>
+            </Group>
 
             <Group title="Codex">
               <Field
