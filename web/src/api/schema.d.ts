@@ -1806,7 +1806,7 @@ export interface components {
         /** Opened */
         Opened: {
             /** Opened */
-            opened: boolean;
+            opened: string;
         };
         /** PathCheck */
         PathCheck: {

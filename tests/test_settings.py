@@ -242,3 +242,16 @@ def test_model_rules_and_bad_file_values(data_root):
         assert cur["theme"] == "dark" and "old_key" not in cur
     finally:
         f.unlink()
+
+
+def test_open_folder_returns_opened_path(client, data_root, monkeypatch):
+    """打開資料夾（不真的開檔案總管）：回傳實際打開的那層；路徑不存在時往上找"""
+    from app import settings_ops
+
+    opened = []
+    monkeypatch.setattr(settings_ops.os, "startfile", opened.append, raising=False)
+    monkeypatch.setattr(settings_ops.subprocess, "Popen", lambda args: opened.append(args[-1]))
+    r = client.post("/api/settings/open-folder", json={"path": str(data_root / "nope" / "deeper")})
+    assert r.status_code == 200
+    assert r.json() == {"opened": str(data_root)}
+    assert len(opened) == 1

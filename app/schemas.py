@@ -373,7 +373,7 @@ class PathResult(Out):
 
 
 class Opened(Out):
-    opened: bool
+    opened: str  # 實際打開的資料夾（路徑不存在時往上找到存在的那層）
 
 
 # ---------- 系統、Codex ----------
