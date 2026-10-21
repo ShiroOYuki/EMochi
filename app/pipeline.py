@@ -6,6 +6,7 @@
   outputs/<style>/final/discord/name.png          128
   outputs/<style>/previews/<style>_preview.png、<style>_all_discord.png
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -60,7 +61,7 @@ def cut_cells(grid_path: Path, layout: str, process: dict) -> list[Image.Image |
     cell_w = min(img.width for img in cells)
     side = min(widths[len(widths) // 2], cell_w)
     out = []
-    for img, b in zip(cells, boxes):
+    for img, b in zip(cells, boxes, strict=True):
         if b is None:
             out.append(None)
             continue
@@ -69,7 +70,7 @@ def cut_cells(grid_path: Path, layout: str, process: dict) -> list[Image.Image |
         extra = (by1 - by0) - side
         # 比框高：依 square（上方比例）分配要裁掉的上下高度；比框矮（例如 lurk 只露半顆頭）：貼齊底部
         top = by0 + round(extra * min(max(top_ratio, 0), 1)) if extra > 0 else by1 - side
-        out.append(img.crop((left, top, left + side, top + side)))   # 超出格子的部分 PIL 會補透明
+        out.append(img.crop((left, top, left + side, top + side)))  # 超出格子的部分 PIL 會補透明
     return out
 
 
@@ -89,7 +90,7 @@ def process_grid(style: str, grid_path: Path, layout: str, ids: list[int], proce
     meta = sticker_map()
     cells = cut_cells(grid_path, layout, process)
     done = []
-    for sid, img in zip(ids, cells):
+    for sid, img in zip(ids, cells, strict=False):  # 最後一組可能沒排滿，空格沒有 id
         if img is None or sid not in meta:
             continue
         write_sticker(style, sid, img, process, meta[sid])
@@ -108,8 +109,9 @@ def build_previews(style: str) -> None:
     rows = (len(masters) + per_row - 1) // per_row
     sheet = keying.checker(per_row * tile, rows * tile)
     for i, f in enumerate(masters):
-        sheet.alpha_composite(Image.open(f).resize((tile, tile), Image.LANCZOS),
-                              ((i % per_row) * tile, (i // per_row) * tile))
+        sheet.alpha_composite(
+            Image.open(f).resize((tile, tile), Image.LANCZOS), ((i % per_row) * tile, (i // per_row) * tile)
+        )
     sheet.convert("RGB").save(prev / f"{style}_preview.png")
     im = Image.new("RGB", (8 * 122 + 20 + 8 * 64 + 20 + 8 * 36 + 30, rows * 125 + 20), (49, 51, 56))
     for i, f in enumerate(masters):

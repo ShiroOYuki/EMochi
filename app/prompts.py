@@ -1,5 +1,7 @@
 """組 prompt：共用模板（config/prompt_template.json）＋畫風描述＋表情清單"""
+
 import json
+
 from .paths import BUILTIN_CONFIG, read_json
 
 # 每張網格的版型：依該組貼圖數量選擇
@@ -7,9 +9,19 @@ LAYOUTS = {
     "1x1": {"cols": 1, "rows": 1, "aspect": "square (1:1)", "cap": 1},
     "2x2": {"cols": 2, "rows": 2, "aspect": "square (1:1)", "cap": 4},
     "3x2": {"cols": 3, "rows": 2, "aspect": "landscape (3:2)", "cap": 6},
-    "4x2": {"cols": 4, "rows": 2, "aspect": "landscape (3:2)", "cap": 8},   # 舊版：格子是 3:4 直式，只留給舊組別重生用
+    "4x2": {
+        "cols": 4,
+        "rows": 2,
+        "aspect": "landscape (3:2)",
+        "cap": 8,
+    },  # 舊版：格子是 3:4 直式，只留給舊組別重生用
     # 預設：2:1 畫布（2048×1024）切 4×2，每格 512 正方形，一張 8 格（s9 實測內建 image_gen 會出 2:1）
-    "4x2w": {"cols": 4, "rows": 2, "aspect": "wide 2:1 (exactly 2048x1024 pixels, twice as wide as it is tall)", "cap": 8},
+    "4x2w": {
+        "cols": 4,
+        "rows": 2,
+        "aspect": "wide 2:1 (exactly 2048x1024 pixels, twice as wide as it is tall)",
+        "cap": 8,
+    },
 }
 # 批次版型 → 每組幾張。3x2：3:2 畫布切 3×2，每格是正方形，和 2×2 預覽的格子形狀一致
 GROUP_LAYOUTS = {"3x2": 6, "4x2w": 8}
@@ -36,27 +48,40 @@ def layout_for_group(n: int, big: str = "3x2") -> str:
 
 
 def chunk(ids: list[int], size: int = GROUP_SIZE) -> list[list[int]]:
-    return [ids[i:i + size] for i in range(0, len(ids), size)]
+    return [ids[i : i + size] for i in range(0, len(ids), size)]
 
 
 def sheet_line(n: int, layout: str, kind: str) -> str:
     L = LAYOUTS[layout]
     if layout == "1x1":
         return f"Create ONE {L['aspect']} image with a single {kind} emote, large and centered."
-    s = (f"Create ONE {L['aspect']} image that is an emote sheet of {n} {kind} emotes "
-         f"in a {L['cols']}-column x {L['rows']}-row grid.")
+    s = (
+        f"Create ONE {L['aspect']} image that is an emote sheet of {n} {kind} emotes "
+        f"in a {L['cols']}-column x {L['rows']}-row grid."
+    )
     if layout in ("2x2", "3x2", "4x2w"):
         s += " Every cell is a perfect square of equal size."
     s += " Draw the character's head at the SAME size and position in every cell, so the emotes match when used together."
     if n < L["cap"]:
-        s += (f" Only the first {n} cells (left to right, top row first) contain an emote; "
-              f"the remaining cells stay completely empty background.")
+        s += (
+            f" Only the first {n} cells (left to right, top row first) contain an emote; "
+            f"the remaining cells stay completely empty background."
+        )
     return s
 
 
-def build_prompt(*, style_block: str, framing: str, cells: list[str], output: str,
-                 ref_line: str, identity: str = "", kind: str = "chibi-style",
-                 ears: bool = True, layout: str | None = None) -> str:
+def build_prompt(
+    *,
+    style_block: str,
+    framing: str,
+    cells: list[str],
+    output: str,
+    ref_line: str,
+    identity: str = "",
+    kind: str = "chibi-style",
+    ears: bool = True,
+    layout: str | None = None,
+) -> str:
     t = template()
     layout = layout or layout_for(len(cells))
     cell_text = "\n".join(f"{i}. {c}" for i, c in enumerate(cells, 1))
@@ -93,23 +118,33 @@ def ref_line(*, character: list[str], style: list[str], preview: str | None = No
     lines = []
     # 有畫風參考圖時先講畫風圖：生圖模型很容易從精細的角色立繪「順便」學到畫法，蓋過畫風圖
     if style:
-        lines.append(f"{_list(style)} {'is the' if len(style) == 1 else 'are the'} ART STYLE reference — this has the highest "
-                     "priority for HOW to draw: copy its rendering exactly (line color and weight, amount of detail, "
-                     "hair construction, eye construction, coloring and shading, head proportions), but do NOT copy its "
-                     "character, pose, text or content.")
+        lines.append(
+            f"{_list(style)} {'is the' if len(style) == 1 else 'are the'} ART STYLE reference — this has the highest "
+            "priority for HOW to draw: copy its rendering exactly (line color and weight, amount of detail, "
+            "hair construction, eye construction, coloring and shading, head proportions), but do NOT copy its "
+            "character, pose, text or content."
+        )
     if character:
-        traits = "face, hair, ears, eyes, accessories, outfit" if ears else "face, hair, eyes, accessories, outfit"
+        traits = (
+            "face, hair, ears, eyes, accessories, outfit" if ears else "face, hair, eyes, accessories, outfit"
+        )
         if style:
-            lines.append(f"{_list(character)} show WHO to draw ({traits}) — use them only for identity: colors, hairstyle "
-                         "silhouette and which accessories exist. IGNORE how they are rendered. When they disagree with the "
-                         "art style reference, the art style reference wins: simplify the hair into the same few large "
-                         "shapes and reduce accessories to the same low level of detail as the art style reference.")
+            lines.append(
+                f"{_list(character)} show WHO to draw ({traits}) — use them only for identity: colors, hairstyle "
+                "silhouette and which accessories exist. IGNORE how they are rendered. When they disagree with the "
+                "art style reference, the art style reference wins: simplify the hair into the same few large "
+                "shapes and reduce accessories to the same low level of detail as the art style reference."
+            )
         else:
-            lines.append(f"{_list(character)} show the character's identity ({traits}) — "
-                         "keep these traits, but do NOT copy their rendering style unless told below.")
+            lines.append(
+                f"{_list(character)} show the character's identity ({traits}) — "
+                "keep these traits, but do NOT copy their rendering style unless told below."
+            )
     if preview:
-        lines.append(f"{preview} is the approved style sample for this set — match its art style, proportions, lineart, "
-                     "colors, shading, framing and cropping exactly.")
+        lines.append(
+            f"{preview} is the approved style sample for this set — match its art style, proportions, lineart, "
+            "colors, shading, framing and cropping exactly."
+        )
     elif not style:
         lines.append("Redraw the character in the new art style described below.")
     if not lines:
@@ -137,9 +172,11 @@ EXPAND_SCHEMA = {
 def expand_request_prompt(request: str, examples: list[str], style_refs: list[str] | None = None) -> str:
     ex = "\n\n".join(f"Example style block:\n{e.strip()}" for e in examples if e.strip())
     if style_refs:
-        refs = (f"\nThe user also attached art-style reference images ({_list(style_refs)}). Study how they are rendered and "
-                "describe THAT rendering style (ignore who or what is drawn in them). The written request, if any, "
-                "takes priority where they disagree.\n")
+        refs = (
+            f"\nThe user also attached art-style reference images ({_list(style_refs)}). Study how they are rendered and "
+            "describe THAT rendering style (ignore who or what is drawn in them). The written request, if any, "
+            "takes priority where they disagree.\n"
+        )
     else:
         refs = ""
     return f"""You are an art director writing prompts for an image model that draws Twitch/Discord emote sheets of ONE fixed character.

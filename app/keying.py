@@ -3,15 +3,15 @@
 原本是 tools/postprocess.py 命令列工具的核心；命令列流程在 2026-10-19 移除後搬進 app/。
 背景色自動從整張圖外框偵測：綠幕 #00FF00、洋紅 #FF00FF 用全域色鍵，白／灰背景只去掉和邊緣相連的區域。
 """
+
 import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-
 # 生圖 prompt 只會要求這兩種背景（角色身上綠色多時換洋紅）
 KEY_COLORS = ((0, 255, 0), (255, 0, 255))
-KEY_NEAR = 100          # 和標準色距離在這以內，算「背景那一群」
-KEY_MIN_SHARE = 0.05    # 那一群至少要佔全圖這麼多，才相信是這個背景
+KEY_NEAR = 100  # 和標準色距離在這以內，算「背景那一群」
+KEY_MIN_SHARE = 0.05  # 那一群至少要佔全圖這麼多，才相信是這個背景
 
 
 def detect_key(rgb):
@@ -19,7 +19,9 @@ def detect_key(rgb):
 
     以前是取外框一圈的中位數：特寫構圖的頭髮、衣服會蓋住大半個外框（實測只剩 35% 是綠），
     中位數變成暗綠色，結果把黑髮當背景挖掉、綠色反而留下。兩種標準色都找不到才退回外框中位數"""
-    px = rgb.reshape(-1, 3)[:: max(1, rgb.shape[0] * rgb.shape[1] // 200_000)].astype(np.float32)   # 抽樣，大圖也快
+    px = rgb.reshape(-1, 3)[:: max(1, rgb.shape[0] * rgb.shape[1] // 200_000)].astype(
+        np.float32
+    )  # 抽樣，大圖也快
     best, share = None, 0.0
     for c in KEY_COLORS:
         near = np.linalg.norm(px - np.array(c, np.float32), axis=1) < KEY_NEAR
@@ -46,8 +48,7 @@ def key_out(cell_rgb, key, tol, soft):
         # 只移除和圖片邊緣相連的背景區域
         near = dist < tol + soft
         labels, _ = ndimage.label(near)
-        edge_ids = np.unique(np.concatenate(
-            [labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+        edge_ids = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
         edge_ids = edge_ids[edge_ids != 0]
         bg = np.isin(labels, edge_ids)
         alpha = np.where(bg, alpha, 1.0)
@@ -98,6 +99,7 @@ def drop_specks(rgba, min_ratio):
 
 
 # ---------- 排版 ----------
+
 
 def trim(img):
     a = np.array(img)[..., 3]

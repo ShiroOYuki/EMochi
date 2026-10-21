@@ -4,6 +4,7 @@ token 統計直接讀 logs/：每次呼叫 Codex 都會留一個 logs/<範圍>/<
 結尾有「tokens used\\n<數字>」與「[時間] exit|timeout|finished-early exit=<code>」。
 10/14 以前的舊命名 log 已在 2026-10-19 轉成新格式（開頭註明「由舊版 log 轉換」）。
 """
+
 import re
 import subprocess
 import threading
@@ -12,9 +13,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import codex, usage
-from .paths import outputs_dir, ROOT, codex_path, logs_dir, read_json
+from .paths import ROOT, codex_path, logs_dir, outputs_dir, read_json
 
-CHECK_TTL = 60          # 秒；CLI 版本、登入狀態不常變，沒按「重新連線」就用快取
+CHECK_TTL = 60  # 秒；CLI 版本、登入狀態不常變，沒按「重新連線」就用快取
 DAYS = 7
 RECENT = 12
 SKIP_DIRS: set[str] = set()
@@ -28,8 +29,13 @@ _login_proc: subprocess.Popen | None = None
 
 def _cmd(args: list[str], timeout: int = 20) -> tuple[int | None, str]:
     try:
-        r = subprocess.run(args, capture_output=True, timeout=timeout, cwd=ROOT,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        r = subprocess.run(
+            args,
+            capture_output=True,
+            timeout=timeout,
+            cwd=ROOT,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
         out = (r.stdout + r.stderr).decode("utf-8", errors="replace").strip()
         return r.returncode, out
     except subprocess.TimeoutExpired:
@@ -43,8 +49,10 @@ def check(force: bool = False) -> dict:
     with _lock:
         if not force and _check["data"] and time.time() - _check["at"] < CHECK_TTL:
             return _check["data"]
-        data = {"cli": {"found": False, "path": None, "version": None},
-                "login": {"ok": False, "text": "", "pending": False}}
+        data = {
+            "cli": {"found": False, "path": None, "version": None},
+            "login": {"ok": False, "text": "", "pending": False},
+        }
         try:
             exe = codex.codex_bin()
         except RuntimeError as e:
@@ -73,14 +81,20 @@ def start_login() -> dict:
     log = logs_dir() / "codex_login.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with open(log, "w", encoding="utf-8") as f:
-        _login_proc = subprocess.Popen([exe, "login"], cwd=ROOT, stdout=f, stderr=subprocess.STDOUT,
-                                       stdin=subprocess.DEVNULL,
-                                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    _check["at"] = 0.0   # 下次查詢重新檢查
+        _login_proc = subprocess.Popen(
+            [exe, "login"],
+            cwd=ROOT,
+            stdout=f,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    _check["at"] = 0.0  # 下次查詢重新檢查
     return {"started": True, "message": "已開始 codex login，瀏覽器會跳出登入頁；完成後按「重新連線」"}
 
 
 # ---------- 用量（讀 logs/） ----------
+
 
 def _kind(scope: str, name: str) -> str:
     if name == "preview":
@@ -154,15 +168,26 @@ def _parse(path: Path) -> dict | None:
             seconds = (datetime.strptime(e["ts"].strip(), "%Y-%m-%d %H:%M:%S") - started).total_seconds()
         except ValueError:
             seconds = None
-        result = "timeout" if e["reason"] == "timeout" else ("ok" if e["code"] == "0" or e["reason"] == "finished-early" else "failed")
+        result = (
+            "timeout"
+            if e["reason"] == "timeout"
+            else ("ok" if e["code"] == "0" or e["reason"] == "finished-early" else "failed")
+        )
     else:
-        result, seconds = "unknown", None   # 伺服器中途被關掉之類
-    if seconds is not None and seconds <= 0:   # 從舊版轉換、不知道開始時間的 log
+        result, seconds = "unknown", None  # 伺服器中途被關掉之類
+    if seconds is not None and seconds <= 0:  # 從舊版轉換、不知道開始時間的 log
         seconds = None
-    return {"time": started.strftime("%Y-%m-%d %H:%M:%S"), "date": started.strftime("%Y-%m-%d"),
-            "scope": scope, "name": m["name"], "kind": _kind(scope, m["name"]),
-            "tokens": tokens, "seconds": round(seconds) if seconds is not None else None, "result": result,
-            "log": codex_path(path)}
+    return {
+        "time": started.strftime("%Y-%m-%d %H:%M:%S"),
+        "date": started.strftime("%Y-%m-%d"),
+        "scope": scope,
+        "name": m["name"],
+        "kind": _kind(scope, m["name"]),
+        "tokens": tokens,
+        "seconds": round(seconds) if seconds is not None else None,
+        "result": result,
+        "log": codex_path(path),
+    }
 
 
 def usage_days(days: int = DAYS, now: datetime | None = None) -> dict:
@@ -193,20 +218,28 @@ def usage_days(days: int = DAYS, now: datetime | None = None) -> dict:
         by_kind: dict[str, int] = {}
         for r in rs:
             by_kind[r["kind"]] = by_kind.get(r["kind"], 0) + (r["tokens"] or 0)
-        daily.append({"date": d, "tokens": sum(r["tokens"] or 0 for r in rs), "runs": len(rs), "by_kind": by_kind})
+        daily.append(
+            {"date": d, "tokens": sum(r["tokens"] or 0 for r in rs), "runs": len(rs), "by_kind": by_kind}
+        )
 
     def group(key: str) -> list[dict]:
         g: dict[str, dict] = {}
         for r in runs:
-            x = g.setdefault(r[key], {"key": r[key], "label": r.get(key + "_label", r[key]), "tokens": 0, "runs": 0})
+            x = g.setdefault(
+                r[key], {"key": r[key], "label": r.get(key + "_label", r[key]), "tokens": 0, "runs": 0}
+            )
             x["tokens"] += r["tokens"] or 0
             x["runs"] += 1
         return sorted(g.values(), key=lambda x: x["tokens"], reverse=True)
 
     grids = [r for r in runs if r["kind"] in ("批次生圖", "風格預覽") and r["tokens"]]
     return {
-        "days": days, "daily": daily, "by_kind": group("kind"), "by_scope": group("scope"),
-        "total_tokens": sum(r["tokens"] or 0 for r in runs), "runs": len(runs),
+        "days": days,
+        "daily": daily,
+        "by_kind": group("kind"),
+        "by_scope": group("scope"),
+        "total_tokens": sum(r["tokens"] or 0 for r in runs),
+        "runs": len(runs),
         "failed": sum(1 for r in runs if r["result"] in ("failed", "timeout")),
         "avg_grid_tokens": round(sum(r["tokens"] for r in grids) / len(grids)) if grids else None,
         "recent": runs[:RECENT],
@@ -219,9 +252,21 @@ def status(force: bool = False) -> dict:
         p = Path(path)
         m = NAME_RE.match(p.name)
         name = m["name"] if m else p.stem
-        running.append({"scope": p.parent.name, "scope_label": _scope_labels({p.parent.name})[p.parent.name],
-                        "kind": _kind(p.parent.name, name), "name": name,
-                        "seconds": round(time.time() - a["started"])})
+        running.append(
+            {
+                "scope": p.parent.name,
+                "scope_label": _scope_labels({p.parent.name})[p.parent.name],
+                "kind": _kind(p.parent.name, name),
+                "name": name,
+                "seconds": round(time.time() - a["started"]),
+            }
+        )
     sessions = usage.codex_home() / "sessions"
-    return {**check(force), "rate": usage.rate_limits(force=force), "running": running,
-            "sessions_dir": str(sessions), "sessions_found": sessions.exists(), "usage": usage_days()}
+    return {
+        **check(force),
+        "rate": usage.rate_limits(force=force),
+        "running": running,
+        "sessions_dir": str(sessions),
+        "sessions_found": sessions.exists(),
+        "usage": usage_days(),
+    }

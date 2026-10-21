@@ -3,6 +3,7 @@
 只存在記憶體、最多 100 筆。boot 是這次啟動的代號：伺服器重開後 seq 從 0 算起，
 前端看到 boot 變了就只同步 seq、不補發舊事件，避免重開 App 時一次跳一堆通知。
 """
+
 import threading
 import time
 import uuid
@@ -19,7 +20,15 @@ def emit(kind: str, project: str, title: str, body: str = "", ok: bool = True) -
     global _seq
     with _lock:
         _seq += 1
-        ev = {"seq": _seq, "kind": kind, "project": project, "title": title, "body": body, "ok": ok, "time": time.time()}
+        ev = {
+            "seq": _seq,
+            "kind": kind,
+            "project": project,
+            "title": title,
+            "body": body,
+            "ok": ok,
+            "time": time.time(),
+        }
         _events.append(ev)
         return ev
 

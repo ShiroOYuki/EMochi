@@ -1,4 +1,5 @@
 """FastAPI：/api/* 給前端用（路由依領域分在 app/routes/），其餘路徑回傳 React build（app/static）"""
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -7,35 +8,41 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import characters, jobs, style_lib
+from .errors import AppError
 from .paths import STATIC
 from .routes import files, gallery, library, projects, settings, stickers, system
 
-log = logging.getLogger("emochi")
+log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def _lifespan(_app):
     characters.normalize_names()
     jobs.recover_interrupted()
-    style_lib.seed_defaults()   # 全新安裝才會放進內建範例畫風
+    style_lib.seed_defaults()  # 全新安裝才會放進內建範例畫風
     yield
 
 
-app = FastAPI(title="EMochi", lifespan=_lifespan)
+# separate_input_output_schemas=False：回應用 exclude_unset 輸出，有預設值的欄位可能不在回應裡，
+# 產生的前端型別要標成可省略（用驗證模式的 schema）
+app = FastAPI(title="EMochi", lifespan=_lifespan, separate_input_output_schemas=False)
 
 
 @app.middleware("http")
 async def _errors(request: Request, call_next):
-    """各模組用例外回報錯誤，這裡統一轉成前端看得懂的 {detail}：
-    KeyError（找不到那一筆）→ 404，其他（ValueError、RuntimeError、Codex 失敗…）→ 400。
-    HTTPException、參數驗證錯誤由 FastAPI 在更裡層處理，不會到這裡"""
+    """各模組丟 app/errors.py 的例外回報錯誤，這裡統一轉成前端看得懂的 {detail}：
+    NotFound → 404、Invalid → 400、Conflict → 409、CodexError → 502；
+    其他例外是程式 bug → 500 並記 log（訊息照樣給前端，回報問題時看得到）。
+    HTTPException、參數驗證錯誤（422）由 FastAPI 在更裡層處理，不會到這裡"""
     try:
         return await call_next(request)
-    except KeyError as e:
-        return JSONResponse({"detail": f"找不到：{e}"}, 404)
+    except AppError as e:
+        if e.status >= 500:
+            log.warning("%s %s：%s", request.method, request.url.path, e)
+        return JSONResponse({"detail": str(e)}, e.status)
     except Exception as e:  # noqa: BLE001
         log.exception("%s %s 失敗", request.method, request.url.path)
-        return JSONResponse({"detail": str(e)}, 400)
+        return JSONResponse({"detail": f"程式發生錯誤：{e}"}, 500)
 
 
 for r in (system, settings, stickers, files, projects, library, gallery):

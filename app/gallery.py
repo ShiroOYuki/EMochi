@@ -1,5 +1,5 @@
-"""Gallery：掃描各畫風成品、匯出 zip（加版本後綴）、組合總覽圖、勾選清單 JSON
-"""
+"""Gallery：掃描各畫風成品、匯出 zip（加版本後綴）、組合總覽圖、勾選清單 JSON"""
+
 import io
 import json
 import re
@@ -10,7 +10,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from . import characters, presets, specs
-from .paths import outputs_dir, exports_dir, read_json, sticker_map
+from .errors import Invalid
+from .paths import exports_dir, outputs_dir, read_json, sticker_map
 
 # 後處理（pipeline）已經產生好的檔案（scan() 回傳的 files）；匯出預設集剛好要這些尺寸時直接沿用，畫質和以前一樣
 FORMATS = {
@@ -41,14 +42,28 @@ def scan() -> list[dict]:
                 if (final / sub / fn).exists():
                     files[k] = f"{sid}/final/{sub}/{fn}"
             info = meta.get(num, {})
-            items.append({"id": num, "name": name, "label": info.get("label", name), "zh": info.get("zh", ""),
-                          "files": files,
-                          "mtime": int(f.stat().st_mtime)})
+            items.append(
+                {
+                    "id": num,
+                    "name": name,
+                    "label": info.get("label", name),
+                    "zh": info.get("zh", ""),
+                    "files": files,
+                    "mtime": int(f.stat().st_mtime),
+                }
+            )
         if items:
             proj = read_json(outputs_dir() / sid / "project.json") or {}
             cid = (proj.get("refs") or {}).get("character_id")
-            styles.append({"id": sid, "name": proj.get("name", ""), "items": items,
-                           "character_id": cid, "character_name": chars.get(cid, "") if cid else ""})
+            styles.append(
+                {
+                    "id": sid,
+                    "name": proj.get("name", ""),
+                    "items": items,
+                    "character_id": cid,
+                    "character_name": chars.get(cid, "") if cid else "",
+                }
+            )
     styles.sort(key=lambda s: (len(s["id"]), s["id"]))
     return styles
 
@@ -84,8 +99,12 @@ def selection_doc(keys, **extra) -> dict:
         s, it = find(styles, k)
         if it:
             items.append({"key": k, "style": s["id"], "id": it["id"], "name": it["name"]})
-    doc = {"version": 1, "created": time.strftime("%Y-%m-%d %H:%M:%S"),
-           "keys": [i["key"] for i in items], "items": items}
+    doc = {
+        "version": 1,
+        "created": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "keys": [i["key"] for i in items],
+        "items": items,
+    }
     doc.update({k: v for k, v in extra.items() if v is not None})
     return doc
 
@@ -103,15 +122,28 @@ def list_selections() -> list[dict]:
     for f in sorted(exports_dir().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
-            out.append({"file": f.name, "count": len(d.get("keys", [])), "created": d.get("created", ""),
-                        "kind": d.get("kind", ""), "tag": d.get("tag") or (d.get("version") if isinstance(d.get("version"), str) else None)})
+            out.append(
+                {
+                    "file": f.name,
+                    "count": len(d.get("keys", [])),
+                    "created": d.get("created", ""),
+                    "kind": d.get("kind", ""),
+                    "tag": d.get("tag") or (d.get("version") if isinstance(d.get("version"), str) else None),
+                }
+            )
         except Exception:  # noqa: BLE001
             pass
     return out
 
 
-PREMADE = {112: "t112", 56: "t56", 28: "t28", 128: "discord", 512: "master"}   # 正方形邊長 → 後處理的檔案
-LEGACY = {"t112": ("twitch", 112), "t56": ("twitch", 56), "t28": ("twitch", 28), "discord": ("discord", 128), "master": ("master", 512)}
+PREMADE = {112: "t112", 56: "t56", 28: "t28", 128: "discord", 512: "master"}  # 正方形邊長 → 後處理的檔案
+LEGACY = {
+    "t112": ("twitch", 112),
+    "t56": ("twitch", 56),
+    "t28": ("twitch", 28),
+    "discord": ("discord", 128),
+    "master": ("master", 512),
+}
 
 
 def legacy_presets(fmts) -> list[dict]:
@@ -137,8 +169,12 @@ def _image_bytes(it: dict, master_img, preset: dict, size: dict) -> tuple[bytes,
         if got == (w, h):
             return data, []
         note = f"後處理的檔案是 {got[0]}×{got[1]}，不是 {w}×{h}，已改用母版重新縮"
-        return presets.to_png(presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])), [note]
-    return presets.to_png(presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])), []
+        return presets.to_png(
+            presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])
+        ), [note]
+    return presets.to_png(
+        presets.render(master_img(), size, preset["mode"], preset["margin"], preset["even"])
+    ), []
 
 
 def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
@@ -150,7 +186,7 @@ def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
     if custom:
         chosen.append(presets.custom(custom))
     if not chosen:
-        raise ValueError("請至少選一個預設集，或填寫自訂尺寸")
+        raise Invalid("請至少選一個預設集，或填寫自訂尺寸")
     styles = scan()
     picked = [(s, it) for s, it in (find(styles, k) for k in keys) if it and "master" in it["files"]]
     # 序號檔名（LINE）：每個畫風依貼圖編號排序後 01、02…
@@ -164,16 +200,21 @@ def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for s, it in picked:
             cache = {}
+
             def master_img(it=it, cache=cache):
                 if "im" not in cache:
                     cache["im"] = Image.open(outputs_dir() / it["files"]["master"]).convert("RGBA")
                 return cache["im"]
+
             src_name = Path(it["files"]["master"]).name
             for p in chosen:
                 for size in p["sizes"]:
                     sub = p["folder"] if len(p["sizes"]) == 1 else f"{p['folder']}/{presets.size_label(size)}"
-                    fname = (f"{index[(s['id'], it['id'])]:02d}.png" if p["naming"] == "index"
-                             else suffixed(src_name, s["id"], tag))
+                    fname = (
+                        f"{index[(s['id'], it['id'])]:02d}.png"
+                        if p["naming"] == "index"
+                        else suffixed(src_name, s["id"], tag)
+                    )
                     arc = f"{s['id']}/{sub}/{fname}"
                     raw, notes = _image_bytes(it, master_img, p, size)
                     label = f"{p['name']} {presets.size_label(size)}"
@@ -187,15 +228,31 @@ def export(keys, preset_ids=None, custom=None, tag="", fmts=None) -> dict:
     st = stamp()
     name = f"export_{st}{'_' + tag if tag else ''}.zip"
     (exports_dir() / name).write_bytes(buf.getvalue())
-    write_export_json(f"export_{st}.json", selection_doc(
-        keys, kind="export", presets=[p["id"] for p in chosen if p["id"] != "custom"],
-        custom=presets.custom(custom) if custom else None, zip=name, tag=tag or None, issues=issues or None))
+    write_export_json(
+        f"export_{st}.json",
+        selection_doc(
+            keys,
+            kind="export",
+            presets=[p["id"] for p in chosen if p["id"] != "custom"],
+            custom=presets.custom(custom) if custom else None,
+            zip=name,
+            tag=tag or None,
+            issues=issues or None,
+        ),
+    )
     return {"file": name, "count": n, "issues": issues}
 
 
 def save_selection(keys, presets=None, custom=None, combine=None, tag="", formats=None) -> dict:
-    doc = selection_doc(keys, kind="selection", presets=presets, custom=custom, formats=formats, combine=combine,
-                        tag=clean_tag(tag) or None)
+    doc = selection_doc(
+        keys,
+        kind="selection",
+        presets=presets,
+        custom=custom,
+        formats=formats,
+        combine=combine,
+        tag=clean_tag(tag) or None,
+    )
     name = write_export_json(f"selection_{stamp()}.json", doc)
     return {"file": name, "count": len(doc["keys"])}
 
@@ -216,10 +273,14 @@ def combine(keys, cols=8, cell=128, gap=8, bg="transparent", labels=False) -> di
     for key in sorted(keys, key=lambda k: (int(k.split(":")[1]), k.split(":")[0])):
         s, it = find(styles, key)
         if it and "master" in it["files"]:
-            im = Image.open(outputs_dir() / it["files"]["master"]).convert("RGBA").resize((cell, cell), Image.LANCZOS)
+            im = (
+                Image.open(outputs_dir() / it["files"]["master"])
+                .convert("RGBA")
+                .resize((cell, cell), Image.LANCZOS)
+            )
             imgs.append((im, f"{s['id']} {it['label']}"))
     if not imgs:
-        raise ValueError("沒有可組合的貼圖")
+        raise Invalid("沒有可組合的貼圖")
     cols = max(1, min(cols, len(imgs)))
     rows = (len(imgs) + cols - 1) // cols
     lab_h = max(14, cell // 7) if labels else 0
@@ -240,6 +301,13 @@ def combine(keys, cols=8, cell=128, gap=8, bg="transparent", labels=False) -> di
     st = stamp()
     name = f"sheet_{st}.png"
     sheet.save(exports_dir() / name, "PNG", optimize=True)
-    write_export_json(f"sheet_{st}.json", selection_doc(orig, kind="combine", sheet=name, combine={
-        "cols": cols, "cell": cell, "gap": gap, "bg": bg, "labels": labels}))
+    write_export_json(
+        f"sheet_{st}.json",
+        selection_doc(
+            orig,
+            kind="combine",
+            sheet=name,
+            combine={"cols": cols, "cell": cell, "gap": gap, "bg": bg, "labels": labels},
+        ),
+    )
     return {"file": name}

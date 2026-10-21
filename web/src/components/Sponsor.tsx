@@ -23,8 +23,18 @@ export function SponsorLinks() {
   return (
     <div className="flex flex-wrap gap-2">
       {SPONSORS.map((s) => (
-        <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm gap-1.5" title={s.note}>
-          <span className="text-pink"><Heart size={13} /></span>{s.name}
+        <a
+          key={s.id}
+          href={s.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-sm gap-1.5"
+          title={s.note}
+        >
+          <span className="text-pink">
+            <Heart size={13} />
+          </span>
+          {s.name}
           <span className="text-[11px] text-mute">{s.note}</span>
         </a>
       ))}
@@ -38,12 +48,22 @@ export function SponsorButton() {
   if (!SPONSORS.length) return null;
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="支持 EMochi" title="支持 EMochi" className="btn px-2.5 text-pink">
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="支持 EMochi"
+        title="支持 EMochi"
+        className="btn px-2.5 text-pink"
+      >
         <Heart />
       </button>
       <Modal open={open} onClose={() => setOpen(false)} label="支持 EMochi">
         <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-lg"><span className="text-pink"><Heart size={18} /></span>支持 EMochi</h3>
+          <h3 className="flex items-center gap-2 text-lg">
+            <span className="text-pink">
+              <Heart size={18} />
+            </span>
+            支持 EMochi
+          </h3>
           <div className="space-y-2 text-sm leading-relaxed">
             <p>EMochi 是免費、開源的個人專案，所有功能都可以直接使用，不贊助也完全沒關係。</p>
             <p>如果它幫你省了時間、做出喜歡的貼圖，歡迎請我喝杯咖啡，支持之後的新功能和維護 ☕</p>
@@ -51,7 +71,9 @@ export function SponsorButton() {
           <SponsorLinks />
           <p className="text-[11px] text-mute">會在瀏覽器開啟付款頁面；EMochi 不會收集任何付款資料。</p>
           <div className="flex justify-end">
-            <button className="btn" onClick={() => setOpen(false)}>關閉</button>
+            <button className="btn" onClick={() => setOpen(false)}>
+              關閉
+            </button>
           </div>
         </div>
       </Modal>

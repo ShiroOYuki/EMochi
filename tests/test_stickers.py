@@ -9,6 +9,7 @@ def test_example_fallback(client, data_root):
     client.patch("/api/stickers/1", json={"zh": "改過"})
     assert (cfg / "stickers.json").exists()
     import json
+
     ex = json.loads((cfg / "stickers.example.json").read_text(encoding="utf-8"))
     assert ex[0]["zh"] != "改過"
 
@@ -23,15 +24,20 @@ def test_default_groups(client):
 
 
 def test_crud(client):
-    r = client.post("/api/stickers", json={"label": "Sleepy Tea", "zh": "打瞌睡", "prompt": "sleepy, holding tea"})
+    r = client.post(
+        "/api/stickers", json={"label": "Sleepy Tea", "zh": "打瞌睡", "prompt": "sleepy, holding tea"}
+    )
     assert r.status_code == 200
     s = r.json()
     sid = s["id"]
     assert s["name"] == "sleepy_tea"
 
-    r = client.patch(f"/api/stickers/{sid}", json={"label": "Sleepy", "prompt_no_ears": "sleepy, no ears", "align": "bottom"})
+    r = client.patch(
+        f"/api/stickers/{sid}",
+        json={"label": "Sleepy", "prompt_no_ears": "sleepy, no ears", "align": "bottom"},
+    )
     s = r.json()
-    assert s["label"] == "Sleepy" and s["name"] == "sleepy_tea"   # 檔名不跟著改
+    assert s["label"] == "Sleepy" and s["name"] == "sleepy_tea"  # 檔名不跟著改
     assert s["prompt_no_ears"] == "sleepy, no ears" and s["align"] == "bottom"
     s = client.patch(f"/api/stickers/{sid}", json={"align": None, "prompt_no_ears": ""}).json()
     assert "align" not in s and "prompt_no_ears" not in s
@@ -47,7 +53,7 @@ def test_crud(client):
     assert sid not in [x["id"] for x in client.get("/api/stickers").json()]
     assert sid in [x["id"] for x in client.get("/api/stickers?all=1").json()]
     assert sid not in client.get("/api/sticker-groups").json()[0]["ids"]
-    assert client.patch(f"/api/stickers/{sid}", json={"zh": "x"}).status_code == 400
+    assert client.patch(f"/api/stickers/{sid}", json={"zh": "x"}).status_code == 409
     nxt = client.post("/api/stickers", json={"label": "Next", "prompt": "next"}).json()
     assert nxt["id"] == sid + 1
 
@@ -85,21 +91,34 @@ def test_expand(client, monkeypatch):
     import json
 
     from app import codex
+
     seen = {}
 
     def fake(prompt, schema, log, **kw):
         seen["prompt"] = prompt
         seen["schema"] = json.loads(schema.read_text(encoding="utf-8"))
-        return json.dumps({"label": " Sleepy Tea ", "zh": "捧茶打瞌睡、眼皮下垂", "prompt": "dozing off, holding a teacup",
-                           "prompt_no_ears": "", "align": "center"})
+        return json.dumps(
+            {
+                "label": " Sleepy Tea ",
+                "zh": "捧茶打瞌睡、眼皮下垂",
+                "prompt": "dozing off, holding a teacup",
+                "prompt_no_ears": "",
+                "align": "center",
+            }
+        )
 
     monkeypatch.setattr(codex, "run_text", fake)
     r = client.post("/api/stickers/expand", json={"idea": "捧著茶杯打瞌睡"})
     assert r.status_code == 200, r.text
     d = r.json()
-    assert d == {"label": "Sleepy Tea", "zh": "捧茶打瞌睡、眼皮下垂", "prompt": "dozing off, holding a teacup",
-                 "prompt_no_ears": "", "align": None}
-    assert "捧著茶杯打瞌睡" in seen["prompt"] and "beaming happy smile" in seen["prompt"]   # 有附現有範例
+    assert d == {
+        "label": "Sleepy Tea",
+        "zh": "捧茶打瞌睡、眼皮下垂",
+        "prompt": "dozing off, holding a teacup",
+        "prompt_no_ears": "",
+        "align": None,
+    }
+    assert "捧著茶杯打瞌睡" in seen["prompt"] and "beaming happy smile" in seen["prompt"]  # 有附現有範例
     assert "prompt_no_ears" in seen["prompt"] and seen["schema"]["required"]
     # 沒寫想法時用中文說明；都沒有就擋
     assert client.post("/api/stickers/expand", json={"zh": "生氣跺腳"}).status_code == 200

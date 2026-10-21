@@ -7,17 +7,17 @@
    顏色用 CSS 變數定義，淺色 / 深色主題只換變數值（data-theme 掛在 <html> 上） */
 :root {
   color-scheme: light;
-  --c-bg: #eef1fa;        /* 淡藍紫紙色（頁面底） */
-  --c-panel: #ffffff;     /* 白毛（面板、卡片） */
-  --c-panel2: #f5f7fd;    /* 輸入框、次要區塊 */
+  --c-bg: #eef1fa; /* 淡藍紫紙色（頁面底） */
+  --c-panel: #ffffff; /* 白毛（面板、卡片） */
+  --c-panel2: #f5f7fd; /* 輸入框、次要區塊 */
   --c-line: #dde2f2;
-  --c-text: #34315a;      /* 深靛藍墨色 */
+  --c-text: #34315a; /* 深靛藍墨色 */
   --c-mute: #8a87a8;
-  --c-acc: #5a86f0;       /* 藍眼睛：主要動作 */
+  --c-acc: #5a86f0; /* 藍眼睛：主要動作 */
   --c-acc-deep: #3f68cf;
-  --c-pink: #ff8db3;      /* 耳內粉：勾選、選取 */
+  --c-pink: #ff8db3; /* 耳內粉：勾選、選取 */
   --c-pink-soft: #fff0f6;
-  --c-gold: #f2b531;      /* 麥穗金：步驟、進度 */
+  --c-gold: #f2b531; /* 麥穗金：步驟、進度 */
   --c-gold-deep: #d0921a;
   --c-ok: #2fb98f;
   --c-warn: #e9a21c;
@@ -25,7 +25,7 @@
   --c-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 8px 24px -10px rgb(52 49 90 / 0.18);
   --c-check-a: #e6e9f5;
   --c-check-b: #f7f8fd;
-  --c-on-acc: #ffffff;    /* 藍色按鈕上的字 */
+  --c-on-acc: #ffffff; /* 藍色按鈕上的字 */
 }
 
 /* 深色：夜晚的同一隻狐狸。底色是帶紫的深靛藍，不用死黑；白毛變成柔和的夜色面板 */
@@ -49,7 +49,7 @@
   --c-shadow: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 12px 28px -14px rgb(0 0 0 / 0.7);
   --c-check-a: #2f2c48;
   --c-check-b: #3a3656;
-  --c-on-acc: #17152a;    /* 深色主題的藍較亮，改用深色字才清楚 */
+  --c-on-acc: #17152a; /* 深色主題的藍較亮，改用深色字才清楚 */
 }
 
 /* shadcn / Animate UI 用的語意變數：全部指回上面的角色配色，淺深色自動跟著換 */
@@ -120,10 +120,16 @@
   --shadow-gummy: 0 3px 0 var(--c-acc-deep);
 }
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
 body {
   margin: 0;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -132,20 +138,52 @@ body {
 }
 /* Tailwind 4 預設讓按鈕顯示一般箭頭；這裡把所有可點的東西統一改成手指，停用時顯示禁止符號 */
 @layer base {
-  button, [role="button"], a[href], summary, select, label:has(input), label[for],
-  input[type="checkbox"], input[type="radio"], input[type="file"], [onclick] { cursor: pointer; }
-  button:disabled, select:disabled, input:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+  button,
+  [role="button"],
+  a[href],
+  summary,
+  select,
+  label:has(input),
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  [onclick] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
-:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-acc) 45%, transparent); outline-offset: 2px; }
-::selection { background: color-mix(in srgb, var(--color-pink) 35%, transparent); }
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-acc) 45%, transparent);
+  outline-offset: 2px;
+}
+::selection {
+  background: color-mix(in srgb, var(--color-pink) 35%, transparent);
+}
 
 /* 俐落的緩動：快速出發、平順停下、不回彈（跟 ui.tsx 的 SPRING 同一種手感，給純 CSS 的動畫用） */
-:root { --ease-snap: cubic-bezier(0.22, 1, 0.36, 1); }
+:root {
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
 /* Gallery 切換篩選的 View Transitions：有命名的卡片滑到新位置；整頁其他部分直接換，不做整片淡入淡出 */
-::view-transition-group(*) { animation-duration: 280ms; animation-timing-function: var(--ease-snap); }
-::view-transition-old(*), ::view-transition-new(*) { animation-duration: 180ms; }
-::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-group(*) {
+  animation-duration: 280ms;
+  animation-timing-function: var(--ease-snap);
+}
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 180ms;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
 
 @layer components {
   /* 按鈕：按下時微縮（主要按鈕另外往下沉），放開時快速彈回 */
@@ -160,21 +198,40 @@ body {
     @apply border-acc bg-acc text-on-acc hover:border-acc hover:text-on-acc hover:brightness-105 active:translate-y-[2px];
     box-shadow: var(--shadow-gummy);
   }
-  .btn-primary:active { box-shadow: 0 1px 0 var(--color-acc-deep); }
-  .btn-primary:disabled { box-shadow: none; }
-  .btn-sm { @apply px-2.5 py-0.5 text-xs; }
+  .btn-primary:active {
+    box-shadow: 0 1px 0 var(--color-acc-deep);
+  }
+  .btn-primary:disabled {
+    box-shadow: none;
+  }
+  .btn-sm {
+    @apply px-2.5 py-0.5 text-xs;
+  }
   .input {
     @apply w-full rounded-xl border border-line bg-panel2 px-3 py-1.5 text-sm text-text outline-none transition
       placeholder:text-mute/70 focus:border-acc focus:bg-panel disabled:opacity-60;
   }
-  .card { @apply rounded-[22px] bg-panel p-5; box-shadow: var(--shadow-soft); }
+  .card {
+    @apply rounded-[22px] bg-panel p-5;
+    box-shadow: var(--shadow-soft);
+  }
   /* Gen／畫風／角色的側欄清單：上面的「新增」與下面的「垃圾桶」固定，只有中間這段捲動 */
-  .side-list { @apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2; }
+  .side-list {
+    @apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2;
+  }
   /* 不顯示捲軸但仍可捲動（Gallery 單行列：改用左右箭頭翻頁） */
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .label { @apply mb-1 block text-xs text-mute; }
-  .chk { @apply size-4 accent-[var(--color-pink)]; }
-  .checker { background: repeating-conic-gradient(var(--c-check-a) 0 25%, var(--c-check-b) 0 50%) 0 0 / 16px 16px; }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .label {
+    @apply mb-1 block text-xs text-mute;
+  }
+  .chk {
+    @apply size-4 accent-[var(--color-pink)];
+  }
+  .checker {
+    background: repeating-conic-gradient(var(--c-check-a) 0 25%, var(--c-check-b) 0 50%) 0 0 / 16px 16px;
+  }
 
   /* Gallery 貼紙：去背貼圖外圍加白色模切邊＋投影，像一張真的貼紙。
      濾鏡定義在 index.html 的 #sticker-outline（單一 SVG 濾鏡）；原本疊 5 層 drop-shadow，
@@ -184,14 +241,34 @@ body {
     transition: transform 0.28s var(--ease-snap);
   }
   /* 滑過：貼紙微微浮起放大；勾選：翹起來斜一點；按下卡片：整張輕壓 */
-  .sticker-card { transition-property: color, background-color, border-color, scale; transition-timing-function: var(--ease-snap); transition-duration: 160ms; }
-  .sticker-card:active { scale: 0.97; }
-  .sticker-card:hover .sticker-img { transform: translateY(-2px) scale(1.04); }
-  .sticker-on .sticker-img, .sticker-on.sticker-card:hover .sticker-img { transform: translateY(-4px) rotate(-3deg) scale(1.02); }
+  .sticker-card {
+    transition-property: color, background-color, border-color, scale;
+    transition-timing-function: var(--ease-snap);
+    transition-duration: 160ms;
+  }
+  .sticker-card:active {
+    scale: 0.97;
+  }
+  .sticker-card:hover .sticker-img {
+    transform: translateY(-2px) scale(1.04);
+  }
+  .sticker-on .sticker-img,
+  .sticker-on.sticker-card:hover .sticker-img {
+    transform: translateY(-4px) rotate(-3deg) scale(1.02);
+  }
   @media (prefers-reduced-motion: reduce) {
-    .sticker-img, .sticker-card { transition: none; }
-    .sticker-card:active { scale: 1; }
-    .sticker-card:hover .sticker-img, .sticker-on .sticker-img, .sticker-on.sticker-card:hover .sticker-img { transform: none; }
+    .sticker-img,
+    .sticker-card {
+      transition: none;
+    }
+    .sticker-card:active {
+      scale: 1;
+    }
+    .sticker-card:hover .sticker-img,
+    .sticker-on .sticker-img,
+    .sticker-on.sticker-card:hover .sticker-img {
+      transform: none;
+    }
   }
 }
 
@@ -203,42 +280,115 @@ body {
   --sb-thumb: color-mix(in srgb, var(--c-mute) 45%, transparent);
   --sb-thumb-hover: color-mix(in srgb, var(--c-acc) 70%, transparent);
 }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-button { display: none; width: 0; height: 0; }   /* 不要上下箭頭 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+} /* 不要上下箭頭 */
 ::-webkit-scrollbar-thumb {
   background: var(--sb-thumb);
   border-radius: 999px;
-  border: 3px solid transparent;   /* 透明邊 + padding-box：視覺上是 4px 細條，可點範圍仍是 10px */
+  border: 3px solid transparent; /* 透明邊 + padding-box：視覺上是 4px 細條，可點範圍仍是 10px */
   background-clip: padding-box;
   min-height: 32px;
 }
-::-webkit-scrollbar-thumb:hover { background-color: var(--sb-thumb-hover); }
-::-webkit-scrollbar-thumb:active { background-color: var(--c-acc); }
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sb-thumb-hover);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--c-acc);
+}
 /* 大圓角容器（對話框、選單）：捲軸上下讓開圓角，不會被裁掉一截 */
-.scroll-inset::-webkit-scrollbar-track { margin-block: 18px; }
-.scroll-inset-sm::-webkit-scrollbar-track { margin-block: 8px; }
+.scroll-inset::-webkit-scrollbar-track {
+  margin-block: 18px;
+}
+.scroll-inset-sm::-webkit-scrollbar-track {
+  margin-block: 8px;
+}
 /* 旁邊有 m-3 卡片（Gallery 側欄）的捲動區：捲軸上下各讓 12px，和卡片等高 */
-.scroll-inset-panel::-webkit-scrollbar-track { margin-block: 12px; }
-textarea::-webkit-scrollbar-track { margin-block: 6px; }
-textarea::-webkit-resizer { background: transparent; }
+.scroll-inset-panel::-webkit-scrollbar-track {
+  margin-block: 12px;
+}
+textarea::-webkit-scrollbar-track {
+  margin-block: 6px;
+}
+textarea::-webkit-resizer {
+  background: transparent;
+}
 @supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sb-thumb) transparent;
+  }
 }
 
 /* ── 下拉選單（ui.tsx 的 Select）展開／收起動畫 ── */
-@keyframes select-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }
-@keyframes select-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-2px) scale(0.98); } }
-.select-pop[data-state="open"] { animation: select-in 140ms var(--ease-snap); }
-.select-pop[data-state="closed"] { animation: select-out 90ms ease-in; }
-.select-pop[data-side="top"][data-state="open"] { animation-name: select-in-up; }
-@keyframes select-in-up { from { opacity: 0; transform: translateY(4px) scale(0.97); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .select-pop[data-state] { animation: none; } }
+@keyframes select-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes select-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+}
+.select-pop[data-state="open"] {
+  animation: select-in 140ms var(--ease-snap);
+}
+.select-pop[data-state="closed"] {
+  animation: select-out 90ms ease-in;
+}
+.select-pop[data-side="top"][data-state="open"] {
+  animation-name: select-in-up;
+}
+@keyframes select-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-pop[data-state] {
+    animation: none;
+  }
+}
 /* 選單項目用底色表示目前位置，不要再疊全站的 focus 外框（全域 :focus-visible 不在 layer 裡，會蓋過 outline-none） */
-.select-pop [role="option"]:focus-visible { outline: none; }
+.select-pop [role="option"]:focus-visible {
+  outline: none;
+}
 
 /* 桌面版自訂標題列：.app-drag 的空白處拖曳視窗；可點的東西、對話框要排除，不然點不到 */
-.app-drag { -webkit-app-region: drag; user-select: none; }
-.app-drag :is(button, a, input, select, textarea, [role="button"], [role="tab"], [role="group"]) { -webkit-app-region: no-drag; }
-.no-drag { -webkit-app-region: no-drag; }
+.app-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.app-drag :is(button, a, input, select, textarea, [role="button"], [role="tab"], [role="group"]) {
+  -webkit-app-region: no-drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}

@@ -34,3 +34,6 @@ desktop/release/
 # 前端
 web/node_modules/
 web/*.tsbuildinfo
+
+# 由 scripts/export_openapi.py 產生（npm run gen:api 的中間檔）
+web/openapi.json

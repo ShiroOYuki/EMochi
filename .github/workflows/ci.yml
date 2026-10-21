@@ -1,4 +1,4 @@
-# 推到 main／develop、開 PR 時：跑後端測試＋前端型別檢查與 build（不打包、不發版）
+# 推到 main／develop、開 PR 時：lint／格式檢查、後端測試、前端型別檢查與 build（不打包、不發版）
 name: CI
 
 on:
@@ -23,13 +23,22 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: 後端測試
+      - name: 後端 lint／格式
         run: |
           uv sync
-          uv run pytest -q
+          uv run ruff check
+          uv run ruff format --check
 
-      - name: 前端 build
+      - name: 後端測試
+        run: uv run pytest -q
+
+      - name: 前端 lint／格式／測試＋build
         working-directory: web
         run: |
           npm ci
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts  # 後端改了 API 卻沒重新產生前端型別
+          npm run lint
+          npm run format:check
+          npm test
           npm run build

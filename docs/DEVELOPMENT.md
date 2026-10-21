@@ -44,19 +44,33 @@ cd web
 npm ci
 npm run dev        :: http://localhost:5173（API 轉給 8765，需先開 scripts\app.bat）
 npm run build      :: 輸出到 app\static，提交時一起 commit
+npm run gen:api    :: 後端改了請求或回應格式（Pydantic model、app/schemas.py）後，重新產生 src\api\schema.d.ts
 ```
 
 改後端（`app/*.py`）要重開伺服器；改前端 build 完重新整理瀏覽器即可。
+
+## 格式與 lint
+
+```cmd
+uv run ruff check          :: 後端 lint（--fix 自動修）
+uv run ruff format         :: 後端格式化
+cd web
+npm run lint               :: eslint
+npm run format             :: prettier（format:check 只檢查）
+```
+
+CI 會檢查這些，沒過不能合併。`git blame` 要略過整批格式化的 commit：`git config blame.ignoreRevsFile .git-blame-ignore-revs`。
 
 ## 測試
 
 ```cmd
 uv sync
-uv run pytest
+uv run pytest              :: 後端
+cd web && npm test         :: 前端（Vitest，純函式與 store 邏輯）
 ```
 
 測試會用 `EMOCHI_ROOT` 把資料根目錄指到暫存資料夾，不會動到 `outputs/`、`characters/` 等真正的資料，也不會呼叫 Codex。
-涵蓋：`/files/` 快取與 304、匯出規格檢查、Gallery 掃描／匯出／勾選清單、角色垃圾桶流程、3×2 網格切割去背、`generation_finished()`、額度窗口過期、空資料夾啟動、表情與分組、Codex 用量統計、設定檔、匯出預設集。
+涵蓋：`/files/` 快取與 304、匯出規格檢查、Gallery 掃描／匯出／勾選清單、角色垃圾桶流程、3×2 網格切割去背、`generation_finished()`、額度窗口過期、空資料夾啟動、表情與分組、Codex 用量統計、設定檔、匯出預設集、錯誤狀態碼、PATCH 驗證、資料檔升級、app.log。
 
 ## 打包桌面版
 
@@ -91,14 +105,27 @@ scripts\release.bat 0.2.0 --push    :: 改 desktop/package.json 版號 → commi
 
 ```
 app/                後端（FastAPI）
-  server.py         建立 FastAPI、統一錯誤處理（KeyError → 404、其他 → 400）、掛上前端
+  server.py         建立 FastAPI、統一錯誤處理（errors.py 的例外 → 對應狀態碼，其他 → 500）、掛上前端
+  errors.py         NotFound（404）、Invalid（400）、Conflict（409）、CodexError（502）
   routes/           API 路由，依領域分檔：system、settings、stickers、files、projects、library、gallery
-  codex.py          執行 Codex；jobs.py Gen 流程狀態機
+  jobs/             Gen 流程（store 讀寫 project.json、refs 參考圖、prompting 組 prompt、
+                    runner 背景執行、flow 狀態轉換）；project_types.py 是專案資料的型別與狀態
+  schemas.py        API 回應的形狀（response_model）；前端型別由它和請求 model 自動產生
+  migrations.py     資料檔格式升級（project.json、character.json、style.json 的 schema_version）
+  codex.py          執行 Codex；applog.py 程式記錄（logs/app.log）
   pipeline.py       網格 → 成品（去背核心在 keying.py）；gallery.py 匯出、組合；specs.py 平台規格檢查；prompts.py 組 prompt
-  presets.py        匯出預設集；stickers.py 表情與分組；settings.py 設定
+  presets.py        匯出預設集；stickers.py 表情與分組；settings.py 設定（Settings model 是唯一來源）
   characters.py     角色庫；style_lib.py 畫風庫（共用 reflib.py）；trash.py 垃圾桶；usage.py Codex 額度
   static/           前端 build 結果（由 web/ 產生）
-web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI）
+web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI + TanStack Query）
+  src/api/          後端呼叫：projects／library／gallery／stickers／settings／system 各領域的 xxxApi、
+                    types.ts（取自 schema.d.ts 的型別別名）、schema.d.ts 自動產生的請求／回應型別、queries.ts 快取與輪詢
+  src/router.ts     網址路由（react-router hash router）：#/gen/s12、#/characters/c2…；
+                    App.tsx 是 Layout，五個分頁用 <Activity> 切換（隱藏時保留輸入、effect 暫停）
+  src/hooks/useOnChange.ts  「值變了才重設表單／聚焦」用這個，不要用 useEffect（切回分頁時 effect 會重跑）
+  src/pages/        五個分頁；gen/ 生成頁各步驟、gallery/ 圖庫的篩選與面板
+  src/components/   共用元件；ui/ 一個元件一個檔
+  src/hooks/        useStored（localStorage 記憶）、useViewTransition 等
 tests/              pytest
 config/
   stickers.example.json  基礎 32 種表情（編號、名稱、中文說明、表情 prompt）；stickers.json 的起點
@@ -128,9 +155,23 @@ desktop/
   release/          打包產物                                                  ※不進版控
 outputs/<專案>/     grids/（網格原圖）、final/（成品）、previews/（總覽圖）      ※不進版控
 exports/            匯出的 zip 與勾選清單                                      ※不進版控
-logs/               Codex 執行紀錄                                            ※不進版控
+logs/               Codex 執行紀錄、app.log（程式警告與錯誤）                  ※不進版控
 archive/            試驗品、檢查腳本                                          ※不進版控
 ```
+
+## 資料怎麼流動：從按下「生成」到進圖庫
+
+1. 前端 `pages/gen/*` 呼叫 `projectsApi.preview(id)` 等（`web/src/api/projects.ts`）
+2. 後端 `routes/projects.py` 收到 → `jobs.flow.start_preview()`：`require_status` 檢查狀態、
+   `jobs.prompting` 組 prompt、`jobs.store.mutate` 在鎖內改 project.json → 丟給 `jobs.runner` 背景執行
+3. `jobs.runner._run_preview／_run_group` 呼叫 `codex.run_image()`（`codex exec`，等網格圖、檢查背景）
+   → 結果寫回 project.json；整批跑完用 `events.emit()` 發桌面通知
+4. 前端 `useProject(id)`（`api/queries.ts`）在執行中每 2.5 秒輪詢，畫面跟著更新
+5. 使用者確認後 `start_finalize` → `jobs.runner._finalize` → `pipeline.process_grid()` 切割、去背（`keying.py`）、
+   輸出各尺寸到 `outputs/<專案>/final/`
+6. 圖庫 `gallery.py` 掃 `final/` 列出成品；匯出時依匯出預設集（`presets.py`）縮放、壓縮（`specs.py`）打包成 zip
+
+錯誤：模組丟 `errors.py` 的例外 → `server.py` 轉成狀態碼與 `{detail}` → 前端 `api/client.ts` 丟 `ApiError`，畫面顯示 `detail`。
 
 ## 實作備忘
 

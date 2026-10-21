@@ -6,6 +6,8 @@ Codex 偶爾會「圖已經存好、程序卻不結束」（s5 第 1 組就卡�
   - generation_finished() 判定已完成 → 主動結束整個程序樹
   - 超過 timeout → 結束並標記失敗
 """
+
+import json
 import os
 import re
 import shutil
@@ -16,12 +18,13 @@ from datetime import datetime
 from pathlib import Path
 
 from . import settings
+from .errors import CodexError
 from .paths import ROOT, codex_path, data_path, logs_dir, outputs_dir, outside_root, to_codex
 
 POLL_SEC = 3
 # 目前正在跑的 Codex（給「Codex 狀態」對話框看）：log 路徑 → {pid, started}
 ACTIVE: dict[str, dict] = {}
-DEFAULT_TIMEOUT = 20 * 60   # 保底；實際用設定頁的 image_timeout_min／text_timeout_min
+DEFAULT_TIMEOUT = 20 * 60  # 保底；實際用設定頁的 image_timeout_min／text_timeout_min
 # Windows 沙盒：能用 MXC 就用，不能用時 Codex 自動退回舊模式（elevated／unelevated）。
 # 用「優先」而不是 -c windows.sandbox=mxc（強制）：Windows 10、舊版 Windows 11 等沒有 MXC 的電腦才不會整個生不了圖。
 # 只影響這次呼叫，不改使用者的 ~/.codex/config.toml；非 Windows 平台會忽略
@@ -35,9 +38,12 @@ def _registry_path() -> list[str]:
     if sys.platform != "win32":
         return []
     import winreg
+
     out: list[str] = []
-    for root, key in ((winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
-                      (winreg.HKEY_CURRENT_USER, "Environment")):
+    for root, key in (
+        (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+    ):
         try:
             with winreg.OpenKey(root, key) as k:
                 v, _ = winreg.QueryValueEx(k, "Path")
@@ -56,7 +62,7 @@ def refresh_path(extra: list[str] | None = None) -> bool:
     cur = [x for x in os.environ.get("PATH", "").split(os.pathsep) if x]
     seen = {_norm(x) for x in cur}
     add = []
-    for x in (extra if extra is not None else _registry_path()):
+    for x in extra if extra is not None else _registry_path():
         if _norm(x) not in seen:
             seen.add(_norm(x))
             add.append(x)
@@ -70,7 +76,7 @@ def codex_bin() -> str:
     if not exe and refresh_path():
         exe = shutil.which("codex")
     if not exe:
-        raise RuntimeError("找不到 codex 指令，請確認 Codex CLI 已安裝並在 PATH 中")
+        raise CodexError("找不到 codex 指令，請確認 Codex CLI 已安裝並在 PATH 中")
     return exe
 
 
@@ -86,8 +92,12 @@ def kill_tree(proc: subprocess.Popen) -> None:
 
 def kill_pid_tree(pid: int) -> None:
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
     else:
         try:
             os.kill(pid, 9)
@@ -96,11 +106,17 @@ def kill_pid_tree(pid: int) -> None:
 
 
 TURN_DONE = re.compile(r"^tokens used\s*\n\s*[\d,]+\s*$", re.M)
-FINISH_GRACE_SEC = 15   # 判定做完後，再給 Codex 這麼久自己結束；還不結束才收掉
+FINISH_GRACE_SEC = 15  # 判定做完後，再給 Codex 這麼久自己結束；還不結束才收掉
 
 
-def generation_finished(out_path: Path, started_at: float, log_text: str, state: dict,
-                        layout: str | None = None, now: float | None = None) -> bool:
+def generation_finished(
+    out_path: Path,
+    started_at: float,
+    log_text: str,
+    state: dict,
+    layout: str | None = None,
+    now: float | None = None,
+) -> bool:
     """程序還沒結束時，判斷 Codex 是否「其實已經做完」，可以主動收掉。
 
     out_path   預期的輸出圖片（可能還不存在、可能是舊圖、可能正被寫入）
@@ -131,13 +147,13 @@ def generation_finished(out_path: Path, started_at: float, log_text: str, state:
     state["sig"] = sig
     if not stable or now - state["done_at"] < FINISH_GRACE_SEC:
         return False
-    if "checked" not in state:   # 圖沒變就只驗一次
+    if "checked" not in state:  # 圖沒變就只驗一次
         state["checked"] = check_image(out_path, started_at, layout or "1x1")[0]
     return state["checked"]
 
 
 GRID = {"1x1": (1, 1), "2x2": (2, 2), "3x2": (3, 2), "4x2": (4, 2), "4x2w": (4, 2)}
-RATIO = {"3x2": (1.3, 1.8), "4x2": (1.3, 1.8), "4x2w": (1.8, 2.25)}   # 其他（方形）：0.85～1.18
+RATIO = {"3x2": (1.3, 1.8), "4x2": (1.3, 1.8), "4x2w": (1.8, 2.25)}  # 其他（方形）：0.85～1.18
 
 
 def background_stats(im, layout: str) -> dict:
@@ -146,6 +162,7 @@ def background_stats(im, layout: str) -> dict:
     不再只看四個角：特寫構圖的頭髮本來就會被上緣裁切，上面兩個角常常是頭髮，
     但只要格子之間的走道是乾淨的純色，切割和去背就沒問題。"""
     import numpy as np
+
     small = im.convert("RGB").resize((512, max(1, round(512 * im.height / im.width))))
     a = np.asarray(small, dtype=np.int16)
     h, w, _ = a.shape
@@ -154,11 +171,17 @@ def background_stats(im, layout: str) -> dict:
     best = None
     for name, key in KEY_COLORS.items():
         near = np.sqrt(((a - key) ** 2).sum(-1)) < 80
-        strips = [near[:, round(w * c / cols) - band: round(w * c / cols) + band] for c in range(1, cols)]
-        strips += [near[round(h * r / rows) - band: round(h * r / rows) + band, :] for r in range(1, rows)]
-        ring = np.concatenate([near[:t].ravel(), near[-t:].ravel(), near[:, :t].ravel(), near[:, -t:].ravel()])
-        st = {"key": name, "gutter": float(np.mean([x.mean() for x in strips])) if strips else None,
-              "ring": float(ring.mean()), "all": float(near.mean())}
+        strips = [near[:, round(w * c / cols) - band : round(w * c / cols) + band] for c in range(1, cols)]
+        strips += [near[round(h * r / rows) - band : round(h * r / rows) + band, :] for r in range(1, rows)]
+        ring = np.concatenate(
+            [near[:t].ravel(), near[-t:].ravel(), near[:, :t].ravel(), near[:, -t:].ravel()]
+        )
+        st = {
+            "key": name,
+            "gutter": float(np.mean([x.mean() for x in strips])) if strips else None,
+            "ring": float(ring.mean()),
+            "all": float(near.mean()),
+        }
         if best is None or st["all"] > best["all"]:
             best = st
     return best
@@ -169,7 +192,7 @@ def background_ok(st: dict) -> tuple[bool, str]:
     if st["gutter"] is not None:
         ok = st["gutter"] >= 0.7 and st["ring"] >= 0.25
         why = f"格子間走道只有 {st['gutter']:.0%} 是純色背景"
-    else:   # 單張沒有走道，看外框
+    else:  # 單張沒有走道，看外框
         ok = st["ring"] >= 0.3 or st["all"] >= 0.2
         why = f"外框只有 {st['ring']:.0%} 是純色背景"
     return ok, "" if ok else f"背景不是純綠 / 洋紅（{why}），去背可能失敗"
@@ -183,6 +206,7 @@ def check_image(out_path: Path, started_at: float | None, layout: str) -> tuple[
         return False, "檔案沒有更新（仍是舊圖）"
     try:
         from PIL import Image
+
         im = Image.open(out_path)
         im.load()
     except Exception as e:
@@ -198,16 +222,22 @@ def check_image(out_path: Path, started_at: float | None, layout: str) -> tuple[
     return True, f"OK（{w}x{h}，背景 {st['key']}）"
 
 
-def _run(cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout=DEFAULT_TIMEOUT,
-         on_tick=None) -> tuple[int | None, str]:
+def _run(
+    cmd: list[str], stdin_text: str, log_path: Path, *, watch=None, timeout=DEFAULT_TIMEOUT, on_tick=None
+) -> tuple[int | None, str]:
     """啟動 codex 並輪詢；watch(log_text) 回傳 True 時主動結束。回傳 (exit code 或 None, 結束原因)"""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "w", encoding="utf-8") as log:
         log.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] start\n{' '.join(cmd)}\n\n")
         log.flush()
-        proc = subprocess.Popen(cmd, cwd=ROOT, stdin=subprocess.PIPE, stdout=log,
-                                stderr=subprocess.STDOUT,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        proc = subprocess.Popen(
+            cmd,
+            cwd=ROOT,
+            stdin=subprocess.PIPE,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
         proc.stdin.write(stdin_text.encode("utf-8"))
         proc.stdin.close()
         started = time.time()
@@ -266,8 +296,9 @@ def image_command(refs: list[str]) -> list[str]:
     return [*cmd, "-"]
 
 
-def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path: Path,
-              on_tick=None) -> tuple[bool, str]:
+def run_image(
+    prompt: str, refs: list[str], out_rel: str, layout: str, log_path: Path, on_tick=None
+) -> tuple[bool, str]:
     """refs、out_rel 是 project.json 裡記的路徑（outputs/... 或相對資料根目錄）"""
     cmd = image_command(refs)
     prompt = localize(prompt, [out_rel, *refs])
@@ -276,8 +307,14 @@ def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path:
     started = time.time()
     state: dict = {}
     limit = settings.get("image_timeout_min")
-    code, reason = _run(cmd, prompt, log_path, on_tick=on_tick, timeout=limit * 60,
-                        watch=lambda text: generation_finished(out_path, started, text, state, layout))
+    code, reason = _run(
+        cmd,
+        prompt,
+        log_path,
+        on_tick=on_tick,
+        timeout=limit * 60,
+        watch=lambda text: generation_finished(out_path, started, text, state, layout),
+    )
     ok, why = check_image(out_path, started, layout)
     if reason == "timeout" and not ok:
         return False, f"逾時（超過 {limit} 分鐘）"
@@ -286,22 +323,43 @@ def run_image(prompt: str, refs: list[str], out_rel: str, layout: str, log_path:
     return True, why
 
 
-def run_text(prompt: str, schema_path: Path, log_path: Path, timeout: int | None = None,
-             images: list[str] | None = None) -> str:
+def run_text(
+    prompt: str,
+    schema_path: Path,
+    log_path: Path,
+    timeout: int | None = None,
+    images: list[str] | None = None,
+) -> str:
     """不生圖、只要文字（JSON）回覆：唯讀沙盒、不留 session；images 可附參考圖讓 Codex 看"""
     out = log_path.with_suffix(".answer.json")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()
-    cmd = [codex_bin(), "exec", *SANDBOX_ARGS, "--skip-git-repo-check", "-s", "read-only", "--ephemeral",
-           "--output-schema", str(schema_path), "-o", str(out)]
+    cmd = [
+        codex_bin(),
+        "exec",
+        *SANDBOX_ARGS,
+        "--skip-git-repo-check",
+        "-s",
+        "read-only",
+        "--ephemeral",
+        "--output-schema",
+        str(schema_path),
+        "-o",
+        str(out),
+    ]
     for img in images or []:
         cmd += ["-i", img]
     cmd.append("-")
     code, reason = _run(cmd, prompt, log_path, timeout=timeout or settings.get("text_timeout_min") * 60)
     if not out.exists():
-        raise RuntimeError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {codex_path(log_path)}")
-    return out.read_text(encoding="utf-8")
+        raise CodexError(f"Codex 沒有回覆（{reason}, exit={code}），請看 {codex_path(log_path)}")
+    text = out.read_text(encoding="utf-8")
+    try:
+        json.loads(text)
+    except ValueError:
+        raise CodexError(f"Codex 的回覆不是 JSON，請看 {codex_path(log_path)}") from None
+    return text
 
 
 def log_path_for(style: str, name: str) -> Path:

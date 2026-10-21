@@ -10,6 +10,7 @@ variant：
   halo   外框外再加一圈白邊，深色工作列上也看得到輪廓（預設）
   plate  墊一塊淺色圓角方形底板，圖形放在板子上
 """
+
 import argparse
 from pathlib import Path
 
@@ -20,7 +21,8 @@ LINE, WHITE, PINK = (52, 49, 90, 255), (255, 255, 255, 255), (255, 141, 179, 255
 EARS = [[(2.5, 28), (8.5, 4), (16, 20)], [(29.5, 28), (23.5, 4), (16, 20)]]
 INNER = [[(7.6, 20), (9.4, 10.2), (13.6, 18.2)], [(24.4, 20), (22.6, 10.2), (18.4, 18.2)]]
 SIZES = [16, 24, 32, 48, 64, 128, 256]
-SS = 8                          # 超取樣倍數：先畫 8 倍大再縮，邊緣平滑
+SS = 8  # 超取樣倍數：先畫 8 倍大再縮，邊緣平滑
+
 
 # 依輸出尺寸調整：外框粗細（viewBox 單位）、耳內放大倍率
 def style_for(px: int) -> dict:
@@ -62,7 +64,7 @@ def stroke(d: ImageDraw.ImageDraw, pts, width, color):
 def render(px: int, variant: str) -> Image.Image:
     st = style_for(px)
     S = px * SS
-    halo = 1.6 if variant == "halo" else 0.0         # 白邊寬度（viewBox 單位，加在外框外側）
+    halo = 1.6 if variant == "halo" else 0.0  # 白邊寬度（viewBox 單位，加在外框外側）
     plate = variant == "plate"
     # 圖形外框（含線寬、白邊）要佔畫布的比例；有底板時圖形縮小放在板子中間
     fill_ratio = 0.62 if plate else 0.90
@@ -72,14 +74,20 @@ def render(px: int, variant: str) -> Image.Image:
     oy = (S - (y1 - y0) * k) / 2 - y0 * k
     # 視覺置中：兩個尖角在上、底部比較重，整體往下挪一點
     oy += S * 0.015
-    tf = lambda poly: [(ox + x * k, oy + y * k) for x, y in poly]   # noqa: E731
+    tf = lambda poly: [(ox + x * k, oy + y * k) for x, y in poly]  # noqa: E731
 
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     if plate:
         r = S * 0.22
         m = S * 0.03
-        d.rounded_rectangle([m, m, S - m, S - m], radius=r, fill=(238, 241, 250, 255), outline=(214, 220, 240, 255), width=max(1, round(S * 0.012)))
+        d.rounded_rectangle(
+            [m, m, S - m, S - m],
+            radius=r,
+            fill=(238, 241, 250, 255),
+            outline=(214, 220, 240, 255),
+            width=max(1, round(S * 0.012)),
+        )
     if halo:
         for ear in EARS:
             p = tf(ear)

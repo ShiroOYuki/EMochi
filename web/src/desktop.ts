@@ -3,7 +3,10 @@ export type UpdateState = {
   /** dev：開發模式不檢查；idle：還沒檢查；latest：已是最新；available：有新版（還沒下載）；
    *  downloading：下載中；ready：下載好，按「重新啟動並安裝」；error：檢查或下載失敗（version 還在＝下載失敗，可重試） */
   state: "dev" | "idle" | "checking" | "latest" | "available" | "downloading" | "ready" | "error";
-  version: string | null; percent: number; error: string | null; checkedAt: number | null;
+  version: string | null;
+  percent: number;
+  error: string | null;
+  checkedAt: number | null;
   /** 這個版本在 GitHub Releases 的頁面（更新內容） */
   notesUrl: string | null;
 };
