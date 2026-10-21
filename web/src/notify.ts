@@ -3,11 +3,11 @@
  *  桌面版走 Electron 原生通知（window.emochi.notify），網頁版用瀏覽器的 Notification（要先允許）。
  *  點通知：視窗叫到前面 → 切到「生成」分頁 → 打開那個專案 */
 import { useEffect, useSyncExternalStore } from "react";
-import { systemApi, uiPrefsApi, type AppEvent } from "./api";
+import { invalidate, keys, systemApi, uiPrefsApi, type AppEvent } from "./api";
+import { navigate } from "./router";
 import { desktop } from "./desktop";
 
 const POLL_MS = 3000;
-const OPEN_EVENT = "emochi:open-project";
 const listeners = new Set<() => void>();
 let enabled = true;
 const emit = () => listeners.forEach((f) => f());
@@ -32,15 +32,10 @@ export function useNotifyPref(): boolean {
   );
 }
 
-/** 切到生成分頁並打開專案（GenPage 用 onOpenProject 接） */
+/** 切到生成分頁並打開專案（網址 #/gen/<id>）；已經開著就重抓一次，馬上看到最新狀態 */
 export function openProject(id: string) {
-  location.hash = "#/gen";
-  window.dispatchEvent(new CustomEvent<string>(OPEN_EVENT, { detail: id }));
-}
-export function onOpenProject(cb: (id: string) => void) {
-  const h = (e: Event) => cb((e as CustomEvent<string>).detail);
-  window.addEventListener(OPEN_EVENT, h);
-  return () => window.removeEventListener(OPEN_EVENT, h);
+  navigate({ tab: "gen", id });
+  invalidate(keys.project(id), keys.projects);
 }
 
 /** 網頁版的瀏覽器通知權限；桌面版不用問 */

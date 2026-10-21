@@ -9,6 +9,7 @@ import {
   type Upload,
 } from "../api";
 import { DropZone } from "./ui";
+import { selectInTab, useTabId } from "../router";
 import { MenuIcons, useContextMenu, type MenuItem } from "./ContextMenu";
 import { SideDeleteIcon } from "./DeleteButton";
 import { TrashButton } from "./Trash";
@@ -22,25 +23,29 @@ type Item = { id: string; updated: string; images: CharImage[]; error?: string }
 /** 清單、目前選取、act（執行後重新整理並切過去）、刪除流程 */
 export function useLibrary<T extends Item>({
   api,
+  tab,
   deleteWarn,
 }: {
   /** charactersApi 或 styleLibApi */
   api: RefLibraryApi<T>;
+  /** 這個庫在哪個分頁（選取跟著網址 #/characters/c2） */
+  tab: "characters" | "styles";
   /** 刪除前要提醒的話（例如哪些專案用到這個角色）；沒有就回傳 undefined */
   deleteWarn?: (item: T) => Promise<ReactNode | undefined>;
 }) {
   const { data: list = [] } = useRefLibrary(api);
-  const [current, setCurrent] = useState<string | null>(null); // null = 新增
+  const current = useTabId(tab); // null＝新增
+  const setCurrent = (id: string | null, opts?: { replace?: boolean }) => selectInTab(tab, id, opts);
   const [newKey, setNewKey] = useState(0); // 每按一次「新增」+1，讓表單聚焦
   const [err, setErr] = useState("");
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
   const load = () => invalidate(api.key);
 
-  // 第一次載入：還沒選任何一筆、也沒按過「新增」→ 選第一筆
+  // 第一次載入：還沒選任何一筆、也沒按過「新增」→ 選第一筆（不留瀏覽紀錄）
   const firstId = list[0]?.id;
   useEffect(() => {
-    if (firstId && newKey === 0) setCurrent((c) => c ?? firstId);
-  }, [firstId, newKey]);
+    if (firstId && newKey === 0 && current === null) selectInTab(tab, firstId, { replace: true });
+  }, [firstId, newKey, current, tab]);
 
   /** 執行後重新整理清單並切到回傳的那筆；回傳帶 error（例如分析失敗）時仍切過去並顯示錯誤 */
   const act = async (fn: () => Promise<T>) => {

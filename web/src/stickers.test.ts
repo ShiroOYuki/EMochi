@@ -65,7 +65,7 @@ describe("saveGroups", () => {
     const before = getStickerState().groups;
     saveGroupsMock.mockRejectedValue(new Error("壞掉"));
     await expect(saveGroups([group(9, [])])).rejects.toThrow("壞掉");
-    expect(getStickerState().groups).toBe(before);
+    expect(getStickerState().groups).toEqual(before); // Query 會做結構共享，比內容不比參照
   });
 
   it("連續存兩次：只採用最後一次的回應，舊回應晚到也不會蓋掉", async () => {

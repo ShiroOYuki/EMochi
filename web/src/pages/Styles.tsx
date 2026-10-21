@@ -18,7 +18,7 @@ import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../com
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
 export default function StylesPage() {
-  const lib = useLibrary<LibStyle>({ api: styleLibApi });
+  const lib = useLibrary<LibStyle>({ api: styleLibApi, tab: "styles" });
   const style = lib.current === null ? null : lib.selected;
 
   return (

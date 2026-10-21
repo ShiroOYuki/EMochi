@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
@@ -9,6 +9,7 @@ import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
+import { navigate, useRoute, type Tab } from "./router";
 import { invalidateAll } from "./api";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
@@ -25,7 +26,6 @@ import CharactersPage from "./pages/Characters";
 import StylesPage from "./pages/Styles";
 import StickersPage from "./pages/Stickers";
 
-type Tab = "gen" | "stickers" | "styles" | "characters" | "gallery";
 const TABS: { id: Tab; label: string }[] = [
   { id: "gen", label: "生成" },
   { id: "stickers", label: "表情" },
@@ -33,7 +33,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "characters", label: "角色" },
   { id: "gallery", label: "圖庫" },
 ];
-const readTab = (): Tab => TABS.find((t) => location.hash.startsWith(`#/${t.id}`))?.id ?? "gen";
 
 /** 標誌：一對狐狸耳朵（白毛＋粉紅耳內） */
 function Ears() {
@@ -60,17 +59,11 @@ function Ears() {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>(readTab);
+  const { tab } = useRoute();
   const reduce = useReducedMotion();
   useNotifier();
-  useEffect(() => {
-    const on = () => setTab(readTab());
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
-  }, []);
-  const go = (t: Tab) => {
-    location.hash = `#/${t}`;
-  };
+  /** 切分頁：回到那一頁上次選的那一筆（router.ts） */
+  const go = (t: Tab) => navigate({ tab: t });
   // 切分頁時重抓伺服器資料（含表情、匯出預設集）：可能剛在別的分頁改過（新增角色、從垃圾桶還原…）。
   // 頁面都保留在 DOM 裡，所以不用各頁自己判斷「是不是切回來了」
   useEffect(() => {

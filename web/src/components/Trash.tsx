@@ -11,15 +11,16 @@ import {
   TabsTrigger,
 } from "@/components/animate-ui/primitives/radix/tabs";
 import { TrashIcon } from "./icons";
+import { navigate, type Tab } from "../router";
 import { DANGER } from "./confirm";
 
 const fmtSize = (b: number) =>
   b >= 1 << 20 ? `${(b / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
 
-const KINDS: { kind: TrashKind; noun: string; tab: string }[] = [
-  { kind: "projects", noun: "專案", tab: "#/gen" },
-  { kind: "styles", noun: "畫風", tab: "#/styles" },
-  { kind: "characters", noun: "角色", tab: "#/characters" },
+const KINDS: { kind: TrashKind; noun: string; tab: Tab }[] = [
+  { kind: "projects", noun: "專案", tab: "gen" },
+  { kind: "styles", noun: "畫風", tab: "styles" },
+  { kind: "characters", noun: "角色", tab: "characters" },
 ];
 
 /** 側欄左下角的「垃圾桶」：專案、畫風、角色放在同一個垃圾桶（分頁籤），預設打開目前這一頁的種類。
@@ -64,7 +65,7 @@ export function TrashButton({ kind, onRestored }: { kind: TrashKind; onRestored:
           await load();
           if (!restored) return;
           if (restored.kind === kind) onRestored(restored.id);
-          else location.hash = KINDS.find((k) => k.kind === restored.kind)!.tab;
+          else navigate({ tab: KINDS.find((k) => k.kind === restored.kind)!.tab, id: restored.id }); // 切過去並選取還原的那筆
         }}
       />
     </div>

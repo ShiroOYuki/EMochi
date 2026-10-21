@@ -19,12 +19,14 @@ import { SideDeleteIcon } from "../components/DeleteButton";
 import { TrashButton } from "../components/Trash";
 import { DeleteConfirm, type DeleteTarget } from "../components/confirm";
 import { copyText } from "../lib/clipboard";
-import { onOpenProject } from "../notify";
+import { selectInTab, useTabId } from "../router";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
 
 export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }) {
-  const [current, setCurrent] = useState<string | null>(null); // null = 新增貼圖
+  // 目前開著的專案跟著網址（#/gen/s12）；null＝新增貼圖。桌面通知點下去也是改網址（notify.ts）
+  const current = useTabId("gen");
+  const setCurrent = (id: string | null) => selectInTab("gen", id);
   const { data: project = null } = useProject(current); // 執行中會自動輪詢
   const busy = !!project && BUSY.includes(project.status);
   const { data: list } = useProjects(busy);
@@ -35,15 +37,6 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
   const [newKey, setNewKey] = useState(0); // 每按一次「新增貼圖」+1，讓表單聚焦並閃一下
 
   useEffect(() => setErr(""), [current]);
-  // 點桌面通知：打開那個專案（已經開著就重抓一次，馬上看到最新狀態）
-  useEffect(
-    () =>
-      onOpenProject((id) => {
-        setCurrent(id);
-        invalidate(keys.project(id), keys.projects);
-      }),
-    [],
-  );
   // 收尾完成（變成 done）→ 圖庫、畫風庫的「可匯入」清單多了東西
   const status = project?.status;
   useEffect(() => {

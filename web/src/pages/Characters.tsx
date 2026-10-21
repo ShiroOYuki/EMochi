@@ -17,7 +17,7 @@ export default function CharactersPage() {
       ? `${used.join("、")} 用到這個角色；刪除後這些專案重新生成時會找不到角色圖（還原後就恢復）。`
       : undefined;
   }, []);
-  const lib = useLibrary<Character>({ api: charactersApi, deleteWarn });
+  const lib = useLibrary<Character>({ api: charactersApi, tab: "characters", deleteWarn });
   const char = lib.current === null ? null : lib.selected;
 
   return (
