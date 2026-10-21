@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stickers/thumbs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sticker Thumbs */
+        get: operations["sticker_thumbs_api_stickers_thumbs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stickers/expand": {
         parameters: {
             query?: never;
@@ -2282,6 +2299,8 @@ export interface components {
             example?: string | null;
             /** Example V */
             example_v?: number | null;
+            /** Default Example */
+            default_example?: string | null;
         };
         /**
          * StickerDraft
@@ -2339,6 +2358,23 @@ export interface components {
             prompt_no_ears?: string | null;
             /** Align */
             align?: string | null;
+        };
+        /**
+         * StickerThumb
+         * @description 表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝自己放的範例圖、default＝內建預設範例圖、latest＝圖庫最新成品
+         */
+        StickerThumb: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "example" | "default" | "latest";
+            /** Path */
+            path: string;
+            /** V */
+            v: number;
         };
         /** TempRef */
         TempRef: {
@@ -2947,6 +2983,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sticker_thumbs_api_stickers_thumbs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickerThumb"][];
                 };
             };
         };

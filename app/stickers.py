@@ -8,6 +8,8 @@
   檔案還不存在時用 sticker_groups.example.json（預設 4 組），第一次儲存才寫檔。
 - 範例圖：<config_dir>/sticker_examples/<id>.png（每個表情最多一張），stickers.json 記 example（檔名）、example_v（修改時間，前端避免快取舊圖）。
   「表情分析」把範例圖交給 Codex 看圖填描述；表情小卡的縮圖也優先用它。
+- 內建表情（#1～32，不是 custom）有預設範例圖：config/sticker_examples.example/<id>.png（s2 那套成品縮成 256px、256 色，進版控）。
+  使用者自己放的範例圖優先；拿掉自己的就回到預設。API 用 default_example 告訴前端有沒有預設圖
 """
 
 import json
@@ -22,8 +24,10 @@ from .paths import (
     codex_path,
     config_dir,
     load_stickers,
+    outputs_dir,
     read_json,
     slugify,
+    url_path,
     write_json,
 )
 
@@ -231,6 +235,26 @@ def examples_dir() -> Path:
     return config_dir() / "sticker_examples"
 
 
+BUILTIN_EXAMPLES = BUILTIN_CONFIG / "sticker_examples.example"
+
+
+def default_example(s: dict) -> str | None:
+    """內建表情的預設範例圖檔名（/files/sticker_examples_default/<檔名>）；自訂表情沒有"""
+    if s.get("custom"):
+        return None
+    name = f"{s['id']}.png"
+    return name if (BUILTIN_EXAMPLES / name).exists() else None
+
+
+def with_defaults(items: list[dict]) -> list[dict]:
+    """API 回傳用：補上 default_example（不寫回 stickers.json）"""
+    out = []
+    for s in items:
+        d = default_example(s)
+        out.append({**s, "default_example": d} if d else s)
+    return out
+
+
 def set_example(sid: int, raw: bytes) -> dict:
     """存（或換掉）表情的範例圖"""
     with _lock:
@@ -254,6 +278,40 @@ def remove_example(sid: int) -> dict:
         s.pop("example_v", None)
         _save_stickers(items)
         return s
+
+
+def thumbs() -> list[dict]:
+    """表情小卡的縮圖：自己放的範例圖 → 內建預設範例圖（#1～32）→ 圖庫裡這個表情最新的成品（Twitch 112 那份，沒有就用 master）。
+    都沒有的表情不列出來。path 是 /files/ 後面的路徑，v 是版本（換圖網址就跟著變）"""
+    latest: dict[int, tuple[float, Path]] = {}
+    for master in outputs_dir().glob("*/final/master/*.png"):
+        num = master.name.split("_", 1)[0]
+        if not num.isdigit():
+            continue
+        small = master.parent.parent / "twitch" / "112" / master.name
+        f = small if small.exists() else master
+        mtime = f.stat().st_mtime
+        if mtime > latest.get(int(num), (0, None))[0]:
+            latest[int(num)] = (mtime, f)
+    out = []
+    for s in load_stickers():
+        if s.get("example") and (examples_dir() / s["example"]).exists():
+            out.append(
+                {
+                    "id": s["id"],
+                    "kind": "example",
+                    "path": f"sticker_examples/{s['example']}",
+                    "v": s.get("example_v", 0),
+                }
+            )
+        elif d := default_example(s):
+            out.append({"id": s["id"], "kind": "default", "path": f"sticker_examples_default/{d}", "v": 0})
+        elif s["id"] in latest:
+            mtime, f = latest[s["id"]]
+            path = url_path(f)
+            if path:
+                out.append({"id": s["id"], "kind": "latest", "path": path, "v": int(mtime)})
+    return out
 
 
 def expand_prompt(idea: str, current: dict | None = None, image: str | None = None) -> str:

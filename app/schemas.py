@@ -270,6 +270,18 @@ class Sticker(Out):
     deleted: bool | None = None  # 軟刪除（只有 ?all=1 才拿得到）
     example: str | None = None  # 範例圖檔名（/files/sticker_examples/<example>）
     example_v: int | None = None  # 範例圖換過的時間，給前端避免快取舊圖
+    default_example: str | None = (
+        None  # 內建表情的預設範例圖（/files/sticker_examples_default/<檔名>），API 才有
+    )
+
+
+class StickerThumb(Out):
+    """表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝自己放的範例圖、default＝內建預設範例圖、latest＝圖庫最新成品"""
+
+    id: int
+    kind: Literal["example", "default", "latest"]
+    path: str
+    v: int
 
 
 class StickerDraft(Out):

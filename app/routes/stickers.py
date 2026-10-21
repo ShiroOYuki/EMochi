@@ -15,7 +15,12 @@ router = APIRouter()
 def stickers(all: bool = False):
     """預設只回傳沒刪除的；all=1 連已刪除的一起（表情分頁的「已刪除」清單用）"""
     items = load_stickers()
-    return items if all else sticker_mod.active(items)
+    return sticker_mod.with_defaults(items if all else sticker_mod.active(items))
+
+
+@router.get("/api/stickers/thumbs", response_model=list[S.StickerThumb], **OUT)
+def sticker_thumbs():
+    return sticker_mod.thumbs()
 
 
 class NewSticker(BaseModel):
@@ -69,17 +74,17 @@ def analyze_sticker(body: AnalyzeSticker):
 @router.put("/api/stickers/{sid}/example", response_model=S.Sticker, **OUT)
 def put_sticker_example(sid: int, body: Upload):
     ((_, raw, _),) = _decode([body])
-    return sticker_mod.set_example(sid, raw)
+    return sticker_mod.with_defaults([sticker_mod.set_example(sid, raw)])[0]
 
 
 @router.delete("/api/stickers/{sid}/example", response_model=S.Sticker, **OUT)
 def delete_sticker_example(sid: int):
-    return sticker_mod.remove_example(sid)
+    return sticker_mod.with_defaults([sticker_mod.remove_example(sid)])[0]
 
 
 @router.patch("/api/stickers/{sid}", response_model=S.Sticker, **OUT)
 def patch_sticker(sid: int, body: StickerPatch):
-    return sticker_mod.update(sid, body.model_dump(exclude_unset=True))
+    return sticker_mod.with_defaults([sticker_mod.update(sid, body.model_dump(exclude_unset=True))])[0]
 
 
 @router.delete("/api/stickers/{sid}", response_model=S.Sticker, **OUT)
@@ -89,7 +94,7 @@ def delete_sticker(sid: int):
 
 @router.post("/api/stickers/{sid}/restore", response_model=S.Sticker, **OUT)
 def restore_sticker(sid: int):
-    return sticker_mod.restore(sid)
+    return sticker_mod.with_defaults([sticker_mod.restore(sid)])[0]
 
 
 @router.get("/api/sticker-groups", response_model=list[S.StickerGroupOut], **OUT)

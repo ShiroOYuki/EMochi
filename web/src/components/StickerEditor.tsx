@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { fileUrl, readFiles, stickersApi, type Sticker, type StickerBody, type Upload } from "../api";
+import {
+  fileUrl,
+  invalidate,
+  keys,
+  readFiles,
+  stickersApi,
+  type Sticker,
+  type StickerBody,
+  type Upload,
+} from "../api";
 import { reloadStickers, useStickers } from "../stickers";
 import { Check, DropZone, Modal, Select, Spinner } from "./ui";
 import { DeleteButton } from "./DeleteButton";
@@ -15,9 +24,17 @@ type Form = {
 const EMPTY: Form = { label: "", zh: "", prompt: "", prompt_no_ears: "", bottom: false, group: 0 };
 
 /** 範例圖：saved＝表情已經存的那張；upload＝這次新放的（按儲存才存進表情）；null＝沒有／拿掉了 */
-type Example = { kind: "saved"; url: string } | { kind: "upload"; url: string; upload: Upload } | null;
+/** 範例圖：saved＝自己放過的；default＝內建表情（#1～32）的預設圖，可以放新的蓋過去；upload＝這次新放的（按儲存才存） */
+type Example =
+  { kind: "saved" | "default"; url: string } | { kind: "upload"; url: string; upload: Upload } | null;
+const defaultExample = (s: Sticker | null): Example =>
+  s?.default_example
+    ? { kind: "default", url: fileUrl(`sticker_examples_default/${s.default_example}`) }
+    : null;
 const savedExample = (s: Sticker | null): Example =>
-  s?.example ? { kind: "saved", url: fileUrl(`sticker_examples/${s.example}`, s.example_v) } : null;
+  s?.example
+    ? { kind: "saved", url: fileUrl(`sticker_examples/${s.example}`, s.example_v) }
+    : defaultExample(s);
 
 /** 新增／編輯表情的對話框（「表情」分頁與 Gen 挑選步驟共用）。
  *  sticker＝null 是新增；onSaved 拿到存好的表情；onDelete 有給才顯示刪除鈕 */
@@ -113,8 +130,9 @@ export default function StickerEditor({
         ? await stickersApi.update(sticker.id, body)
         : await stickersApi.create({ ...body, group_id: f.group || null });
       if (example?.kind === "upload") s = await stickersApi.setExample(s.id, example.upload);
-      else if (!example && sticker?.example) s = await stickersApi.removeExample(s.id);
+      else if (example?.kind !== "saved" && sticker?.example) s = await stickersApi.removeExample(s.id);
       await reloadStickers();
+      invalidate(keys.stickerThumbs);
       onSaved?.(s);
       onClose();
     } catch (e) {
@@ -144,14 +162,27 @@ export default function StickerEditor({
         <div className="flex gap-3 rounded-2xl bg-panel2 p-3">
           {/* 範例圖：表情分析用，也是表情小卡的縮圖 */}
           <div className="w-24 shrink-0">
-            {example ? (
+            {example?.kind === "default" ? (
+              // 預設圖：點一下或拖新的圖進來就換掉
+              <DropZone
+                className="relative size-24 overflow-hidden border-solid p-0"
+                onFiles={pickExample}
+                disabled={!!expanding}
+              >
+                <img src={example.url} alt="預設範例圖" className="size-full object-contain" />
+                <span className="absolute inset-x-0 bottom-0 bg-panel/85 py-0.5 text-[10px]">
+                  預設・點我換
+                </span>
+              </DropZone>
+            ) : example ? (
               <div className="group relative">
                 <img src={example.url} alt="範例圖" className="checker size-24 rounded-xl object-contain" />
                 <button
                   className="absolute right-1 top-1 hidden rounded-full bg-panel/90 px-1.5 text-xs text-mute hover:text-bad group-hover:block"
-                  onClick={() => setExample(null)}
+                  onClick={() => setExample(defaultExample(sticker))}
                   disabled={!!expanding}
                   aria-label="拿掉範例圖"
+                  title={sticker?.default_example ? "拿掉，改回預設範例圖" : "拿掉範例圖"}
                 >
                   ×
                 </button>
@@ -214,7 +245,7 @@ export default function StickerEditor({
                 ? "Codex 看圖中，大約 20～40 秒"
                 : expanding
                   ? "Codex 思考中，大約 10～30 秒"
-                  : "會參考現有表情的寫法填進下面的欄位，滿意再按儲存。範例圖會跟著表情存起來，當作小卡的縮圖"}
+                  : "會參考現有表情的寫法填進下面的欄位，滿意再按儲存。範例圖會跟著表情存起來，當作小卡的縮圖（#1～32 有預設圖）"}
             </p>
           </div>
         </div>

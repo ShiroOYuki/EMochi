@@ -186,3 +186,61 @@ def test_example_image(client, data_root):
     assert "example" not in gone
     assert (data_root / "config" / "sticker_examples" / "_removed" / d["example"]).exists()
     assert client.put("/api/stickers/99999/example", json={"data": _png_data_url()}).status_code == 404
+
+
+def test_thumbs(client, data_root):
+    """縮圖：範例圖優先；沒有就用最新成品（優先 Twitch 112）；都沒有不列"""
+    import os
+
+    from PIL import Image
+
+    def png(p, mtime):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGBA", (8, 8), (1, 2, 3, 255)).save(p)
+        os.utime(p, (mtime, mtime))
+
+    T = 4_000_000_000  # 比其他測試生成的檔案都新
+    old = data_root / "outputs" / "t_old" / "final"
+    new = data_root / "outputs" / "t_new" / "final"
+    png(old / "master" / "01_happy.png", T + 1_000)
+    png(new / "master" / "01_happy.png", T + 2_000)
+    png(new / "twitch" / "112" / "01_happy.png", T + 2_000)
+    png(old / "master" / "03_cry.png", T + 1_500)
+    fresh = client.post("/api/stickers", json={"label": "No Thumb Yet", "prompt": "x"}).json()
+    made = client.post(
+        "/api/stickers", json={"label": "Made One", "prompt": "x"}
+    ).json()  # 自訂表情：沒有預設圖
+    png(new / "master" / f"{made['id']:02d}_made_one.png", T + 3_000)
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    # 內建 #1～32：預設範例圖優先於生成的成品
+    assert by_id[1] == {"id": 1, "kind": "default", "path": "sticker_examples_default/1.png", "v": 0}
+    assert by_id[3]["kind"] == "default"
+    # 自訂表情（#33 起）：用最新成品
+    assert by_id[made["id"]] == {
+        "id": made["id"],
+        "kind": "latest",
+        "path": f"outputs/t_new/final/master/{made['id']:02d}_made_one.png",
+        "v": T + 3000,
+    }
+    assert fresh["id"] not in by_id
+    client.put("/api/stickers/3/example", json={"data": _png_data_url()})
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    assert by_id[3]["kind"] == "example" and by_id[3]["path"] == "sticker_examples/3.png"
+    assert client.get(f"/files/{by_id[1]['path']}").status_code == 200
+    assert client.get(f"/files/{by_id[made['id']]['path']}").status_code == 200
+    # API 告訴前端有沒有預設圖；拿掉自己的範例圖後縮圖回到預設
+    listed = {s["id"]: s for s in client.get("/api/stickers").json()}
+    assert listed[1]["default_example"] == "1.png" and "default_example" not in listed[made["id"]]
+    client.delete("/api/stickers/3/example")
+    assert {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}[3]["kind"] == "default"
+
+
+def test_default_examples_bundled():
+    """內建 #1～32 都有預設範例圖，打包設定也有帶到"""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parent.parent
+    assert sorted(int(p.stem) for p in (repo / "config" / "sticker_examples.example").glob("*.png")) == list(
+        range(1, 33)
+    )
+    assert "sticker_examples.example" in (repo / "desktop" / "emochi-server.spec").read_text(encoding="utf-8")

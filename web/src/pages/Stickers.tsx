@@ -1,6 +1,6 @@
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { stickersApi, type Sticker, type StickerGroup } from "../api";
+import { stickersApi, useStickerThumbs, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
 import { Check, Modal, SPRING, Spinner } from "../components/ui";
 import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
@@ -337,6 +337,7 @@ function Card({
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const reduce = useReducedMotion();
+  const thumb = useStickerThumbs().get(s.id);
   return (
     <motion.div layout={!reduce} transition={SPRING} className="group relative">
       {marker && (
@@ -353,8 +354,25 @@ function Card({
         onClick={handlers.onClick}
         onContextMenu={handlers.onContextMenu}
         title={s.prompt}
-        className="flex w-full cursor-grab items-start rounded-xl border border-line bg-panel px-2.5 py-2 text-left text-xs transition hover:border-acc active:cursor-grabbing"
+        className="flex w-full cursor-grab items-center gap-2 rounded-xl border border-line bg-panel py-1.5 pr-2.5 pl-1.5 text-left text-xs transition hover:border-acc active:cursor-grabbing"
       >
+        {/* 縮圖：範例圖優先，否則圖庫最新成品；都沒有就放淡淡的笑臉 */}
+        {thumb ? (
+          <img
+            src={thumb}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            className="size-9 shrink-0 rounded-lg bg-panel2 object-contain"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-panel2 text-base text-mute/50"
+          >
+            ☺
+          </span>
+        )}
         <span className="min-w-0 flex-1 pr-3">
           <span className="block truncate">
             #{s.id} {s.label}
