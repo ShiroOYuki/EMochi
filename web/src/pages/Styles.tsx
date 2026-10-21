@@ -92,7 +92,9 @@ function NewStyle({
   const [images, setImages] = useState<Upload[]>([]);
   const [busy, setBusy] = useState(false);
   const drop = useRef<HTMLDivElement>(null);
-  useEffectOnBump(focusKey, () => drop.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  useEffectOnBump(focusKey, () => {
+    drop.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
   const submit = async (analyze: boolean) => {
     setBusy(analyze);
     try {

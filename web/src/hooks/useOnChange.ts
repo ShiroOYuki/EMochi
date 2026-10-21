@@ -21,6 +21,9 @@ export function useEffectOnBump(n: number, effect: () => void | (() => void)) {
   useEffect(() => {
     if (!n || n === done.current) return;
     done.current = n;
-    return effect();
+    const cleanup = effect();
+    // 只有函式才當清理函式回傳給 React：例如 scrollIntoView({ behavior: "smooth" }) 在新版 Chromium 會回傳 Promise，
+    // 直接 return 的話元件卸載時 React 會把它當函式呼叫而炸掉（destroy is not a function）
+    return typeof cleanup === "function" ? cleanup : undefined;
   }, [n]); // eslint-disable-line react-hooks/exhaustive-deps -- 只看 n
 }

@@ -76,7 +76,9 @@ function NewCharacter({
   const [images, setImages] = useState<Upload[]>([]);
   const [saving, setSaving] = useState(false);
   const box = useRef<HTMLInputElement>(null);
-  useEffectOnBump(focusKey, () => box.current?.focus());
+  useEffectOnBump(focusKey, () => {
+    box.current?.focus();
+  });
   const submit = async () => {
     setSaving(true);
     try {
