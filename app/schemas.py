@@ -268,6 +268,8 @@ class Sticker(Out):
     custom: bool | None = None
     align: str | None = None  # "bottom"＝切圖時貼齊底部
     deleted: bool | None = None  # 軟刪除（只有 ?all=1 才拿得到）
+    deleted_at: str | None = None  # 刪除時間（垃圾桶顯示用）
+    purged: bool | None = None  # 在垃圾桶永久刪除過：只剩編號、檔名、名稱的紀錄
     example: str | None = None  # 範例圖檔名（/files/sticker_examples/<example>）
     example_v: int | None = None  # 範例圖換過的時間，給前端避免快取舊圖
     default_example: str | None = (

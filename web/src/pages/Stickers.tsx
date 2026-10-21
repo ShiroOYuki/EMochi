@@ -1,11 +1,12 @@
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { stickersApi, useStickerThumbs, type Sticker, type StickerGroup } from "../api";
+import { invalidate, keys, stickersApi, useStickerThumbs, type Sticker, type StickerGroup } from "../api";
 import { reloadStickers, saveGroups, useStickers } from "../stickers";
 import { Check, Modal, SPRING, Spinner } from "../components/ui";
 import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
 import { TrashIcon } from "../components/icons";
 import StickerEditor from "../components/StickerEditor";
+import { TrashButton } from "../components/Trash";
 import { toastError } from "../toast";
 
 /** 拖曳中的表情：from＝來源分組 id，null＝從左邊「所有表情」拖出來 */
@@ -15,13 +16,12 @@ type Over = { gid: number; index: number } | { pool: true } | null;
 
 /** 表情分頁：左邊是所有表情，右邊是分組；把小卡拖進分組，Gen 的挑選步驟就能一次勾一組 */
 export default function StickersPage() {
-  const { active: list, groups, deleted, loaded } = useStickers();
+  const { active: list, groups, loaded } = useStickers();
   const [q, setQ] = useState("");
   const [onlyUngrouped, setOnlyUngrouped] = useState(false);
   const [editing, setEditing] = useState<{ sticker: Sticker | null; group?: number } | null>(null);
   const [toDelete, setToDelete] = useState<Sticker | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<StickerGroup | null>(null);
-  const [showDeleted, setShowDeleted] = useState(false);
   const drag = useRef<Drag | null>(null);
   const [over, setOver] = useState<Over>(null);
   const [menu, openMenu] = useContextMenu();
@@ -150,60 +150,59 @@ export default function StickersPage() {
             setOver((o) => (o && "pool" in o ? null : o));
         }}
         onDrop={dropPool}
-        className={`flex w-80 shrink-0 flex-col p-4 transition-colors ${poolOver ? "bg-bad/8" : ""}`}
+        className={`flex w-80 shrink-0 flex-col transition-colors ${poolOver ? "bg-bad/8" : ""}`}
       >
-        <button className="btn btn-primary mb-3 w-full" onClick={() => setEditing({ sticker: null })}>
-          ＋ 新增表情
-        </button>
-        <input
-          className="input mb-2"
-          placeholder="搜尋名稱、中文、描述…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <div className="mb-2 flex items-center gap-2 px-1 text-xs text-mute">
-          <span>所有表情 {list.length}</span>
-          <label className="ml-auto flex items-center gap-1.5">
-            <Check checked={onlyUngrouped} onCheckedChange={setOnlyUngrouped} />
-            只看未分組
-          </label>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          {!loaded && (
-            <div className="flex items-center gap-2 text-sm text-mute">
-              <Spinner />
-              載入中…
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-1.5">
-            {pool.map((s) => (
-              <Card
-                key={s.id}
-                s={s}
-                sub={countIn(s.id) ? `${countIn(s.id)} 組` : "未分組"}
-                onDragStart={(e) => start(e, { id: s.id, from: null })}
-                onDragEnd={end}
-                onClick={() => setEditing({ sticker: s })}
-                onContextMenu={(e) => openMenu(e, menuFor(s))}
-              />
-            ))}
+        <div className="flex min-h-0 flex-1 flex-col px-4 pt-4 pb-2">
+          <button className="btn btn-primary mb-3 w-full" onClick={() => setEditing({ sticker: null })}>
+            ＋ 新增表情
+          </button>
+          <input
+            className="input mb-2"
+            placeholder="搜尋名稱、中文、描述…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <div className="mb-2 flex items-center gap-2 px-1 text-xs text-mute">
+            <span>所有表情 {list.length}</span>
+            <label className="ml-auto flex items-center gap-1.5">
+              <Check checked={onlyUngrouped} onCheckedChange={setOnlyUngrouped} />
+              只看未分組
+            </label>
           </div>
-          {loaded && !pool.length && (
-            <p className="mt-6 text-center text-xs text-mute">{kw ? "找不到符合的表情" : "全部都分好組了"}</p>
-          )}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {!loaded && (
+              <div className="flex items-center gap-2 text-sm text-mute">
+                <Spinner />
+                載入中…
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-1.5">
+              {pool.map((s) => (
+                <Card
+                  key={s.id}
+                  s={s}
+                  sub={countIn(s.id) ? `${countIn(s.id)} 組` : "未分組"}
+                  onDragStart={(e) => start(e, { id: s.id, from: null })}
+                  onDragEnd={end}
+                  onClick={() => setEditing({ sticker: s })}
+                  onContextMenu={(e) => openMenu(e, menuFor(s))}
+                />
+              ))}
+            </div>
+            {loaded && !pool.length && (
+              <p className="mt-6 text-center text-xs text-mute">
+                {kw ? "找不到符合的表情" : "全部都分好組了"}
+              </p>
+            )}
+          </div>
+          <p
+            className={`mt-2 rounded-xl px-2 py-1.5 text-center text-[11px] transition ${poolOver ? "bg-bad/15 text-bad" : "text-mute"}`}
+          >
+            {poolOver ? "放開＝從那個分組拿掉（表情本身不會刪除）" : "點小卡編輯・右鍵有更多選項"}
+          </p>
         </div>
-        <p
-          className={`mt-2 rounded-xl px-2 py-1.5 text-center text-[11px] transition ${poolOver ? "bg-bad/15 text-bad" : "text-mute"}`}
-        >
-          {poolOver ? "放開＝從那個分組拿掉（表情本身不會刪除）" : "點小卡編輯・右鍵有更多選項"}
-        </p>
-        <button
-          className="mt-1 flex items-center gap-1.5 self-start rounded-full px-2 py-1 text-xs text-mute hover:text-text"
-          onClick={() => setShowDeleted(true)}
-        >
-          <TrashIcon size={13} />
-          已刪除的表情 {deleted.length}
-        </button>
+        {/* 左下角的垃圾桶：和生成、畫風、角色同一個（表情分頁籤） */}
+        <TrashButton kind="stickers" onRestored={() => {}} />
       </aside>
 
       {/* 右：分組 */}
@@ -284,7 +283,10 @@ export default function StickersPage() {
         sticker={toDelete}
         groups={groups}
         onClose={() => setToDelete(null)}
-        onDone={() => reloadStickers()}
+        onDone={() => {
+          reloadStickers();
+          invalidate(keys.trash("stickers"));
+        }}
       />
       <Modal open={!!groupToDelete} onClose={() => setGroupToDelete(null)} label="刪除分組">
         {groupToDelete && (
@@ -312,7 +314,6 @@ export default function StickersPage() {
           </div>
         )}
       </Modal>
-      <DeletedList open={showDeleted} items={deleted} onClose={() => setShowDeleted(false)} />
     </div>
   );
 }
@@ -560,7 +561,7 @@ function ConfirmDelete({
           </h3>
           <p className="text-sm text-mute">
             生成時就選不到它{inGroups.length ? `，也會從「${inGroups.join("」「")}」拿掉` : ""}
-            。已經生成的成品留在圖庫；編號不會被新表情重用，之後可以從左下角「已刪除的表情」還原。
+            。已經生成的成品留在圖庫；表情會放進左下角的「垃圾桶」，可以還原或永久刪除。
           </p>
           {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
           <div className="flex justify-end gap-2">
@@ -578,50 +579,6 @@ function ConfirmDelete({
           </div>
         </div>
       )}
-    </Modal>
-  );
-}
-
-function DeletedList({ open, items, onClose }: { open: boolean; items: Sticker[]; onClose: () => void }) {
-  const [err, setErr] = useState("");
-  const restore = async (s: Sticker) => {
-    setErr("");
-    try {
-      await stickersApi.restore(s.id);
-      await reloadStickers();
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  };
-  return (
-    <Modal open={open} onClose={onClose} label="已刪除的表情">
-      <div className="space-y-3">
-        <h3 className="text-lg">已刪除的表情</h3>
-        <p className="text-xs text-mute">還原後會回到「未分組」，需要的話再拖進分組。</p>
-        {err && <p className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
-        {items.length ? (
-          <ul className="divide-y divide-line">
-            {items.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 py-2 text-sm">
-                <span className="min-w-0 flex-1 truncate">
-                  #{s.id} {s.label}
-                  <span className="ml-2 text-xs text-mute">{s.zh}</span>
-                </span>
-                <button className="btn btn-sm" onClick={() => restore(s)}>
-                  還原
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-sm text-mute">沒有已刪除的表情</p>
-        )}
-        <div className="flex justify-end">
-          <button className="btn" onClick={onClose}>
-            關閉
-          </button>
-        </div>
-      </div>
     </Modal>
   );
 }
