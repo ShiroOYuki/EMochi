@@ -8,10 +8,13 @@ import type { Sticker, StickerGroup, Upload } from "./types";
 export type StickerBody = Omit<Body<"NewSticker">, "group_id">;
 /** Codex 擴寫的結果（填進表單，存不存由使用者決定） */
 export type StickerDraft = components["schemas"]["StickerDraft"];
+/** 表情小卡的縮圖：範例圖優先，否則圖庫最新成品；兩個都沒有的表情不在清單裡 */
+export type StickerThumb = components["schemas"]["StickerThumb"];
 
 export const stickersApi = {
   /** 含已刪除（deleted: true）的，舊專案的組別還要顯示名稱 */
   listAll: () => http.get<Sticker[]>("/api/stickers?all=1"),
+  thumbs: () => http.get<StickerThumb[]>("/api/stickers/thumbs"),
   create: (body: Body<"NewSticker">) => http.post<Sticker>("/api/stickers", body),
   update: (id: number, body: Body<"StickerPatch">) => http.patch<Sticker>(`/api/stickers/${id}`, body),
   /** 軟刪除，可以還原 */

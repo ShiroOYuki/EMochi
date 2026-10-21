@@ -272,6 +272,15 @@ class Sticker(Out):
     example_v: int | None = None  # 範例圖換過的時間，給前端避免快取舊圖
 
 
+class StickerThumb(Out):
+    """表情小卡的縮圖（/files/<path>?v=<v>）；kind：example＝範例圖、latest＝圖庫最新成品"""
+
+    id: int
+    kind: Literal["example", "latest"]
+    path: str
+    v: int
+
+
 class StickerDraft(Out):
     """Codex 擴寫的結果"""
 

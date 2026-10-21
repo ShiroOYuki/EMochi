@@ -186,3 +186,37 @@ def test_example_image(client, data_root):
     assert "example" not in gone
     assert (data_root / "config" / "sticker_examples" / "_removed" / d["example"]).exists()
     assert client.put("/api/stickers/99999/example", json={"data": _png_data_url()}).status_code == 404
+
+
+def test_thumbs(client, data_root):
+    """縮圖：範例圖優先；沒有就用最新成品（優先 Twitch 112）；都沒有不列"""
+    import os
+
+    from PIL import Image
+
+    def png(p, mtime):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGBA", (8, 8), (1, 2, 3, 255)).save(p)
+        os.utime(p, (mtime, mtime))
+
+    T = 4_000_000_000  # 比其他測試生成的檔案都新
+    old = data_root / "outputs" / "t_old" / "final"
+    new = data_root / "outputs" / "t_new" / "final"
+    png(old / "master" / "01_happy.png", T + 1_000)
+    png(new / "master" / "01_happy.png", T + 2_000)
+    png(new / "twitch" / "112" / "01_happy.png", T + 2_000)
+    png(old / "master" / "03_cry.png", T + 1_500)
+    fresh = client.post("/api/stickers", json={"label": "No Thumb Yet", "prompt": "x"}).json()
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    assert by_id[1] == {
+        "id": 1,
+        "kind": "latest",
+        "path": "outputs/t_new/final/twitch/112/01_happy.png",
+        "v": T + 2000,
+    }
+    assert by_id[3]["path"] == "outputs/t_old/final/master/03_cry.png"
+    assert fresh["id"] not in by_id
+    client.put("/api/stickers/3/example", json={"data": _png_data_url()})
+    by_id = {t["id"]: t for t in client.get("/api/stickers/thumbs").json()}
+    assert by_id[3]["kind"] == "example" and by_id[3]["path"] == "sticker_examples/3.png"
+    assert client.get(f"/files/{by_id[1]['path']}").status_code == 200

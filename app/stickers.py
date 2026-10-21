@@ -22,8 +22,10 @@ from .paths import (
     codex_path,
     config_dir,
     load_stickers,
+    outputs_dir,
     read_json,
     slugify,
+    url_path,
     write_json,
 )
 
@@ -254,6 +256,38 @@ def remove_example(sid: int) -> dict:
         s.pop("example_v", None)
         _save_stickers(items)
         return s
+
+
+def thumbs() -> list[dict]:
+    """表情小卡的縮圖：有範例圖用範例圖，否則用圖庫裡這個表情最新的成品（Twitch 112 那份，沒有就用 master）。
+    兩個都沒有的表情不列出來。path 是 /files/ 後面的路徑，v 是版本（換圖網址就跟著變）"""
+    latest: dict[int, tuple[float, Path]] = {}
+    for master in outputs_dir().glob("*/final/master/*.png"):
+        num = master.name.split("_", 1)[0]
+        if not num.isdigit():
+            continue
+        small = master.parent.parent / "twitch" / "112" / master.name
+        f = small if small.exists() else master
+        mtime = f.stat().st_mtime
+        if mtime > latest.get(int(num), (0, None))[0]:
+            latest[int(num)] = (mtime, f)
+    out = []
+    for s in load_stickers():
+        if s.get("example") and (examples_dir() / s["example"]).exists():
+            out.append(
+                {
+                    "id": s["id"],
+                    "kind": "example",
+                    "path": f"sticker_examples/{s['example']}",
+                    "v": s.get("example_v", 0),
+                }
+            )
+        elif s["id"] in latest:
+            mtime, f = latest[s["id"]]
+            path = url_path(f)
+            if path:
+                out.append({"id": s["id"], "kind": "latest", "path": path, "v": int(mtime)})
+    return out
 
 
 def expand_prompt(idea: str, current: dict | None = None, image: str | None = None) -> str:

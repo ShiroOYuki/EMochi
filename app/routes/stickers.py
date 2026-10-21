@@ -18,6 +18,11 @@ def stickers(all: bool = False):
     return items if all else sticker_mod.active(items)
 
 
+@router.get("/api/stickers/thumbs", response_model=list[S.StickerThumb], **OUT)
+def sticker_thumbs():
+    return sticker_mod.thumbs()
+
+
 class NewSticker(BaseModel):
     label: str
     zh: str = ""

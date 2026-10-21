@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { fileUrl, readFiles, stickersApi, type Sticker, type StickerBody, type Upload } from "../api";
+import {
+  fileUrl,
+  invalidate,
+  keys,
+  readFiles,
+  stickersApi,
+  type Sticker,
+  type StickerBody,
+  type Upload,
+} from "../api";
 import { reloadStickers, useStickers } from "../stickers";
 import { Check, DropZone, Modal, Select, Spinner } from "./ui";
 import { DeleteButton } from "./DeleteButton";
@@ -115,6 +124,7 @@ export default function StickerEditor({
       if (example?.kind === "upload") s = await stickersApi.setExample(s.id, example.upload);
       else if (!example && sticker?.example) s = await stickersApi.removeExample(s.id);
       await reloadStickers();
+      invalidate(keys.stickerThumbs);
       onSaved?.(s);
       onClose();
     } catch (e) {
