@@ -6,6 +6,7 @@ import { Check, Modal, SPRING, Spinner } from "../components/ui";
 import { MenuIcons, useContextMenu, type MenuItem } from "../components/ContextMenu";
 import { TrashIcon } from "../components/icons";
 import StickerEditor from "../components/StickerEditor";
+import { toastError } from "../toast";
 
 /** 拖曳中的表情：from＝來源分組 id，null＝從左邊「所有表情」拖出來 */
 type Drag = { id: number; from: number | null };
@@ -15,7 +16,6 @@ type Over = { gid: number; index: number } | { pool: true } | null;
 /** 表情分頁：左邊是所有表情，右邊是分組；把小卡拖進分組，Gen 的挑選步驟就能一次勾一組 */
 export default function StickersPage() {
   const { active: list, groups, deleted, loaded } = useStickers();
-  const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [onlyUngrouped, setOnlyUngrouped] = useState(false);
   const [editing, setEditing] = useState<{ sticker: Sticker | null; group?: number } | null>(null);
@@ -27,8 +27,7 @@ export default function StickersPage() {
   const [menu, openMenu] = useContextMenu();
 
   const save = (next: StickerGroup[]) => {
-    setErr("");
-    saveGroups(next).catch((e) => setErr((e as Error).message));
+    saveGroups(next).catch((e) => toastError(e, "分組儲存失敗"));
   };
   const clone = () => groups.map((g) => ({ ...g, ids: [...g.ids] }));
   const countIn = (id: number) => groups.filter((g) => g.ids.includes(id)).length;
@@ -219,9 +218,6 @@ export default function StickersPage() {
               ＋ 新增分組
             </button>
           </div>
-          {err && (
-            <div className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>
-          )}
           {groups.map((g, gi) => (
             <GroupCard
               key={g.id}

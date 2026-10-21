@@ -4,12 +4,13 @@ import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
 import { WindowControls } from "./components/WindowControls";
-import { UpdateBadge } from "./components/Updates";
+import { UpdateBadge, useUpdateToast } from "./components/Updates";
 import { SponsorButton } from "./components/Sponsor";
 import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
+import { Toaster, useApiErrorToasts } from "./toast";
 import { tabPath, useTab, type Tab } from "./router";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
@@ -76,6 +77,8 @@ export default function App() {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
   useNotifier();
+  useApiErrorToasts();
+  useUpdateToast();
   /** 切分頁：回到那一頁上次選的那一筆 */
   const go = (t: Tab) => navigate(tabPath(t));
 
@@ -140,6 +143,7 @@ export default function App() {
       <CodexSetup />
       <Tour />
       <TitleTooltips />
+      <Toaster />
     </div>
   );
 }
