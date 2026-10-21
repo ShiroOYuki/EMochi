@@ -6,7 +6,7 @@ from app.server import app
 
 
 def test_startup_on_empty_data_root(data_root):
-    with TestClient(app) as c:  # with 才會跑 lifespan
+    with TestClient(app, base_url="http://127.0.0.1") as c:  # with 才會跑 lifespan
         assert isinstance(c.get("/api/characters").json(), list)  # 全新安裝沒有角色，也不會自動建立
         p = c.get("/api/projects").json()
         assert p["next_id"].startswith("s") and isinstance(p["projects"], list)
