@@ -18,6 +18,7 @@ config/stickers.json
 config/sticker_groups.json
 config/export_presets.json
 config/export_presets.json.bak
+config/sticker_examples/
 settings.local.json
 
 # OS
