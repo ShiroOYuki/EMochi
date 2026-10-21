@@ -120,7 +120,9 @@ app/                後端（FastAPI）
 web/                前端原始碼（React 19 + Vite + TypeScript + Tailwind 4 + Animate UI + TanStack Query）
   src/api/          後端呼叫：projects／library／gallery／stickers／settings／system 各領域的 xxxApi、
                     types.ts（取自 schema.d.ts 的型別別名）、schema.d.ts 自動產生的請求／回應型別、queries.ts 快取與輪詢
-  src/router.ts     網址路由：#/gen/s12、#/characters/c2…
+  src/router.ts     網址路由（react-router hash router）：#/gen/s12、#/characters/c2…；
+                    App.tsx 是 Layout，五個分頁用 <Activity> 切換（隱藏時保留輸入、effect 暫停）
+  src/hooks/useOnChange.ts  「值變了才重設表單／聚焦」用這個，不要用 useEffect（切回分頁時 effect 會重跑）
   src/pages/        五個分頁；gen/ 生成頁各步驟、gallery/ 圖庫的篩選與面板
   src/components/   共用元件；ui/ 一個元件一個檔
   src/hooks/        useStored（localStorage 記憶）、useViewTransition 等

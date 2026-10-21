@@ -11,7 +11,7 @@ import {
   TabsTrigger,
 } from "@/components/animate-ui/primitives/radix/tabs";
 import { TrashIcon } from "./icons";
-import { navigate, type Tab } from "../router";
+import { goTo, type Tab } from "../router";
 import { DANGER } from "./confirm";
 
 const fmtSize = (b: number) =>
@@ -65,7 +65,7 @@ export function TrashButton({ kind, onRestored }: { kind: TrashKind; onRestored:
           await load();
           if (!restored) return;
           if (restored.kind === kind) onRestored(restored.id);
-          else navigate({ tab: KINDS.find((k) => k.kind === restored.kind)!.tab, id: restored.id }); // 切過去並選取還原的那筆
+          else goTo(KINDS.find((k) => k.kind === restored.kind)!.tab, restored.id); // 切過去並選取還原的那筆
         }}
       />
     </div>

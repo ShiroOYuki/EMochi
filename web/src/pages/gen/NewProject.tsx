@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   libCover,
   libImageUrl,
@@ -10,6 +10,7 @@ import {
 } from "../../api";
 import { Section } from "../../components/ui";
 import RefPicker, { type TempRef } from "../../components/RefPicker";
+import { useEffectOnBump } from "../../hooks/useOnChange";
 
 // ---------- 0. 新增 ----------
 
@@ -58,14 +59,16 @@ export function NewProject({
   const [flash, setFlash] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   // 按「新增貼圖」時：聚焦輸入框並短暫亮起，讓人知道表單在這裡（就算本來就在顯示）
-  useEffect(() => {
-    if (!focusKey) return;
+  useEffectOnBump(focusKey, () => {
     box.current?.focus();
     box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     setFlash(true);
     const t = setTimeout(() => setFlash(false), 900);
-    return () => clearTimeout(t);
-  }, [focusKey]);
+    return () => {
+      clearTimeout(t);
+      setFlash(false); // 亮起中途切走分頁：不要卡在亮的狀態
+    };
+  });
   const examples = [
     "黏土公仔風，霧面質感、圓潤立體",
     "美式卡通粗線條，表情誇張，適合迷因",

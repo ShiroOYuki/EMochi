@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   fileUrl,
   invalidate,
@@ -15,6 +15,7 @@ import { Section, Select, Spinner } from "../components/ui";
 import { DeleteButton } from "../components/DeleteButton";
 import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
+import { useEffectOnBump, useOnChange } from "../hooks/useOnChange";
 
 /** 畫風庫：上傳範例貼圖 → Codex 分析畫風 → 存起來，Gen 新增畫風時可以直接套用 */
 export default function StylesPage() {
@@ -91,9 +92,7 @@ function NewStyle({
   const [images, setImages] = useState<Upload[]>([]);
   const [busy, setBusy] = useState(false);
   const drop = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (focusKey) drop.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [focusKey]);
+  useEffectOnBump(focusKey, () => drop.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
   const submit = async (analyze: boolean) => {
     setBusy(analyze);
     try {
@@ -222,7 +221,7 @@ function StyleView({
     margin: x.process.margin,
   });
   const [f, setF] = useState(pick(s));
-  useEffect(() => setF(pick(s)), [s.updated]); // eslint-disable-line react-hooks/exhaustive-deps
+  useOnChange(s.updated, () => setF(pick(s))); // 存檔或分析完才重設；切回分頁不會蓋掉還沒存的修改
   const orig = pick(s);
   const dirty = (Object.keys(f) as (keyof typeof f)[]).some((k) => f[k] !== orig[k]);
   const [analyzing, setAnalyzing] = useState(false);

@@ -4,7 +4,7 @@
  *  點通知：視窗叫到前面 → 切到「生成」分頁 → 打開那個專案 */
 import { useEffect, useSyncExternalStore } from "react";
 import { invalidate, keys, systemApi, uiPrefsApi, type AppEvent } from "./api";
-import { navigate } from "./router";
+import { goTo } from "./router";
 import { desktop } from "./desktop";
 
 const POLL_MS = 3000;
@@ -34,7 +34,7 @@ export function useNotifyPref(): boolean {
 
 /** 切到生成分頁並打開專案（網址 #/gen/<id>）；已經開著就重抓一次，馬上看到最新狀態 */
 export function openProject(id: string) {
-  navigate({ tab: "gen", id });
+  goTo("gen", id);
   invalidate(keys.project(id), keys.projects);
 }
 

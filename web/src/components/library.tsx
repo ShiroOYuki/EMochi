@@ -9,7 +9,8 @@ import {
   type Upload,
 } from "../api";
 import { DropZone } from "./ui";
-import { selectInTab, useTabId } from "../router";
+import { Link } from "react-router";
+import { pathOf, useSelect, useTabId } from "../router";
 import { MenuIcons, useContextMenu, type MenuItem } from "./ContextMenu";
 import { SideDeleteIcon } from "./DeleteButton";
 import { TrashButton } from "./Trash";
@@ -35,7 +36,7 @@ export function useLibrary<T extends Item>({
 }) {
   const { data: list = [] } = useRefLibrary(api);
   const current = useTabId(tab); // null＝新增
-  const setCurrent = (id: string | null, opts?: { replace?: boolean }) => selectInTab(tab, id, opts);
+  const setCurrent = useSelect(tab);
   const [newKey, setNewKey] = useState(0); // 每按一次「新增」+1，讓表單聚焦
   const [err, setErr] = useState("");
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
@@ -44,8 +45,8 @@ export function useLibrary<T extends Item>({
   // 第一次載入：還沒選任何一筆、也沒按過「新增」→ 選第一筆（不留瀏覽紀錄）
   const firstId = list[0]?.id;
   useEffect(() => {
-    if (firstId && newKey === 0 && current === null) selectInTab(tab, firstId, { replace: true });
-  }, [firstId, newKey, current, tab]);
+    if (firstId && newKey === 0 && current === null) setCurrent(firstId, { replace: true });
+  }, [firstId, newKey, current]); // eslint-disable-line react-hooks/exhaustive-deps -- setCurrent 每次都是新的函式
 
   /** 執行後重新整理清單並切到回傳的那筆；回傳帶 error（例如分析失敗）時仍切過去並顯示錯誤 */
   const act = async (fn: () => Promise<T>) => {
@@ -73,6 +74,7 @@ export function useLibrary<T extends Item>({
   };
   const selected = list.find((x) => x.id === current) ?? null;
   return {
+    tab,
     list,
     current,
     setCurrent,
@@ -137,8 +139,8 @@ export function LibrarySidebar<T extends Item>({
               className="group relative mb-1.5"
               onContextMenu={(e) => openMenu(e, menuFor(x, r.title))}
             >
-              <button
-                onClick={() => lib.setCurrent(x.id)}
+              <Link
+                to={pathOf({ tab: lib.tab, id: x.id })}
                 className={`flex w-full items-center gap-2.5 rounded-2xl border px-2.5 py-2 pr-9 text-left transition ${lib.current === x.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}
               >
                 {r.cover ? (
@@ -152,7 +154,7 @@ export function LibrarySidebar<T extends Item>({
                   <span className="block truncate">{r.title}</span>
                   <span className="text-[11px] text-mute">{r.sub}</span>
                 </span>
-              </button>
+              </Link>
               <SideDeleteIcon
                 onClick={() => lib.askDelete(x, r.title)}
                 label={`刪除${noun} ${x.id}`}

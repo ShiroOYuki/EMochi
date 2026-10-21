@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { charactersApi, charImageUrl, projectsApi, type Character, type Upload } from "../api";
 import { Section, Spinner } from "../components/ui";
 import { DeleteButton } from "../components/DeleteButton";
 import { useConfirm } from "../components/confirm";
 import { LibrarySidebar, PendingUploads, RefImageGrid, useLibrary } from "../components/library";
+import { useEffectOnBump, useOnChange } from "../hooks/useOnChange";
 
 /** 角色庫：每個角色是一個資料夾（characters/<id>/refs/ + character.json） */
 export default function CharactersPage() {
@@ -75,9 +76,7 @@ function NewCharacter({
   const [images, setImages] = useState<Upload[]>([]);
   const [saving, setSaving] = useState(false);
   const box = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (focusKey) box.current?.focus();
-  }, [focusKey]);
+  useEffectOnBump(focusKey, () => box.current?.focus());
   const submit = async () => {
     setSaving(true);
     try {
@@ -129,7 +128,8 @@ function CharacterView({
   onRemove: () => void;
 }) {
   const [f, setF] = useState({ name: c.name, identity: c.identity });
-  useEffect(() => setF({ name: c.name, identity: c.identity }), [c.name, c.identity]);
+  // 伺服器的值變了（儲存、Codex 寫完特徵）才重設表單；切回分頁不會蓋掉還沒存的修改
+  useOnChange(`${c.name}\u0000${c.identity}`, () => setF({ name: c.name, identity: c.identity }));
   const dirty = f.name !== c.name || f.identity !== c.identity;
   const [describing, setDescribing] = useState(false);
 

@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { fileUrl, invalidate, keys, projectsApi, readFiles, type Character, type Project } from "../../api";
 import { Modal, Section, Select, Spinner } from "../../components/ui";
 import RefPicker, { type TempRef } from "../../components/RefPicker";
 import { type ViewProps } from "./shared";
+import { useOnChange } from "../../hooks/useOnChange";
 
 // ---------- 1. 畫風描述 ----------
 
@@ -16,17 +17,19 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
     square: p.process.square,
     margin: p.process.margin,
   });
-  // 伺服器端內容變了（例如擴寫完成）就同步到表單
-  useEffect(() => {
-    setF({
-      request: p.request,
-      name: p.name,
-      framing: p.framing,
-      style_block: p.style_block,
-      square: p.process.square,
-      margin: p.process.margin,
-    });
-  }, [p.request, p.name, p.framing, p.style_block, p.process.square, p.process.margin]);
+  // 伺服器端內容變了（例如擴寫完成）就同步到表單；切回分頁不會蓋掉還沒存的修改
+  useOnChange(
+    JSON.stringify([p.request, p.name, p.framing, p.style_block, p.process.square, p.process.margin]),
+    () =>
+      setF({
+        request: p.request,
+        name: p.name,
+        framing: p.framing,
+        style_block: p.style_block,
+        square: p.process.square,
+        margin: p.process.margin,
+      }),
+  );
   const dirty =
     f.name !== p.name ||
     f.framing !== p.framing ||
@@ -58,10 +61,10 @@ export function StyleStep({ p, act, chars }: { p: Project; act: ViewProps["act"]
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [saveErr, setSaveErr] = useState("");
-  useEffect(() => {
+  useOnChange(`${p.id}\u0000${p.style_block}`, () => {
     setSaved(null);
     setSaveErr("");
-  }, [p.id, p.style_block]);
+  });
   const toLibrary = async () => {
     setSaving(true);
     setSaveErr("");

@@ -4,6 +4,7 @@ import { Section } from "../../components/ui";
 import StickerPicker from "../../components/StickerPicker";
 import { useStickers } from "../../stickers";
 import { type ViewProps } from "./shared";
+import { useOnChange } from "../../hooks/useOnChange";
 
 // ---------- 3. 選擇貼圖 ----------
 
@@ -32,9 +33,9 @@ export function PickStep({
     touched.current = true;
     setIdsRaw(v);
   };
-  useEffect(() => {
+  useOnChange(p.sticker_ids.join(","), () => {
     if (p.sticker_ids.length) setIdsRaw(p.sticker_ids);
-  }, [p.sticker_ids]);
+  });
   useEffect(() => {
     if (loaded && !p.sticker_ids.length && !touched.current) setIdsRaw(defaults);
   }, [loaded, defaults, p.sticker_ids.length]);

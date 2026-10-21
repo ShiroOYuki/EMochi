@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { Activity, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import ThemeToggle from "./components/ThemeToggle";
 import CodexUsage from "./components/CodexUsage";
 import { SettingsButton } from "./components/SettingsDialog";
@@ -9,8 +10,7 @@ import CodexSetup from "./components/CodexSetup";
 import Tour from "./components/Tour";
 import { desktop } from "./desktop";
 import { useNotifier } from "./notify";
-import { navigate, useRoute, type Tab } from "./router";
-import { invalidateAll } from "./api";
+import { tabPath, useTab, type Tab } from "./router";
 import { ErrorBoundary, SPRING, TitleTooltips } from "./components/ui";
 import { useReducedMotion } from "motion/react";
 import {
@@ -58,17 +58,26 @@ function Ears() {
   );
 }
 
+/** 一個分頁：用 <Activity> 切換顯示。隱藏時保留輸入與勾選，但 effect 暫停（不輪詢、不改網址）；
+ *  顯示時 TanStack Query 重新訂閱，過期的資料自動重抓（可能剛在別的分頁改過） */
+function Page({ show, children }: { show: boolean; children: ReactNode }) {
+  return (
+    <Activity mode={show ? "visible" : "hidden"}>
+      <div className="h-full">
+        <ErrorBoundary resetKey={show}>{children}</ErrorBoundary>
+      </div>
+    </Activity>
+  );
+}
+
+/** 整個 App 的外框（react-router 的 Layout route，router.ts）：Navbar＋五個分頁 */
 export default function App() {
-  const { tab } = useRoute();
+  const tab = useTab();
+  const navigate = useNavigate();
   const reduce = useReducedMotion();
   useNotifier();
-  /** 切分頁：回到那一頁上次選的那一筆（router.ts） */
-  const go = (t: Tab) => navigate({ tab: t });
-  // 切分頁時重抓伺服器資料（含表情、匯出預設集）：可能剛在別的分頁改過（新增角色、從垃圾桶還原…）。
-  // 頁面都保留在 DOM 裡，所以不用各頁自己判斷「是不是切回來了」
-  useEffect(() => {
-    invalidateAll();
-  }, [tab]);
+  /** 切分頁：回到那一頁上次選的那一筆 */
+  const go = (t: Tab) => navigate(tabPath(t));
 
   return (
     <div className="flex h-full flex-col">
@@ -112,32 +121,21 @@ export default function App() {
         <WindowControls />
       </header>
       <main className="min-h-0 flex-1">
-        {/* 兩頁都保留在 DOM，切換分頁不會丟失輸入與勾選 */}
-        <div className={tab === "gen" ? "h-full" : "hidden"}>
-          <ErrorBoundary resetKey={tab}>
-            <GenPage onOpenGallery={() => go("gallery")} />
-          </ErrorBoundary>
-        </div>
-        <div className={tab === "stickers" ? "h-full" : "hidden"}>
-          <ErrorBoundary resetKey={tab}>
-            <StickersPage />
-          </ErrorBoundary>
-        </div>
-        <div className={tab === "styles" ? "h-full" : "hidden"}>
-          <ErrorBoundary resetKey={tab}>
-            <StylesPage />
-          </ErrorBoundary>
-        </div>
-        <div className={tab === "characters" ? "h-full" : "hidden"}>
-          <ErrorBoundary resetKey={tab}>
-            <CharactersPage />
-          </ErrorBoundary>
-        </div>
-        <div className={tab === "gallery" ? "h-full" : "hidden"}>
-          <ErrorBoundary resetKey={tab}>
-            <GalleryPage />
-          </ErrorBoundary>
-        </div>
+        <Page show={tab === "gen"}>
+          <GenPage onOpenGallery={() => go("gallery")} />
+        </Page>
+        <Page show={tab === "stickers"}>
+          <StickersPage />
+        </Page>
+        <Page show={tab === "styles"}>
+          <StylesPage />
+        </Page>
+        <Page show={tab === "characters"}>
+          <CharactersPage />
+        </Page>
+        <Page show={tab === "gallery"}>
+          <GalleryPage />
+        </Page>
       </main>
       <CodexSetup />
       <Tour />

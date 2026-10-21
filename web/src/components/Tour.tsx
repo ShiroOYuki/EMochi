@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { goTo, parsePath, type Tab } from "../router";
 import { motion, useReducedMotion } from "motion/react";
 import { uiPrefsApi } from "../api";
 import { SPRING } from "./ui";
@@ -7,7 +9,7 @@ import { useCodexGate } from "./CodexSetup";
 /** 新手導覽：依序框出真實介面元素（data-tour="…"），其他區域變暗，每步一段說明。
  *  第一次開 App（settings.local.json 沒有 tour_done）且 Codex 準備視窗處理完後自動開始；
  *  略過或看完都記成看過；設定頁「說明」可以重看 */
-type Step = { target?: string[]; tab?: string; title: string; body: string };
+type Step = { target?: string[]; tab?: Tab; title: string; body: string };
 const STEPS: Step[] = [
   {
     title: "歡迎使用 EMochi",
@@ -130,6 +132,8 @@ export default function Tour() {
   const card = useRef<HTMLDivElement>(null);
   const primary = useRef<HTMLButtonElement>(null);
   const backTo = useRef("");
+  const location = useLocation();
+  const navigate = useNavigate();
   const checked = useRef(false);
 
   // 第一次開 App：等 Codex 準備視窗處理完再開始
@@ -149,14 +153,14 @@ export default function Tour() {
   // 開始時記住原本的分頁，結束後還原
   useEffect(() => {
     if (!on) return;
-    backTo.current = location.hash || "#/gen";
+    backTo.current = location.pathname; // react-router 的位置（#/ 後面那段）
     setI(0);
-  }, [on]);
+  }, [on]); // eslint-disable-line react-hooks/exhaustive-deps -- 只在導覽開始那一刻記住原本的位置
 
   const step = STEPS[i];
   useEffect(() => {
-    if (on && step.tab && !location.hash.startsWith(`#/${step.tab}`)) location.hash = `#/${step.tab}`;
-  }, [on, step]);
+    if (on && step.tab && parsePath(location.pathname).tab !== step.tab) goTo(step.tab);
+  }, [on, step, location.pathname]);
 
   // 跟著目標的位置（換分頁、捲動、視窗縮放、版面還在載入都會變）
   useEffect(() => {
@@ -190,8 +194,8 @@ export default function Tour() {
   const finish = useCallback(() => {
     setRunning(false);
     markDone();
-    if (backTo.current && location.hash !== backTo.current) location.hash = backTo.current;
-  }, []);
+    if (backTo.current) navigate(backTo.current);
+  }, [navigate]);
   const next = useCallback(() => {
     if (i >= STEPS.length - 1) finish();
     else setI(i + 1);

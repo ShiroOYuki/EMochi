@@ -19,14 +19,15 @@ import { SideDeleteIcon } from "../components/DeleteButton";
 import { TrashButton } from "../components/Trash";
 import { DeleteConfirm, type DeleteTarget } from "../components/confirm";
 import { copyText } from "../lib/clipboard";
-import { selectInTab, useTabId } from "../router";
+import { Link } from "react-router";
+import { pathOf, useSelect, useTabId } from "../router";
 import { NewProject } from "./gen/NewProject";
 import { ProjectView } from "./gen/ProjectView";
 
 export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }) {
   // 目前開著的專案跟著網址（#/gen/s12）；null＝新增貼圖。桌面通知點下去也是改網址（notify.ts）
   const current = useTabId("gen");
-  const setCurrent = (id: string | null) => selectInTab("gen", id);
+  const setCurrent = useSelect("gen");
   const { data: project = null } = useProject(current); // 執行中會自動輪詢
   const busy = !!project && BUSY.includes(project.status);
   const { data: list } = useProjects(busy);
@@ -108,8 +109,8 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
           )}
           {list?.projects.map((p) => (
             <div key={p.id} className="group relative mb-1.5" onContextMenu={(e) => openMenu(e, menuFor(p))}>
-              <button
-                onClick={() => setCurrent(p.id)}
+              <Link
+                to={pathOf({ tab: "gen", id: p.id })}
                 className={`block w-full rounded-2xl border px-3 py-2.5 pr-9 text-left transition ${current === p.id ? "border-acc bg-panel shadow-[var(--shadow-soft)]" : "border-transparent hover:bg-panel/70"}`}
               >
                 <div className="flex items-center gap-2">
@@ -124,7 +125,7 @@ export default function GenPage({ onOpenGallery }: { onOpenGallery: () => void }
                 <div className="mt-1">
                   <StatusBadge status={p.status} />
                 </div>
-              </button>
+              </Link>
               <SideDeleteIcon
                 onClick={() => askDelete(p)}
                 disabled={BUSY.includes(p.status)}
