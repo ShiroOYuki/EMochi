@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld("emochi", {
   openLogs: () => ipcRenderer.invoke("open-logs"),
   /** 系統通知；點通知時主程序把視窗叫到前面，再呼叫 onNotifyClick 的 cb(專案編號) */
   notify: (n) => ipcRenderer.invoke("notify", n),
+  /** 重新啟動整個 App（含後端）；有 Codex 在跑且沒 force 時回 { ok: false, running } */
+  relaunch: (force) => ipcRenderer.invoke("relaunch", !!force),
   onNotifyClick: (cb) => {
     const h = (_e, project) => cb(project);
     ipcRenderer.on("notify-click", h);
