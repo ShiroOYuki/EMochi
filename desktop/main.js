@@ -158,10 +158,54 @@ function applyTheme(pref) {
 
 const isLocal = (url) => url.startsWith(baseUrl);
 
+/** 啟動畫面（等後端好之前）：狐狸耳朵像麻糬一樣彈跳＋「啟動中」三個點輪流跳；
+ *  系統開了「減少動態效果」就不動。data: URL 不能載外部字型，用系統字 */
 function splash() {
   const dark = isDark();
-  const html = `<html><body style="-webkit-app-region:drag;margin:0;display:grid;place-items:center;height:100vh;font:15px 'Microsoft JhengHei UI',sans-serif;
-    background:${dark ? "#1c1b29" : "#faf8ff"};color:${dark ? "#cfcbe6" : "#4a4668"}">EMochi 啟動中…</body></html>`;
+  const c = dark
+    ? { bg: BG.dark, text: "#ece9ff", mute: "#a29fc4", panel: "#2a2742", acc: "#7c9dff", track: "#2f2c48", shadow: "rgba(0,0,0,.35)" }
+    : { bg: BG.light, text: "#34315a", mute: "#8a87a8", panel: "#ffffff", acc: "#5a86f0", track: "#e2e0f1", shadow: "rgba(52,49,90,.18)" };
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{height:100%;margin:0}
+  body{-webkit-app-region:drag;display:grid;place-items:center;background:${c.bg};color:${c.text};
+    font:15px "Microsoft JhengHei UI","Microsoft JhengHei",sans-serif;user-select:none;cursor:default}
+  .wrap{display:flex;flex-direction:column;align-items:center;gap:14px;animation:fade .4s ease-out both}
+  .stage{position:relative;width:96px;height:92px}
+  .ears{position:absolute;left:12px;top:6px;width:72px;height:53px;transform-origin:50% 100%;
+    animation:hop 1.1s cubic-bezier(.3,.7,.4,1) infinite}
+  .shadow{position:absolute;left:24px;bottom:4px;width:48px;height:9px;border-radius:50%;background:${c.shadow};
+    animation:shadow 1.1s cubic-bezier(.3,.7,.4,1) infinite}
+  h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.5px}
+  .status{color:${c.mute};font-size:13px;display:flex;align-items:baseline;gap:1px}
+  .dot{display:inline-block;animation:dot 1.2s ease-in-out infinite}
+  .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+  .bar{width:120px;height:4px;border-radius:4px;background:${c.track};overflow:hidden}
+  .bar i{display:block;width:40%;height:100%;border-radius:4px;background:${c.acc};animation:slide 1.4s ease-in-out infinite}
+  @keyframes hop{
+    0%,100%{transform:translateY(0) scale(1.12,.86)}
+    18%{transform:translateY(-4px) scale(.92,1.1)}
+    45%{transform:translateY(-22px) scale(.97,1.04)}
+    70%{transform:translateY(-4px) scale(1,1)}
+    85%{transform:translateY(0) scale(1.1,.88)}}
+  @keyframes shadow{0%,85%,100%{transform:scaleX(1);opacity:1}45%{transform:scaleX(.6);opacity:.5}}
+  @keyframes dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  @media (prefers-reduced-motion:reduce){.ears,.shadow,.dot,.bar i,.wrap{animation:none}.bar i{width:100%;opacity:.5}}
+  </style></head><body><div class="wrap" role="status" aria-label="EMochi 啟動中">
+    <div class="stage">
+      <svg class="ears" viewBox="0 0 30 22" aria-hidden="true">
+        <path d="M2 21 L7 2 L14 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M6.5 15 L8 7 L11.5 13.5 Z" fill="#ff8db3"/>
+        <path d="M28 21 L23 2 L16 15 Z" fill="${c.panel}" stroke="${c.text}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M23.5 15 L22 7 L18.5 13.5 Z" fill="#ff8db3"/>
+      </svg>
+      <div class="shadow"></div>
+    </div>
+    <h1>EMochi</h1>
+    <div class="bar"><i></i></div>
+    <div class="status">啟動中<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div></body></html>`;
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
 }
 
