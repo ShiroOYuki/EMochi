@@ -19,13 +19,16 @@ export function useControlledState<T, Rest extends any[] = []>(
     if (value !== undefined) setInternalState(value);
   }, [value]);
 
+  // 受控（有傳 value）時只通知外面、以外面的值為準：外面可以拒絕改變
+  // （例如設定頁有未儲存的變更時不讓 Dialog 關掉）；原版會先改內部狀態，外面不同意也已經關了
+  const controlled = value !== undefined;
   const setState = React.useCallback(
     (next: T, ...args: Rest) => {
-      setInternalState(next);
+      if (!controlled) setInternalState(next);
       onChange?.(next, ...args);
     },
-    [onChange],
+    [onChange, controlled],
   );
 
-  return [state, setState] as const;
+  return [controlled ? value : state, setState] as const;
 }
