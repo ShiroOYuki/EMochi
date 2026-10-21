@@ -1,4 +1,4 @@
-/** 側欄左下角的「垃圾桶」：專案／畫風／角色共用一個清單（還原／永久刪除／清空） */
+/** 側欄左下角的「垃圾桶」：專案／畫風／角色／表情共用一個清單（還原／永久刪除／清空） */
 import { useEffect, useState } from "react";
 import { fileUrl, invalidate, keys, trashApi, useTrash, type TrashItem, type TrashKind } from "../api";
 import { SPRING, Modal, StatusBadge } from "./ui";
@@ -21,24 +21,28 @@ const KINDS: { kind: TrashKind; noun: string; tab: Tab }[] = [
   { kind: "projects", noun: "專案", tab: "gen" },
   { kind: "styles", noun: "畫風", tab: "styles" },
   { kind: "characters", noun: "角色", tab: "characters" },
+  { kind: "stickers", noun: "表情", tab: "stickers" },
 ];
 
-/** 側欄左下角的「垃圾桶」：專案、畫風、角色放在同一個垃圾桶（分頁籤），預設打開目前這一頁的種類。
+/** 側欄左下角的「垃圾桶」：專案、畫風、角色、表情放在同一個垃圾桶（分頁籤），預設打開目前這一頁的種類。
  *  放在 aside（flex flex-col，清單包在 .side-list 裡自己捲動）的最後面，固定在左下角，清單不會從它底下穿過去。刪除、還原後呼叫 invalidate(keys.trashAll) 就會重抓數量。
  *  onRestored：還原的是這一頁的種類就交給頁面選取；其他種類會切到那個分頁 */
 export function TrashButton({ kind, onRestored }: { kind: TrashKind; onRestored: (id: string) => void }) {
   const projects = useTrash("projects");
   const styles = useTrash("styles");
   const characters = useTrash("characters");
+  const stickers = useTrash("stickers");
   const items: Record<TrashKind, TrashItem[]> = {
     projects: projects.data ?? [],
     styles: styles.data ?? [],
     characters: characters.data ?? [],
+    stickers: stickers.data ?? [],
   };
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TrashKind>(kind);
-  const load = () => invalidate(keys.trashAll);
-  const total = items.projects.length + items.styles.length + items.characters.length;
+  // 表情的刪除／還原記在表情清單裡，垃圾桶動了要一起重抓
+  const load = () => invalidate(keys.trashAll, keys.stickers, keys.stickerGroups, keys.stickerThumbs);
+  const total = KINDS.reduce((n, k) => n + items[k.kind].length, 0);
   return (
     <div className="shrink-0 border-t border-line/60 px-4 pt-2 pb-4">
       <button
@@ -167,7 +171,8 @@ function TrashModal({
       ) : (
         <>
           <p className="mb-2 text-xs text-mute">
-            {list.length} 個{noun}・{fmtSize(size)}
+            {list.length} 個{noun}
+            {size > 0 && `・${fmtSize(size)}`}
           </p>
           <ul className="max-h-[60vh] space-y-2 overflow-y-auto">
             {list.map((t) => (
@@ -190,7 +195,8 @@ function TrashModal({
                     {t.status && <StatusBadge status={t.status} />}
                   </div>
                   <div className="mt-0.5 text-[11px] text-mute">
-                    刪除於 {t.removed || "—"}・{fmtSize(t.size)}
+                    刪除於 {t.removed || "—"}
+                    {t.size > 0 && `・${fmtSize(t.size)}`}
                   </div>
                 </div>
                 <button

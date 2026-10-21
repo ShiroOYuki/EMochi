@@ -244,3 +244,39 @@ def test_default_examples_bundled():
         range(1, 33)
     )
     assert "sticker_examples.example" in (repo / "desktop" / "emochi-server.spec").read_text(encoding="utf-8")
+
+
+def test_sticker_trash(client, data_root):
+    """表情走共用垃圾桶：刪除 → 出現在 /api/trash/stickers → 還原；永久刪除後只留紀錄、編號不重用"""
+    a = client.post("/api/stickers", json={"label": "Trash Me", "zh": "丟掉", "prompt": "x"}).json()
+    b = client.post("/api/stickers", json={"label": "Trash Too", "prompt": "y"}).json()
+    client.put(f"/api/stickers/{a['id']}/example", json={"data": _png_data_url()})
+    for s in (a, b):
+        assert client.delete(f"/api/stickers/{s['id']}").status_code == 200
+    items = {t["name"]: t for t in client.get("/api/trash/stickers").json()}
+    ta = items[str(a["id"])]
+    assert ta["id"] == f"#{a['id']}" and "Trash Me" in ta["title"] and ta["removed"] and ta["restorable"]
+    assert ta["thumb"] == f"sticker_examples/{a['id']}.png" and ta["size"] > 0
+
+    # 還原
+    r = client.post(f"/api/trash/stickers/{b['id']}/restore")
+    assert r.status_code == 200 and r.json() == {"id": str(b["id"])}
+    assert any(s["id"] == b["id"] for s in client.get("/api/stickers").json())
+    assert str(b["id"]) not in {t["name"] for t in client.get("/api/trash/stickers").json()}
+
+    # 永久刪除：從垃圾桶消失、不能還原、只留紀錄、範例圖移走
+    assert client.delete(f"/api/trash/stickers/{a['id']}").json() == {"deleted": 1}
+    assert str(a["id"]) not in {t["name"] for t in client.get("/api/trash/stickers").json()}
+    assert client.post(f"/api/trash/stickers/{a['id']}/restore").status_code == 404
+    rec = next(s for s in client.get("/api/stickers?all=1").json() if s["id"] == a["id"])
+    assert rec["purged"] and rec["label"] == "Trash Me" and rec["prompt"] == "" and "example" not in rec
+    assert not (data_root / "config" / "sticker_examples" / f"{a['id']}.png").exists()
+    # 編號不重用
+    c = client.post("/api/stickers", json={"label": "After Purge", "prompt": "z"}).json()
+    assert c["id"] > a["id"]
+
+    # 清空
+    client.delete(f"/api/stickers/{c['id']}")
+    assert client.delete("/api/trash/stickers").json()["deleted"] >= 1
+    assert client.get("/api/trash/stickers").json() == []
+    assert client.delete("/api/trash/stickers/abc").status_code == 404

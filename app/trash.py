@@ -6,6 +6,7 @@
   角色   characters/_removed/   （character.json）
 垃圾桶裡可以還原，或永久刪除。永久刪除過的 id 記在 _removed/_deleted_ids.json，
 連同垃圾桶裡的 id 一起保留，新建時不會再用到同一個編號（避免和舊紀錄混在一起）。
+表情（kind="stickers"）不是資料夾，記在 stickers.json 裡，清單／還原／永久刪除轉給 app/stickers.py。
 """
 
 import os
@@ -84,7 +85,15 @@ def _thumb(kind: str, d: Path, m: dict) -> str | None:
     return None
 
 
+def _stickers():
+    from . import stickers  # stickers 會 import images、paths；放這裡避免 import 循環
+
+    return stickers
+
+
 def list_items(kind: str) -> list[dict]:
+    if kind == "stickers":
+        return _stickers().trash_items()
     out = []
     b = bin_dir(kind)
     if not b.exists():
@@ -116,6 +125,8 @@ def list_items(kind: str) -> list[dict]:
 
 
 def restore(kind: str, name: str) -> str:
+    if kind == "stickers":
+        return _stickers().trash_restore(name)
     root, meta_name = _kind(kind)
     with _lock:
         d = _entry(kind, name)
@@ -138,6 +149,8 @@ def _rmtree(d: Path) -> None:
 
 def purge(kind: str, name: str | None = None) -> int:
     """永久刪除；name=None 表示清空這一類的垃圾桶"""
+    if kind == "stickers":
+        return _stickers().purge(name)
     meta_name = _kind(kind)[1]
     with _lock:
         targets = [_entry(kind, name)] if name else [bin_dir(kind) / t["name"] for t in list_items(kind)]

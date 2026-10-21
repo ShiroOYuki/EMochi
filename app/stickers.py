@@ -1,7 +1,8 @@
 """表情清單與分組
 
-- 表情：config/stickers.json（list，本地資料；沒有時讀 stickers.example.json，第一次修改才寫出）。刪除是「軟刪除」：標 deleted=true，id 不會重用，
-  圖庫裡已生成的成品還查得到名稱；Gen 頁面與新的批次生成看不到它。
+- 表情：config/stickers.json（list，本地資料；沒有時讀 stickers.example.json，第一次修改才寫出）。刪除是「軟刪除」：標 deleted=true（＋deleted_at），
+  放進垃圾桶（和專案、畫風、角色同一個，app/trash.py 轉過來）；Gen 頁面與新的批次生成看不到它。
+  垃圾桶裡永久刪除＝purged=true，只留 id／name／label（id 不會重用，舊專案、圖庫還查得到名稱），範例圖移到 sticker_examples/_removed/
 - 分組：config/sticker_groups.json（list of {id, name, ids, default}，本地資料）。
   一個表情可以同時放在好幾個分組（分組是 Gen 頁面「一次勾一組」用的清單，不影響檔名或生成）。
   default=true 的分組，新專案的挑選步驟會預設勾起來。
@@ -14,6 +15,7 @@
 
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 
 from .errors import Conflict, Invalid, NotFound
@@ -92,7 +94,10 @@ def remove(sid: int) -> dict:
     with _lock:
         items = load_stickers()
         s = _find(items, sid)
+        if s.get("deleted"):
+            raise Conflict(f"表情 #{sid} 已經刪除了")
         s["deleted"] = True
+        s["deleted_at"] = f"{datetime.now():%Y-%m-%d %H:%M:%S}"
         _save_stickers(items)
         groups = _load_groups(items)
         for g in groups:
@@ -105,9 +110,80 @@ def restore(sid: int) -> dict:
     with _lock:
         items = load_stickers()
         s = _find(items, sid)
+        if s.get("purged"):
+            raise NotFound(f"表情 #{sid} 已經永久刪除")
         s.pop("deleted", None)
+        s.pop("deleted_at", None)
         _save_stickers(items)
         return s
+
+
+# ---------- 垃圾桶（app/trash.py 的 kind="stickers" 轉到這裡） ----------
+
+
+def trash_items() -> list[dict]:
+    """垃圾桶清單：已刪除、還沒永久刪除的表情（格式和 trash.list_items 一樣；name＝表情編號）"""
+    thumb_of = {t["id"]: t["path"] for t in thumbs()}
+    out = []
+    for s in load_stickers():
+        if not s.get("deleted") or s.get("purged"):
+            continue
+        ex = examples_dir() / s["example"] if s.get("example") else None
+        out.append(
+            {
+                "name": str(s["id"]),
+                "id": f"#{s['id']}",
+                "title": " ".join(x for x in (s.get("label", ""), s.get("zh", "")) if x),
+                "status": None,
+                "removed": s.get("deleted_at", ""),
+                "size": ex.stat().st_size if ex and ex.is_file() else 0,
+                "thumb": thumb_of.get(s["id"]),
+                "restorable": True,
+            }
+        )
+    return sorted(out, key=lambda x: x["removed"], reverse=True)
+
+
+def _trash_id(name: str) -> int:
+    try:
+        return int(name)
+    except ValueError:
+        raise NotFound(f"垃圾桶裡的 {name}") from None
+
+
+def trash_restore(name: str) -> str:
+    sid = _trash_id(name)
+    s = _find(load_stickers(), sid)
+    if not s.get("deleted"):
+        raise NotFound(f"垃圾桶裡的 #{sid}")
+    restore(sid)
+    return str(sid)
+
+
+KEEP_WHEN_PURGED = ("id", "name", "label", "zh", "custom")
+
+
+def purge(name: str | None = None) -> int:
+    """永久刪除（name=None＝清空表情垃圾桶）：只留 id／name／label／zh 當紀錄（prompt 清空），範例圖移到 _removed"""
+    with _lock:
+        items = load_stickers()
+        if name is None:
+            targets = [s for s in items if s.get("deleted") and not s.get("purged")]
+        else:
+            s = _find(items, _trash_id(name))
+            if not s.get("deleted") or s.get("purged"):
+                raise NotFound(f"垃圾桶裡的 #{s['id']}")
+            targets = [s]
+        for s in targets:
+            if s.get("example"):
+                move_to_removed(examples_dir() / s["example"])
+            kept = {k: s[k] for k in KEEP_WHEN_PURGED if k in s}
+            s.clear()
+            s.update(kept, prompt="", deleted=True, purged=True)
+            s.setdefault("zh", "")
+        if targets:
+            _save_stickers(items)
+        return len(targets)
 
 
 # ---------- 分組 ----------

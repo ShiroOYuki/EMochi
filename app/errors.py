@@ -10,7 +10,7 @@ NotFound 同時是 KeyError、Invalid／Conflict 同時是 ValueError，舊的 e
 """
 
 # 垃圾桶／圖庫種類的中文名稱（錯誤訊息用）
-KIND_LABEL = {"projects": "專案", "styles": "畫風", "characters": "角色"}
+KIND_LABEL = {"projects": "專案", "styles": "畫風", "characters": "角色", "stickers": "表情"}
 
 
 class AppError(Exception):

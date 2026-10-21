@@ -2297,6 +2297,10 @@ export interface components {
             align?: string | null;
             /** Deleted */
             deleted?: boolean | null;
+            /** Deleted At */
+            deleted_at?: string | null;
+            /** Purged */
+            purged?: boolean | null;
             /** Example */
             example?: string | null;
             /** Example V */
