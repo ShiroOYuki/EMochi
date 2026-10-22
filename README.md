@@ -1,5 +1,7 @@
 # EMochi
 
+<p align="center"><img src="docs/images/cover-medium.png" alt="EMochi" width="683"></p>
+
 EMochi（Emote ＋ Mochi）是給實況主、創作者用的 **AI 貼圖生成工具**：給它你的角色圖和想要的畫風，它會用 Codex CLI 的 `$imagegen` 一次生成一整組表情貼圖，自動切割、去背，再依平台規格輸出各種尺寸。
 
 - **一次生一組**：每張網格圖 8 個表情（4×2），32 種基礎表情 4 組就完成；表情清單可以自己新增、修改、分組
