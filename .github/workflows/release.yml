@@ -26,7 +26,7 @@ jobs:
           $tag = "${{ github.ref_name }}".TrimStart("v")
           if ($pkg -ne $tag) { Write-Error "tag v$tag 和 desktop/package.json 的 $pkg 不一致（用 scripts\release.bat 改版號）"; exit 1 }
 
-      - uses: astral-sh/setup-uv@v10.3.0   # 這個 action 沒有 v10 這種大版本標籤，要寫完整版本
+      - uses: astral-sh/setup-uv@v10.3.3   # 這個 action 沒有 v10 這種大版本標籤，要寫完整版本
         with:
           python-version: "3.12"
           enable-cache: true

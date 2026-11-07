@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10.3.0   # 這個 action 沒有 v10 這種大版本標籤，要寫完整版本
+      - uses: astral-sh/setup-uv@v10.3.3   # 這個 action 沒有 v10 這種大版本標籤，要寫完整版本
         with:
           python-version: "3.12"
           enable-cache: true
